@@ -1,0 +1,12 @@
+# Local research retained outside the public package.
+/2026-10-14-superpowers-validate-plan-research/
+/superpowers-comparison/
+/publication-notes/
+__pycache__/
+*.py[cod]
+.DS_Store
+.env
+.env.*
+!.env.example
+/dist/
+/.worktrees/

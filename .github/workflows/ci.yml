@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Fetch the exact public revision
+        shell: bash
+        run: |
+          git init --quiet .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --quiet --no-tags --depth=1 origin "$GITHUB_SHA"
+          git checkout --quiet --detach FETCH_HEAD
+      - name: Test report invariants
+        run: python3 -m unittest discover -s skills/validate-plan/scripts -p 'test_*.py'
+      - name: Check packaging and documentation links
+        run: python3 scripts/check_package.py
+      - name: Reproduce the demonstration
+        run: python3 scripts/demo.py --output "$RUNNER_TEMP/plan-validation-demo"

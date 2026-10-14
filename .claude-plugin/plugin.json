@@ -1,0 +1,10 @@
+{
+  "name": "plan-validation",
+  "version": "0.1.0",
+  "description": "Rehearse implementation plans, track scope changes, and preserve evidence for a fresh-session handoff.",
+  "author": {"name": "snowholt", "url": "https://github.com/snowholt"},
+  "homepage": "https://github.com/snowholt/plan-validation",
+  "repository": "https://github.com/snowholt/plan-validation",
+  "license": "MIT",
+  "keywords": ["plan-validation", "agent-skills", "claude-code", "codex", "implementation-plans", "superpowers"]
+}

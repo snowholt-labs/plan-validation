@@ -1,0 +1,10 @@
+{
+  "name": "plan-validation",
+  "version": "0.1.0",
+  "description": "Rehearse implementation plans and preserve a complete evidence report and handoff.",
+  "author": {"name": "snowholt", "url": "https://github.com/snowholt"},
+  "homepage": "https://github.com/snowholt/plan-validation",
+  "repository": "https://github.com/snowholt/plan-validation",
+  "license": "MIT",
+  "skills": "./skills/"
+}

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Validate Plan"
+  short_description: "Validate a plan and spec, then prepare a handoff"
+  default_prompt: "Use $validate-plan to validate this implementation plan and its spec."
+policy:
+  allow_implicit_invocation: false

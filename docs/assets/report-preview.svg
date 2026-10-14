@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620" role="img" aria-labelledby="title desc">
+  <title id="title">Plan Validation: evidence before implementation</title>
+  <desc id="desc">Illustrated contents of the authored retry-delay report. Three tests expose one missing boundary. A corrected control passes, but readiness still waits for independent review.</desc>
+  <rect width="1200" height="620" rx="22" fill="#f5f3ed"/>
+  <path d="M0 22Q0 0 22 0H1178Q1200 0 1200 22V76H0Z" fill="#153b37"/>
+  <g font-family="Arial, Helvetica, sans-serif">
+    <text x="44" y="47" fill="#ffffff" font-size="19" font-weight="700" letter-spacing="3">PLAN VALIDATION</text>
+    <text x="1155" y="46" text-anchor="end" fill="#c3d8cf" font-size="15">REPORT CONTENTS · ILLUSTRATED EXAMPLE</text>
+    <text x="44" y="128" fill="#64776c" font-size="14" font-weight="700" letter-spacing="2">RETRY DELAY / ONE REQUIREMENT MISSED</text>
+    <text x="44" y="185" fill="#173b36" font-size="44" font-weight="700">The plan forgot the 30-second cap.</text>
+    <text x="44" y="222" fill="#52645c" font-size="21">Keep the failed assertion, the correction and the remaining limits together.</text>
+    <rect x="44" y="253" width="178" height="37" rx="18" fill="#f4dfcf"/>
+    <text x="133" y="278" text-anchor="middle" fill="#813b1c" font-size="17" font-weight="700">NOT READY</text>
+    <text x="243" y="278" fill="#52645c" font-size="17">Independent review still required</text>
+    <rect x="44" y="319" width="540" height="172" rx="12" fill="#ffffff" stroke="#d7dfd6"/>
+    <rect x="608" y="319" width="548" height="172" rx="12" fill="#ffffff" stroke="#d7dfd6"/>
+    <text x="68" y="356" fill="#64776c" font-size="14" font-weight="700" letter-spacing="1">ORIGINAL INSTRUCTION</text>
+    <text x="68" y="396" fill="#173b36" font-size="26" font-family="monospace">2 ** attempt</text>
+    <text x="68" y="433" fill="#813b1c" font-size="21" font-weight="700">3 tests · 1 failure · 64 != 30</text>
+    <text x="68" y="465" fill="#52645c" font-size="17">The boundary assertion exposes the missing cap.</text>
+    <text x="632" y="356" fill="#64776c" font-size="14" font-weight="700" letter-spacing="1">CORRECTED CONTROL</text>
+    <text x="632" y="396" fill="#173b36" font-size="26" font-family="monospace">min(2 ** attempt, 30)</text>
+    <text x="632" y="433" fill="#246854" font-size="21" font-weight="700">3 tests passed</text>
+    <text x="632" y="465" fill="#52645c" font-size="17">A passing fixture is not a completed agent review.</text>
+    <path d="M44 523H1156" stroke="#d7dfd6"/>
+    <text x="44" y="558" fill="#173b36" font-size="18" font-weight="700">Compare documents. Track scope. Preserve evidence. Hand off precisely.</text>
+    <text x="44" y="591" fill="#64776c" font-size="15">Authored, reproducible fixture. No measured claim about agent accuracy, saved time or model cost.</text>
+  </g>
+</svg>

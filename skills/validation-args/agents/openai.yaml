@@ -1,0 +1,6 @@
+interface:
+  display_name: "Validation Arguments"
+  short_description: "Prepare the inputs for a fresh plan validation"
+  default_prompt: "Use $validation-args to prepare a copy-ready validation command for the plan just written."
+policy:
+  allow_implicit_invocation: true
