@@ -115,6 +115,15 @@ python3 scripts/demo.py --output /tmp/plan-validation-demo
 
 Open `/tmp/plan-validation-demo/report.html`. The demo executes a deliberately incomplete retry implementation and a corrected control, then renders a labeled **Not ready** example. It uses Python's standard library and makes no model calls. [See the fixture and expected results](examples/README.md).
 
+## Data handling
+
+- **Local inputs and outputs.** The skills read the selected plan, specification and relevant repository files. Validation writes revised planning documents, a temporary rehearsal worktree, and local reports containing document snapshots, paths and check results. These can include personal information if it appears in the supplied files; the workflow does not intentionally collect personal records or read credentials.
+- **Local retention.** Reports under `~/.local/share/plan-validation/` remain until you delete them. The publisher operates no service that receives or retains these files, and the package contains no telemetry, analytics or model API client.
+- **Documentation lookups.** The agent may use its available web or Context7 tools to verify technical claims. Technical search queries and requested documentation URLs go to those tools' providers under the host's permissions and policies. Keep private repository content and personal data out of these queries.
+- **Project checks.** Rehearsal can run inspected project commands. Calls to external services or networks require explicit authorization; the plugin does not grant it. Your agent host still processes conversation and repository context under its own data policies.
+
+[Privacy](https://github.com/snowholt/plan-validation#data-handling) and [verification limits](docs/verification.md).
+
 ## Boundaries
 
 - A worktree isolates Git files, **not** network access, shared databases or other process side effects. Commands must be inspected before execution.
