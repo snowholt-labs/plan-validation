@@ -49,4 +49,3 @@ Use these sections in this order. Keep the report self-contained; do not print t
 6. **Open items:** distinguish implementation blockers, pending approvals, accepted limitations and separately scoped follow-ups. State `None` when appropriate; do not call the same unresolved item both blocking and ready.
 7. **Verification and checkout:** actual dry-run commands/results, reviewed versus executed checks, checks not run, tested SHA, changed files, commit status and worktree cleanup. Never replace an actual test count with an inferred new total.
 8. **Fresh-session handoff:** a complete fenced prompt following `../handoff-template.md`. For **Ready after approvals**, name each genuinely pending approval and continue only independent approved work. For **Not ready**, include a fenced remediation/resume prompt that names the blockers and explicitly does not authorize dependent implementation; never imply it is ready.
-
