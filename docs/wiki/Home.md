@@ -1,6 +1,6 @@
 # Plan Validation
 
-Plan Validation provides two skills for checking an implementation plan against its approved specification and the current code before handing it to another agent session.
+Plan Validation provides three skills for revising prompts without execution and checking an implementation plan against its approved specification and the current code before handing it to another agent session.
 
 Start with **[Installation](https://github.com/snowholt/plan-validation/wiki/Installation)**, then follow **[Usage](https://github.com/snowholt/plan-validation/wiki/Usage)** in a repository containing a saved plan and specification.
 

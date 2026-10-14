@@ -2,9 +2,9 @@
 
 ## The skill does not appear
 
-For Claude Code, run `claude plugin list` and `claude plugin details plan-validation`. Confirm the plugin is enabled and the inventory contains `validate-plan` and `validation-args`. Use the plugin-prefixed command `/plan-validation:validate-plan`, then restart the session if needed.
+For Claude Code, run `claude plugin list` and `claude plugin details plan-validation`. Confirm the plugin is enabled and the inventory contains `validate-plan`, `validation-args` and `revise-prompt`. Use the plugin-prefixed command `/plan-validation:validate-plan`, then restart the session if needed.
 
-For standalone Codex installation, inspect the exact installed directory and its `SKILL.md`. The two skills must be separate sibling folders. Restart Codex if discovery has not refreshed. Avoid simultaneous copies with the same skill name in several discovery locations.
+For standalone Codex installation, inspect the exact installed directory and its `SKILL.md`. The three skills must be separate sibling folders. Restart Codex if discovery has not refreshed. Avoid simultaneous copies with the same skill name in several discovery locations.
 
 ## An install destination already exists
 

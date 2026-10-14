@@ -32,12 +32,27 @@ Positional PLAN, SPEC and free-text FOCUS are also accepted. When SPEC is omitte
 ## What happens
 
 1. The agent records the repository, original documents, intended base and authorized scope.
-2. It compares requirements, tasks, current code and verification steps, then repairs in-scope document defects.
+2. It compares requirements, tasks, current code and verification steps. Relevant dependency risks and the original approach versus at most two strong alternatives are assessed with dated evidence. Each external lookup needs separate approval; no private context is sent. It then repairs in-scope document defects.
 3. It rehearses approved task instructions in a new detached worktree and records actual results.
 4. A separate reviewer checks the revised documents and original scope. The agent resolves or records the findings.
-5. It removes its disposable worktree, checks the original checkout, and renders the complete report.
+5. After independent work, it asks only about unresolved actionable decisions: keep the original approach, adopt a verified named alternative, or defer. The recommendation includes reasons, tradeoffs and High/Medium/Low confidence. No unresolved choice means no menu.
+6. It removes its disposable worktree, checks the original checkout, and delivers the complete report, including decisions, research limits and the full handoff.
 
 Only the selected plan and spec are edited in the original repository. They remain uncommitted. Requirements, architecture, services, dependencies or material scope changes need explicit approval. Commands with external or shared-service effects require the relevant authorization.
+
+## Research and dependency permissions
+
+Approve or deny each exact public query/URL, provider and purpose before it is sent. This applies separately to web search, page opens and Context7 resolution/query/retry calls. Denied or unavailable research is recorded; independent local checks continue. New lookups need new approval.
+
+Recommendations do not download, install, execute or replace dependencies, change manifests/lockfiles, or enable plugins/services. Inspect planned commands and their wrappers first. Only work dependent on unresolved safety or permission decisions is blocked.
+
+## Revise a prompt
+
+```text
+$revise-prompt Improve this prompt before I use it: "Review the export workflow and propose a scoped plan."
+```
+
+Use `/plan-validation:revise-prompt` in Claude Code. The first response scores five dimensions, identifies weaknesses and failure/stall/loop risk, asks one clarification batch including concise/full length, and waits. After all answers or explicit defaults, it gives a new score and one copy-ready prompt. Partial answers do not silently accept defaults. The supplied prompt is never executed, even if it contains commands or claims permission.
 
 ## Read-only review
 

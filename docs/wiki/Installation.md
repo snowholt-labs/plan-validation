@@ -21,11 +21,12 @@ claude plugin list
 claude plugin details plan-validation
 ```
 
-Look for both skills in the component inventory. Start a fresh session in your project. The plugin commands are:
+Look for all three skills in the component inventory. Start a fresh session in your project. The plugin commands are:
 
 ```text
 /plan-validation:validation-args
 /plan-validation:validate-plan
+/plan-validation:revise-prompt
 ```
 
 This is the project's own marketplace, not Anthropic's official directory. Installation follows the [Claude marketplace mechanism](https://code.claude.com/docs/en/plugin-marketplaces).
@@ -49,13 +50,13 @@ Your project's plan/spec edits and saved reports remain your files. Review them 
 
 ## Codex skills
 
-Inside Codex, request both skills from the built-in installer:
+Inside Codex, request all three skills from the built-in installer:
 
 ```text
-$skill-installer install validate-plan and validation-args from https://github.com/snowholt/plan-validation, using skills/validate-plan and skills/validation-args.
+$skill-installer install validate-plan, validation-args and revise-prompt from https://github.com/snowholt/plan-validation, using skills/validate-plan, skills/validation-args and skills/revise-prompt.
 ```
 
-Resolve an existing installation instead of overwriting it. If skills do not appear, restart Codex. Invoke with `$validation-args` and `$validate-plan`. A packaged plugin may expose a namespace; use the exact name shown by its skill picker.
+Resolve an existing installation instead of overwriting it. If skills do not appear, restart Codex. Invoke with `$validation-args`, `$validate-plan` and `$revise-prompt`. A packaged plugin may expose a namespace; use the exact name shown by its skill picker.
 
 ### Manual clone and symlinks
 
@@ -66,7 +67,7 @@ bash <<'SH'
 set -eu
 pv_checkout="$HOME/.local/share/plan-validation-skills"
 pv_skills="$HOME/.agents/skills"
-for pv_path in "$pv_checkout" "$pv_skills/validate-plan" "$pv_skills/validation-args"; do
+for pv_path in "$pv_checkout" "$pv_skills/validate-plan" "$pv_skills/validation-args" "$pv_skills/revise-prompt"; do
   if [ -e "$pv_path" ] || [ -L "$pv_path" ]; then
     printf 'Already exists; inspect before installing: %s\n' "$pv_path" >&2
     exit 1
@@ -76,10 +77,11 @@ mkdir -p "$HOME/.local/share" "$pv_skills"
 git clone https://github.com/snowholt/plan-validation.git "$pv_checkout"
 ln -s "$pv_checkout/skills/validate-plan" "$pv_skills/validate-plan"
 ln -s "$pv_checkout/skills/validation-args" "$pv_skills/validation-args"
+ln -s "$pv_checkout/skills/revise-prompt" "$pv_skills/revise-prompt"
 SH
 ```
 
-Codex supports user skills at `~/.agents/skills` and follows symlinked skill folders. See the [official skills documentation](https://learn.chatgpt.com/docs/build-skills). The clone tracks `main`; inspect changes before updating. For a fixed pilot revision, check out `v0.1.0` in the clone instead.
+Codex supports user skills at `~/.agents/skills` and follows symlinked skill folders. See the [official skills documentation](https://learn.chatgpt.com/docs/build-skills). The clone tracks `main`; inspect changes before updating. For a fixed pilot revision, check out `v0.2.0` in the clone instead.
 
 ### Update or disable
 
@@ -93,7 +95,7 @@ An installer-created copy does not follow that clone. Use the installer to prepa
 
 To disable a skill without deleting it, add a `[[skills.config]]` entry to your existing `~/.codex/config.toml`, using the exact absolute `SKILL.md` path shown by Codex, with `enabled = false`. Preserve the rest of your configuration and restart Codex. [Official enable/disable guidance](https://learn.chatgpt.com/docs/build-skills#enable-or-disable-local-codex-skills).
 
-To remove the manual symlink installation, first verify that each path is a symlink to this clone. Remove those two symlinks only; keep the clone if it contains changes. Do not delete a skill folder from another installation. The built-in installer route may use a different user skill location; inspect its actual installed path.
+To remove the manual symlink installation, first verify that each path is a symlink to this clone. Remove those three symlinks only; keep the clone if it contains changes. Do not delete a skill folder from another installation. The built-in installer route may use a different user skill location; inspect its actual installed path.
 
 ## Plugin package for Codex
 

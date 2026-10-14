@@ -26,7 +26,7 @@ def main():
         errors.append("Marketplace source must point to the package root")
     if (ROOT / codex["skills"]).resolve() != ROOT / "skills":
         errors.append("Codex skills path does not resolve to the bundled skills")
-    for name in ("validate-plan", "validation-args"):
+    for name in ("validate-plan", "validation-args", "revise-prompt"):
         path = ROOT / "skills" / name / "SKILL.md"
         content = path.read_text()
         if not content.startswith("---\n") or "\n---\n" not in content[4:]:
@@ -62,7 +62,7 @@ def main():
                 errors.append(f"Unexpected symlink in release: {path.relative_to(ROOT)}")
     if errors:
         raise SystemExit("\n".join(errors))
-    print(f"Package {claude['version']}: manifests, two skills and {len(files)} Markdown files checked.")
+    print(f"Package {claude['version']}: manifests, three skills and {len(files)} Markdown files checked.")
 
 
 if __name__ == "__main__":

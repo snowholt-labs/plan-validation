@@ -4,7 +4,7 @@ I published Plan Validation, a small open-source plugin for Claude Code and a pa
 
 It is for the moment when you have an approved spec and an implementation plan, but want to check that the plan matches the code and can actually be followed before another agent session starts building.
 
-It checks requirement coverage, rehearses the selected scope in a disposable worktree, tracks scope changes and saves an HTML evidence report with a complete handoff. A second skill prepares the correct plan/spec paths and review focus.
+It checks requirement coverage, rehearses the selected scope in a disposable worktree, tracks scope changes and saves an HTML evidence report with a complete handoff. A second skill prepares the correct plan/spec paths and review focus. A third critiques and revises prompts without executing them. Version 0.2.0 adds focused dependency/alternative review with approval before each external lookup and recorded decisions in the complete report.
 
 This is an early pilot. The renderer and packaging have deterministic checks; I am still evaluating end-to-end usefulness and the extra time it takes. The included example is a reproducible fixture, not a performance benchmark.
 

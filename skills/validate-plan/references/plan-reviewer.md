@@ -11,8 +11,11 @@ Spec: <absolute path>
 Authorized phase/tasks: <scope>
 Review focus: <focus or derive from the spec>
 Original scope baseline: <absolute snapshot paths; phase/task counts and definitions>
+Dependency/alternative evidence and research ledger: <local paths, or None with reason>
+Pending decisions and blocked versus independent tasks: <verified current state>
 
 Read the plan, spec and relevant code, configuration and tests. Work read-only. Do not modify files, commit, post comments, install dependencies, access secrets, or execute implementation/deployment steps. Do not claim tests ran when you only inspected them.
+Do not make external lookups without approval for each exact public query/URL and provider. Use the supplied evidence first. Return any missing lookup request to the parent agent to obtain approval; do not reuse an already completed lookup's permission. Never send private code, plans, paths, personal data or secrets. Do not download or execute dependencies, change manifests/lockfiles, or enable plugins/services.
 
 Check:
 - Every requirement and decision in the approved scope has a task and a meaningful verification assertion. Every task serves an approved requirement.
@@ -21,6 +24,8 @@ Check:
 - Compare the original and revised delivery phases, implementation tasks, supporting tasks and dependencies. Flag unnecessary phases, abstractions or optional work. Require a requirement/evidence mapping for added work and a precise approval basis for material expansion; favor the smallest useful fix within existing tasks.
 - The spec's claims agree with the code and the proposed implementation; flag spec defects as well as plan defects.
 - Security/privacy boundaries, failure paths and relevant performance constraints are covered where the scope requires them.
+- Proposed/changed dependencies and relevant existing security-critical dependencies have a proportionate identity, provenance, maintenance, advisory, license, compatibility, script/permission, privacy and cost review. Avoid an indiscriminate tree audit. Stable software is not abandoned solely because releases are infrequent.
+- Applicable comparisons cover the original approach and at most two strong alternatives, including an existing/no-dependency option where viable. Plugin recommendations have verified ownership, availability and suitability. Dated primary evidence, High/Medium/Low decision confidence, unknowns and approval limits survive in the full report and handoff.
 
 A precise plan may specify signatures, test names/assertions and design constraints without complete implementation bodies. Do not demand routine code bodies or stylistic changes. Flag missing detail when it could cause the implementer to build the wrong behavior or get stuck. If fixing a finding changes approved requirements or boundaries, identify the decision needed; do not assume approval.
 

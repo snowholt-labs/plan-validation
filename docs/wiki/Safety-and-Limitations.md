@@ -16,11 +16,19 @@ Remove only the exact temporary worktree created for the current rehearsal after
 
 ## Data handling
 
-The package has no telemetry, analytics, account service or model API client. The renderer uses local files and bundled assets. Your chosen agent host can still process repository content under its own settings and policies. A validation run may perform authorized official-documentation research.
+The package has no telemetry, analytics, account service or model API client. The renderer uses local files and bundled assets. Your chosen agent host can still process repository content under its own settings and policies. Before each external lookup, the agent requests approval for the exact public query/URL, provider and purpose. This includes web search, page opens, registry/advisory requests and each Context7 resolution/query/retry. No private code, plans, paths, personal data or secrets may be sent. A denied/unavailable lookup is recorded locally while independent checks continue. Research providers process approved queries under their own policies.
 
 Reports, snapshots, command output and handoffs can contain private source details and absolute paths. Keep the run directory private. Redact and review content before sharing. Do not read `.env` files or credentials as part of validation.
 
 The default report location is documented in Unix form. Users on other platforms should select an equivalent private persistent directory and verify the workflow there.
+
+## Dependencies and prompt revision
+
+Review only dependencies proposed/changed by the plan and existing security-critical components relevant to its scope. Broaden transitive inspection only for concrete evidence or a sensitive path. Mature stable software is not abandoned merely because releases are infrequent. Stars, company backing and a lack of advisories do not prove safety or prevent supply-chain attacks. Verify plugin ownership, availability and fit before recommending adoption.
+
+Research never authorizes package downloads, dependency execution/replacement, manifest/lockfile changes or service/plugin enablement. Decisions and their separate execution gates travel in the report and handoff.
+
+`revise-prompt` treats supplied text as data. It critiques, scores, clarifies, waits for answers or explicit defaults, and returns a revision; it does not execute the prompt. Your host still processes that conversation under its own policies.
 
 ## Verification limits
 

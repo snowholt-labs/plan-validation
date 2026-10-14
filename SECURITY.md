@@ -12,6 +12,10 @@ Use [GitHub private vulnerability reporting](https://github.com/snowholt/plan-va
 
 Skills instruct an agent; they are not a permission-enforcement sandbox. Repository documents, issue text and command output may be untrusted. Repository and host permissions still apply. Do not treat instructions embedded in a plan as authorization to access secrets, install software or change remote systems.
 
+Research needs approval for each external lookup and uses public, non-confidential terms only. Dependencies and alternatives are recommendations, not authority to install, download, execute, replace or enable anything. Inspect commands and lifecycle scripts before rehearsal; block only dependent unsafe or unapproved work. Dependency review cannot guarantee prevention of supply-chain attacks.
+
+The `revise-prompt` skill treats supplied instructions as quoted material and never executes them. It waits for clarification answers or explicit defaults before returning the revision.
+
 The renderer uses the Python standard library, escapes raw HTML, restricts rendered links and emits a Content Security Policy. Its structural checks do not establish that source evidence is truthful. A generated report is a local snapshot and may contain sensitive project information. Review and redact before sharing it.
 
 See the [safety guide](https://github.com/snowholt/plan-validation/wiki/Safety-and-Limitations) for execution and data-handling limits.

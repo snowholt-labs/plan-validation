@@ -37,6 +37,8 @@ Score the original and revised versions separately, with the revised score taken
   - **Ready:** no blocker or unresolved approval for the named implementation scope. Recorded limitations and separately scoped follow-ups are not automatically blockers.
   - Approval gates that PLAN already has for production, rollout, secrets or infrastructure do not lower the verdict. The handoff stops before them.
 
+Dependency and alternatives decisions use **High/Medium/Low decision confidence** with dated primary evidence, reasons and explicit unknowns, as defined in [dependencies and alternatives](dependencies-and-alternatives.md). This is separate from the existing subjective readiness percentages and PLAN/SPEC quality scores; never produce a numeric package trust score. Preserve Verified/Assumption/Unknown labels for the underlying claims.
+
 ## Required report
 
 Use these sections in this order. Keep the report self-contained; do not print the full PLAN or SPEC.
@@ -49,3 +51,13 @@ Use these sections in this order. Keep the report self-contained; do not print t
 6. **Open items:** distinguish implementation blockers, pending approvals, accepted limitations and separately scoped follow-ups. State `None` when appropriate; do not call the same unresolved item both blocking and ready.
 7. **Verification and checkout:** actual dry-run commands/results, reviewed versus executed checks, checks not run, tested SHA, changed files, commit status and worktree cleanup. Never replace an actual test count with an inferred new total.
 8. **Fresh-session handoff:** a complete fenced prompt following `../handoff-template.md`. For **Ready after approvals**, name each genuinely pending approval and continue only independent approved work. For **Not ready**, include a fenced remediation/resume prompt that names the blockers and explicitly does not authorize dependent implementation; never imply it is ready.
+
+## Dependency evidence within the eight sections
+
+Keep both complete PLAN/SPEC tables, scope changes, confidence/evidence, verification limits and the full copyable handoff. Do not substitute a dependency summary or decision menu for this contract.
+
+- **Section 4:** add material dependency/alternative decisions to the existing four-column confidence table, using High/Medium/Low, dated evidence and uncertainty. Keep the readiness row and its existing convention.
+- **Section 5:** after the scope comparison, include applicable dependency assessments and the original-versus-alternatives comparison, with at most two alternatives. Record exact identities/versions, rationale, approval basis and decision IDs. No applicable concern needs only a brief evidence-backed statement, not an empty table.
+- **Section 6:** record only actionable unresolved choices and their pending, selected or deferred status. Name blocked tasks, independent work, and each required approval. A menu is presented only after independent validation is finished; record answers here without assuming silence means acceptance.
+- **Section 7:** identify local evidence, the per-lookup research ledger, denied/unavailable lookups, inspected versus executed commands and resulting limits. No external research is not the same as no local validation.
+- **Section 8:** carry exact decisions, approval scope, remaining research/installation/service gates, affected tasks and independent next actions into the complete prompt, including for Not ready remediation. A report link alone is not a handoff.

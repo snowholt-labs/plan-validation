@@ -1,6 +1,17 @@
 {
   "name": "snowholt-plugins",
-  "owner": {"name": "snowholt"},
-  "metadata": {"description": "Focused developer workflow plugins by snowholt."},
-  "plugins": [{"name": "plan-validation", "source": "./", "description": "Rehearse implementation plans and keep a complete evidence report.", "version": "0.1.0"}]
+  "owner": {
+    "name": "snowholt"
+  },
+  "metadata": {
+    "description": "Focused developer workflow plugins by snowholt."
+  },
+  "plugins": [
+    {
+      "name": "plan-validation",
+      "source": "./",
+      "description": "Validate plans, review dependencies with research approval, and revise prompts without execution.",
+      "version": "0.2.0"
+    }
+  ]
 }

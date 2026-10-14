@@ -10,8 +10,8 @@ The report is a durable record of one validation, not a live monitor. It lives u
 | PLAN comparison | Five original/revised dimensions and the arithmetic average |
 | SPEC comparison | Five separate dimensions and average |
 | Decision confidence | Evidence, subjective confidence and remaining uncertainty |
-| Changes | Phase/task/dependency counts, mappings, reasons and approval basis |
-| Open items | Blockers, pending approvals, accepted limits and separate follow-ups |
+| Changes | Phase/task/dependency counts, mappings, reasons, dependency/alternative comparisons and approval basis |
+| Open items | Decision IDs/answers, blockers, pending approvals, accepted limits and separate follow-ups |
 | Verification and checkout | Actual commands/results, tested revision and worktree cleanup |
 | Fresh-session handoff | Complete implementation or remediation prompt |
 
@@ -19,7 +19,9 @@ The report is a durable record of one validation, not a live monitor. It lives u
 
 Each dimension is scored out of ten. The five dimensions have equal weight. An Unknown dimension makes that document's average Unknown. A higher score is not a success probability or a calibrated security assessment.
 
-Confidence estimates, when used, are subjective and supported by evidence and uncertainty. `Unknown` is preferable to invented precision. An official source establishes what that source documents; it does not prove your repository ran successfully.
+Dependency and alternatives decisions use High/Medium/Low confidence with dated primary-source evidence, reasons, and Verified/Assumption/Unknown claims. These are not package trust scores. Applicable comparisons stay in section 5; choices and lookup limits stay in sections 6–7 and the complete handoff.
+
+Existing readiness confidence estimates, when used, are subjective and supported by evidence and uncertainty. `Unknown` is preferable to invented precision. An official source establishes what that source documents; it does not prove your repository ran successfully.
 
 ## What the renderer checks
 

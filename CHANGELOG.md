@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.0 — 2026-10-14
+
+- Add focused review of proposed/changed dependencies and relevant existing security-critical components, with dated primary evidence and High/Medium/Low decision confidence.
+- Compare the original approach with at most two suitable alternatives, including the existing implementation or no dependency; verify plugin ownership, availability and fit.
+- Require approval before each external lookup, including web and Context7; exclude confidential queries and continue independent checks when permission/access is unavailable.
+- Preserve installation/execution/service boundaries, inspect planned commands before rehearsal, and record actionable decisions in the report and handoff.
+- Add portable `revise-prompt`: critique, score, clarify, wait for complete answers or explicit defaults, then produce a copy-ready revision without executing the prompt. The personal source skill remains unchanged.
+- Preserve the eight-section HTML contract, both PLAN/SPEC score tables, scope changes and full handoff; add dependency comparison and no-concern renderer regressions.
+- Update manifests, documentation, privacy disclosures, examples and wiki. No runtime dependencies or telemetry added.
+
+Verification evidence and limitations are recorded in [docs/verification.md](docs/verification.md). Directory scanning, reviewer approval and live listing remain separate from GitHub release publication.
+
 ## 0.1.0 — 2026-10-14
 
 Initial public pilot.

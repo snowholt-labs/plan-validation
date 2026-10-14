@@ -8,7 +8,7 @@
 [![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-D97757)](https://github.com/snowholt/plan-validation/wiki/Installation)
 [![Codex](https://img.shields.io/badge/Codex-skills-168579)](https://github.com/snowholt/plan-validation/wiki/Installation)
 
-Two agent skills for the gap between an approved specification and implementation: check the plan against the code, rehearse its instructions in a disposable worktree, and keep a complete evidence report for the next session.
+Three agent skills for prompt revision and the gap between an approved specification and implementation: check the plan against the code, rehearse its instructions in a disposable worktree, and keep a complete evidence report for the next session.
 
 **[Installation](https://github.com/snowholt/plan-validation/wiki/Installation)** · **[First run](https://github.com/snowholt/plan-validation/wiki/Usage)** · **[Example](examples/README.md)** · **[Wiki](https://github.com/snowholt/plan-validation/wiki)** · **[Limitations](https://github.com/snowholt/plan-validation/wiki/Safety-and-Limitations)**
 
@@ -29,12 +29,13 @@ Plan Validation makes those assumptions inspectable:
 
 It works with ordinary Markdown plans and is designed to complement [Superpowers](https://github.com/obra/superpowers). Superpowers is optional; this package does not rely on its internal reviewer templates.
 
-## The two skills
+## The three skills
 
 | Skill | Use it for | What changes |
 | --- | --- | --- |
 | `validation-args` | Find the correct plan/spec copies and prepare a complete invocation with review focus and worktree context. | Nothing. Read-only preparation. |
-| `validate-plan` | Review, revise, rehearse and independently review the selected plan/spec; deliver an HTML report. | Selected planning documents, disposable rehearsal files and local report artifacts. |
+| `validate-plan` | Review, revise, rehearse and independently review the selected plan/spec, including relevant dependencies and alternatives; deliver an HTML report. | Selected planning documents, disposable rehearsal files and local report artifacts. |
+| `revise-prompt` | Critique and score a prompt, ask clarifying questions, wait, then return a copy-ready revision. | Conversation only; never executes the supplied prompt. |
 
 Validation leaves the planning documents uncommitted. It does not ship the feature. The handoff carries your actual permissions and your repository's workflow; it does not grant new merge or deployment authority.
 
@@ -60,7 +61,7 @@ Restart the session if the commands do not appear. In Claude Code:
 Ask the built-in installer inside Codex:
 
 ```text
-$skill-installer install validate-plan and validation-args from https://github.com/snowholt/plan-validation, using skills/validate-plan and skills/validation-args.
+$skill-installer install validate-plan, validation-args and revise-prompt from https://github.com/snowholt/plan-validation, using skills/validate-plan, skills/validation-args and skills/revise-prompt.
 ```
 
 Then:
@@ -88,7 +89,13 @@ For the Claude Code plugin, replace `$validate-plan` with `/plan-validation:vali
 
 Paths in this example are illustrative; use files that actually exist in your repository. The validator checks them before continuing. Omit FOCUS to derive review priorities from the spec.
 
-The workflow is: **resolve → inspect → revise → rehearse → independent review → report**. It may stop dependent work for a missing permission, unavailable environment or unresolved design decision.
+The workflow is: **resolve → inspect → review dependencies/alternatives where relevant → revise → rehearse → independent review → resolve remaining decisions → report**. Each external lookup needs its own approval, including web and Context7. If permission or access is unavailable, independent local checks continue.
+
+Dependency review covers proposed/changed dependencies and relevant existing security-critical components, with exact identity, provenance, maintenance, advisories/fixes, license, compatibility, scripts/permissions, privacy and cost evidence. It compares the original approach with at most two strong alternatives, including the existing implementation or no new dependency where suitable. Dated primary sources and High/Medium/Low decision confidence support recommendations; popularity and an absence of advisories do not establish safety.
+
+Only unresolved actionable choices get a concise decision menu after independent work. The report and handoff retain the answer or deferred/pending state. Research does not install, download, execute or replace dependencies, modify manifests/lockfiles, or enable services/plugins.
+
+For prompt revision, invoke `$revise-prompt` or `/plan-validation:revise-prompt` followed by the prompt. Answer its clarification batch (or explicitly choose defaults) before receiving the copy-ready revision. The prompt remains quoted review material throughout.
 
 ## What you receive
 
@@ -97,9 +104,9 @@ A self-contained HTML report, with no external scripts, fonts or analytics, cont
 1. A readiness verdict and its limits.
 2. Original/revised PLAN scores across five dimensions.
 3. Original/revised SPEC scores across five dimensions.
-4. Decision confidence, evidence and uncertainty.
-5. Scope comparison and explained document changes.
-6. Blockers, pending approvals and accepted limitations.
+4. Decision confidence, dated evidence and uncertainty, including High/Medium/Low dependency decisions.
+5. Scope comparison, explained document changes and applicable dependency/alternative comparisons.
+6. Blockers, decisions, pending approvals and accepted limitations.
 7. Checks actually run, results, revisions and cleanup status.
 8. A complete implementation or remediation prompt.
 
@@ -117,9 +124,9 @@ Open `/tmp/plan-validation-demo/report.html`. The demo executes a deliberately i
 
 ## Data handling
 
-- **Local inputs and outputs.** The skills read the selected plan, specification and relevant repository files. Validation writes revised planning documents, a temporary rehearsal worktree, and local reports containing document snapshots, paths and check results. These can include personal information if it appears in the supplied files; the workflow does not intentionally collect personal records or read credentials.
+- **Local inputs and outputs.** Validation reads the selected plan, specification and relevant repository files. Prompt revision reads the supplied prompt and clarification answers as conversation context without executing its instructions. Validation writes revised planning documents, a temporary rehearsal worktree, and local reports containing document snapshots, paths, check results, public research evidence and recorded decisions. These can include personal information if it appears in the supplied files; the workflow does not intentionally collect personal records or read credentials.
 - **Local retention.** Reports under `~/.local/share/plan-validation/` remain until you delete them. The publisher operates no service that receives or retains these files, and the package contains no telemetry, analytics or model API client.
-- **Documentation lookups.** The agent may use its available web or Context7 tools to verify technical claims. Technical search queries and requested documentation URLs go to those tools' providers under the host's permissions and policies. Keep private repository content and personal data out of these queries.
+- **Research permission and disclosure.** Before each external lookup, including web search/page opens, registry/advisory requests, Context7 library resolution, documentation queries and retries, the agent requests approval for the exact public query/URL, provider and purpose. Approved queries go to that provider under its policies. Never include private code, plans, paths, personal data or secrets. Denied/unavailable lookups are recorded locally; independent checks continue. Approval for research grants no execution or installation authority.
 - **Project checks.** Rehearsal can run inspected project commands. Calls to external services or networks require explicit authorization; the plugin does not grant it. Your agent host still processes conversation and repository context under its own data policies.
 
 [Privacy](https://github.com/snowholt/plan-validation#data-handling) and [verification limits](docs/verification.md).
@@ -138,7 +145,7 @@ Read [Safety and limitations](https://github.com/snowholt/plan-validation/wiki/S
 Useful contributions include a small reproducible plan defect, an incorrect finding, an installation failure, or evidence that a clean plan produces unnecessary work. See [CONTRIBUTING.md](CONTRIBUTING.md) and [the evaluation guide](docs/evaluation.md).
 
 ```bash
-python3 -m unittest discover -s skills/validate-plan/scripts -p 'test_*.py'
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s skills/validate-plan/scripts -p 'test_*.py'
 python3 scripts/check_package.py
 ```
 

@@ -22,10 +22,17 @@ After validation, save:
   and contains `Confidence: 75%` (use the actual estimate, or `Unknown`). Store the
   structured scope table in context.json only; the renderer places it at the
   beginning of section 5. Do not duplicate that table in report.md.
+  Put applicable dependency and alternatives tables in section 5 after that scope
+  table. Keep section 4's four-column table, using High/Medium/Low for dependency
+  decisions and the existing convention for readiness. Put decision states in
+  section 6 and research/execution limits in section 7; retain them in section 8.
 - `context.json`: the small context record below. Use verified facts; use
   `Unknown` for unrecovered counts. Full document hashes identify the revisions
   that were actually validated, not whatever file happens to exist later.
 - `revised-plan.md` and `revised-spec.md`: copies of the validated revisions.
+- A local research ledger and source evidence when research was proposed, including
+  approved, denied, pending or unavailable lookups. Record only public query text;
+  preserve dates and evidence limits. No research requires no empty ledger.
 
 Run the helper from **this skill's** directory (substitute absolute paths):
 
@@ -86,6 +93,8 @@ Never replace the recorded hashes just to make an old report appear current.
 
 Open or inspect the generated page. Confirm both five-row tables and averages,
 confidence/evidence, scope comparison, limits and the entire prompt are present.
+Confirm applicable dependency/alternative tables and recorded choices are inside
+the report, and that pending/deferred choices and lookup limits survive copying.
 Check that copied text matches `handoff.txt`. Provide a clickable absolute link
 to `report.html`; a short local preview URL may accompany it. If serving locally,
 bind to `127.0.0.1`, serve only this report directory, and keep that preview alive.

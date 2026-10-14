@@ -191,6 +191,43 @@ class ReportTests(unittest.TestCase):
         page, _, _ = render(source, self.context)
         self.assertIn("Copy remediation prompt", page)
 
+    def test_dependency_comparison_preserves_full_report_and_decision_handoff(self):
+        comparison = """### Dependency and alternatives
+| Approach | Identity/version | Benefit and risk | Evidence and effort |
+|---|---|---|---|
+| Original | Fixture helper 1.0 | Unknown publisher; do not execute | Local fixture, 2026-10-14; external research denied |
+| Keep existing | Standard library | No new package; existing tests cover the requirement | Local fixture, 2026-10-14; no migration |
+
+D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
+"""
+        decision = "D1 pending; dependent Task 2 waits. Task 1 may continue. Research denied; no lookup, installation or service enablement authorized."
+        source = REPORT.replace("**Ready.**", "**Not ready.**")
+        source = source.replace("| Readiness | 75% | Recorded focused check | No browser check |",
+                                "| Readiness | Unknown | Fixture evidence only | D1 unresolved |\n"
+                                "| D1 | Medium | Verified local fixture, 2026-10-14 | Unknown upstream identity; lookup denied |")
+        source = source.replace("## 6. Open items", comparison + "\n## 6. Open items")
+        source = source.replace("No blockers. Browser verification runs during implementation.", decision)
+        source = source.replace("Implement the approved scope now.",
+                                "Resume validation. Do not start dependent implementation.\n" + decision)
+        page, prompt, current = render(source, self.context)
+        self.assertTrue(current)
+        self.assertEqual(page.count('aria-labelledby="heading-'), 8)
+        self.assertEqual(page.count("<strong>Average /10</strong>"), 2)
+        self.assertIn('aria-label="Scope comparison"', page)
+        self.assertIn("Fixture helper 1.0", page)
+        self.assertIn("Keep existing", page)
+        self.assertIn("Decision confidence: Medium", page)
+        self.assertIn(decision, prompt)
+        self.assertEqual(prompt, source.split("```text\n")[1].split("\n```")[0])
+
+    def test_no_dependency_concern_needs_no_menu_or_extra_schema(self):
+        source = REPORT.replace("- A corrected assertion within Task 2.",
+                                "No dependency change or unresolved choice in the reviewed scope.\n- A corrected assertion within Task 2.")
+        page, prompt, current = render(source, self.context)
+        self.assertTrue(current)
+        self.assertIn("No dependency change or unresolved choice", page)
+        self.assertEqual(prompt, REPORT.split("```text\n")[1].split("\n```")[0])
+
 
 if __name__ == "__main__":
     unittest.main()

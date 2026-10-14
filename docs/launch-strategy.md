@@ -22,7 +22,7 @@ Current primary guidance: [Claude plugin packaging](https://code.claude.com/docs
 
 | Stage | Action | Evidence to collect |
 | --- | --- | --- |
-| Release | Publish one versioned pilot, working install steps, a screenshot, wiki, clear limits and issue templates. | A fresh install loads both skills; deterministic checks pass. |
+| Release | Publish one versioned pilot, working install steps, a screenshot, wiki, clear limits and issue templates. | A fresh install loads all three skills; deterministic checks pass. |
 | First week | Share one concrete demonstration through your own developer profile and an appropriate community where project sharing is welcome. Use the [draft launch post](launch-post.md). | Where newcomers get stuck and whether they complete a first run. |
 | Weeks 2–3 | Invite a small voluntary pilot and fix repeated friction. Ask for redacted examples instead of private repositories. | Confirmed useful findings, false alarms, missed defects, support effort and voluntary second use. |
 | Week 4 | Publish a short case study with real evidence. Consider official directory submission once installation and repeated use are credible. | A reproducible result and explicit limits, not a star target presented as success. |
@@ -39,4 +39,4 @@ Post from your own accounts and follow each community's current rules. Do not bu
 
 Use the release on one real, shareable plan. Publish a short account of the specific defect it found, the evidence, the extra time it took and what it missed. That is a stronger reason to try the project than more badges or an unsupported performance claim.
 
-No social posts, outreach messages or third-party directory submissions are made by publishing this strategy document.
+Publishing this strategy document performs no outreach or directory action. The directory submission is a separate workflow; check its actual scan, reviewer and live-listing state rather than inferring acceptance from a GitHub release.

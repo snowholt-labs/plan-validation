@@ -12,7 +12,7 @@ For a false positive or missed defect, identify the requirement and the actual i
 
 1. Open an issue for a significant behavior or dependency change before implementing it.
 2. Keep changes focused. Preserve user permissions, repository conventions, report freshness and honest evidence labels.
-3. For renderer changes, add a regression that exercises the observable failure; do not test wording for its own sake.
+3. Exercise relevant cases in [the evaluation guide](docs/evaluation.md), including permission denial and prompt non-execution when affected. For renderer changes, add a regression that exercises the observable failure; do not test wording for its own sake.
 4. Run the checks below and state the limits of your testing in the PR.
 
 ```bash
