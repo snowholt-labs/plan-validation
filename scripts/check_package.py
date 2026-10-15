@@ -26,6 +26,18 @@ def main():
         errors.append("Marketplace source must point to the package root")
     if (ROOT / codex["skills"]).resolve() != ROOT / "skills":
         errors.append("Codex skills path does not resolve to the bundled skills")
+    icons = [claude.get("icon")] + [codex.get("interface", {}).get(key) for key in ("composerIcon", "logo", "logoDark")]
+    for icon in filter(None, icons):
+        path = (ROOT / icon).resolve()
+        if not icon.startswith("./") or not path.is_relative_to(ROOT) or not path.is_file():
+            errors.append(f"Manifest icon is missing or outside the package: {icon}")
+    svgs = sorted((ROOT / "assets").glob("*.svg")) + sorted((ROOT / "skills").glob("*/assets/*.svg"))
+    for path in svgs:
+        svg = path.read_text().lower().replace('xmlns="http://www.w3.org/2000/svg"', "")
+        if re.search(r"<script|foreignobject|href|url\(|@import|javascript:|https?:|\son[a-z]+\s*=|/home/|/users/", svg):
+            errors.append(f"{path.relative_to(ROOT)}: SVG contains active, linked or local-path content")
+    if (ROOT / "skills/validate-plan/assets/favicon.svg").read_bytes() != (ROOT / "assets/plan-validation-small.svg").read_bytes():
+        errors.append("Report favicon and Codex composer icon differ")
     for name in ("validate-plan", "validation-args", "revise-prompt"):
         path = ROOT / "skills" / name / "SKILL.md"
         content = path.read_text()
@@ -62,7 +74,7 @@ def main():
                 errors.append(f"Unexpected symlink in release: {path.relative_to(ROOT)}")
     if errors:
         raise SystemExit("\n".join(errors))
-    print(f"Package {claude['version']}: manifests, three skills and {len(files)} Markdown files checked.")
+    print(f"Package {claude['version']}: manifests, three skills, {len(svgs)} SVG icons and {len(files)} Markdown files checked.")
 
 
 if __name__ == "__main__":
