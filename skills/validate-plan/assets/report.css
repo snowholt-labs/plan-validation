@@ -1,4 +1,23 @@
 :root{color-scheme:light;--ink:#18283b;--muted:#56657a;--blue:#244f9c;--line:#d9e1eb;--paper:#fff;--wash:#f3f6fa}
+#feature-overview h2{font-size:25px;letter-spacing:-.025em;margin:0 0 8px}
+#feature-overview>p{max-width:70ch;color:var(--muted)}
+.feature-flow,.feature-blocks{display:flex;gap:24px;list-style:none;padding:0;margin:24px 0 4px}
+.feature-blocks{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.feature-flow>li,.feature-blocks>li{position:relative;flex:1;min-width:0;margin:0;padding:16px;border:1px solid #bacce2;border-top:3px solid var(--blue);border-radius:4px;background:#f4f7fc}
+.feature-flow h3,.feature-blocks h3{font-size:16px;margin:0 0 8px}
+.feature-flow p,.feature-blocks p{font-size:14px;line-height:1.55;margin:0;color:#394d68}
+.step-arrow{position:absolute;right:-21px;top:calc(50% - 16px);font-size:21px;color:var(--blue)}
+.technical-details{border-top:1px solid var(--line);margin-top:20px;padding-top:12px}
+.technical-details>summary{cursor:pointer;color:var(--blue);font-weight:650;font-size:14px}
+.technical-details[open]>summary{margin-bottom:16px}
+section>p,.technical-details>p{max-width:80ch}
+.decisions{padding:24px 28px;border-left:3px solid #5275a8;background:#eaf0f8;margin-top:24px}
+.decisions h2{font-size:22px;margin:0 0 10px}
+.decisions>p{color:#394d68;margin-bottom:0}
+.decisions li p{margin:4px 0}
+.feature-flow.vertical{flex-direction:column}.vertical .step-arrow{right:calc(50% - 9px);top:auto;bottom:-28px;transform:rotate(90deg)}
+@media(max-width:900px){.feature-flow{flex-direction:column;gap:24px}.step-arrow{right:calc(50% - 9px);top:auto;bottom:-28px;transform:rotate(90deg)}.decisions{padding:20px 16px}}
+@media print{.feature-flow{flex-direction:column;gap:20px}.feature-flow>li{break-inside:avoid;padding:8px 12px}.step-arrow{right:calc(50% - 9px);top:auto;bottom:-25px;transform:rotate(90deg)}.decisions{padding:12px;break-inside:avoid}}
 *{box-sizing:border-box}html{scroll-padding-top:100px}body{margin:0;background:var(--wash);color:var(--ink);font:16px/1.65 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 a{color:var(--blue);text-underline-offset:3px}a:hover{text-decoration-thickness:2px}button,a{-webkit-tap-highlight-color:transparent}button{font:inherit;cursor:pointer}button:focus-visible,a:focus-visible,pre:focus-visible,.table-scroll:focus-visible,summary:focus-visible{outline:3px solid #cb7912;outline-offset:4px}
 .skip{position:absolute;left:16px;top:-80px;background:#fff;padding:12px;z-index:10}.skip:focus{top:12px}

@@ -2,6 +2,7 @@
 
 import copy
 import hashlib
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -71,7 +72,7 @@ class ReportTests(unittest.TestCase):
             path.write_text(label)
             documents.append({"label": label, "path": str(path), "sha256": hashlib.sha256(label.encode()).hexdigest()})
         self.context = {
-            "title": "Example", "validation_date": "2026-10-14", "kind": "new",
+            "title": "Example", "validation_date": "2026-10-14", "kind": "saved",
             "review_status": "complete", "handoff_status": "current", "summary": "The approved scope is ready.",
             "freshness": "Branch and base checked; recorded tests were not repeated.",
             "documents": documents,
@@ -80,6 +81,239 @@ class ReportTests(unittest.TestCase):
                 for metric in ("Delivery phases", "Implementation tasks", "Supporting tasks", "Numbered tasks", "Dependencies / services")
             ]},
         }
+
+    def modern_context(self):
+        context = copy.deepcopy(self.context)
+        context.update({
+            "format_version": 2, "kind": "new",
+            "feature": {
+                "summary": "A reader requests a document and sees the result.",
+                "steps": [
+                    {"title": "Choose a document", "description": "The reader selects a saved document."},
+                    {"title": "Check access", "description": "The application checks the reader's permission."},
+                    {"title": "Show the result", "description": "The document opens, or an explanation appears."},
+                ],
+            },
+            "decisions_without_reply": [],
+        })
+        return context
+
+    def test_feature_diagram_precedes_scores_without_replacing_evidence(self):
+        page, prompt, current = render(REPORT, self.modern_context())
+        self.assertTrue(current)
+        self.assertIn('aria-labelledby="feature-heading"', page)
+        self.assertIn("Feature at a glance", page)
+        self.assertIn('<ol class="feature-flow" role="list">', page)
+        self.assertLess(page.index('id="feature-overview"'), page.index('id="section-1"'))
+        for title in ("Choose a document", "Check access", "Show the result"):
+            self.assertIn(title, page)
+        self.assertEqual(page.count('aria-labelledby="heading-'), 8)
+        self.assertEqual(page.count("<strong>Average /10</strong>"), 2)
+        self.assertEqual(prompt, REPORT.split("```text\n")[1].split("\n```")[0])
+
+    def test_modern_report_requires_a_complete_three_to_seven_block_diagram(self):
+        for feature in (None, {}, {"summary": "Flow", "steps": []},
+                        {"summary": "Flow", "steps": [{"title": "A", "description": "B"}] * 8},
+                        {"summary": "Flow", "steps": [{"title": "A"}] * 3},
+                        {"summary": "", "steps": [{"title": "A", "description": "B"}] * 3}):
+            with self.subTest(feature=feature):
+                context = self.modern_context()
+                context["feature"] = feature
+                with self.assertRaisesRegex(ValueError, "Feature"):
+                    render(REPORT, context)
+
+    def test_independent_feature_blocks_do_not_imply_a_sequence(self):
+        context = self.modern_context()
+        context["feature"]["layout"] = "blocks"
+        page, _, _ = render(REPORT, context)
+        overview = page[page.index('<section id="feature-overview"'):page.index('<section id="section-1"')]
+        self.assertIn('<ul class="feature-blocks" role="list">', overview)
+        self.assertNotIn('<ol', overview)
+        self.assertNotIn('class="step-arrow"', overview)
+        self.assertIn("Check access", overview)
+
+    def test_unknown_feature_layout_is_rejected(self):
+        context = self.modern_context()
+        context["feature"]["layout"] = "unknown"
+        with self.assertRaisesRegex(ValueError, "layout"):
+            render(REPORT, context)
+
+    def test_technical_details_collapse_but_summary_and_blockers_stay_visible(self):
+        source = REPORT.replace("Recorded focused check; no production run.",
+                                "Two local checks passed. No production run.\n\n### Technical details\n"
+                                "```bash\npython3 checks.py\n```\nExit 0; two checks passed.")
+        page, _, _ = render(source, self.modern_context())
+        details = re.search(r'<details class="technical-details">(.*?)</details>', page, re.S)
+        self.assertIsNotNone(details)
+        self.assertIn("python3 checks.py", details[1])
+        self.assertNotIn("Two local checks passed.", details[1])
+        self.assertNotIn("No blockers.", details[1])
+        self.assertIn("Two local checks passed.", page)
+
+    def test_score_tables_open_items_and_handoff_cannot_be_collapsed(self):
+        for heading in ("PLAN comparison", "SPEC comparison", "Open items", "Fresh-session handoff"):
+            with self.subTest(heading=heading):
+                source = REPORT.replace(heading + "\n", heading + "\nSummary.\n\n### Technical details\n")
+                with self.assertRaisesRegex(ValueError, "Technical details"):
+                    render(source, self.modern_context())
+
+    def test_detail_marker_in_a_code_block_is_not_a_disclosure(self):
+        source = REPORT.replace("Recorded focused check; no production run.",
+                                "A literal example:\n```text\n### Technical details\n```\n")
+        page, _, _ = render(source, self.modern_context())
+        self.assertNotIn('<details class="technical-details">', page)
+        self.assertIn("### Technical details", page)
+
+    def test_details_require_a_visible_summary(self):
+        source = REPORT.replace("Recorded focused check; no production run.",
+                                "### Technical details\nOnly hidden evidence.")
+        with self.assertRaisesRegex(ValueError, "visible summary"):
+            render(source, self.modern_context())
+
+    def test_defaulted_choices_end_the_report_without_claiming_approval(self):
+        context = self.modern_context()
+        context["decisions_without_reply"] = [{
+            "question": "How much detail?", "decision": "Use a concise summary.",
+            "reason": "The user requested a quick overview.",
+        }]
+        source = REPORT.replace("No blockers.", "Approval pending: adding a paid service. No blockers.")
+        page, _, _ = render(source, context)
+        self.assertIn("Decisions made without your reply", page)
+        self.assertIn("Use a concise summary.", page)
+        self.assertIn("The user requested a quick overview.", page)
+        self.assertIn("not user approval", page)
+        self.assertLess(page.index('id="section-8"'), page.index('id="defaulted-decisions"'))
+        self.assertIn("Approval pending: adding a paid service.", page)
+
+    def test_missing_or_incomplete_default_decisions_are_rejected(self):
+        for decisions in (None, "None", [{"question": "Q", "decision": "D"}],
+                          [{"question": "Q", "decision": "D", "reason": ""}]):
+            context = self.modern_context()
+            context["decisions_without_reply"] = decisions
+            with self.subTest(decisions=decisions), self.assertRaisesRegex(ValueError, "Decisions"):
+                render(REPORT, context)
+
+    def test_feature_and_decision_text_cannot_inject_markup(self):
+        context = self.modern_context()
+        payload = '<img src=x onerror="alert(1)"><script>alert(2)</script>'
+        context["feature"]["summary"] = payload
+        context["feature"]["steps"][0]["title"] = payload
+        context["feature"]["steps"][0]["description"] = payload
+        context["decisions_without_reply"] = [{"question": payload, "decision": payload, "reason": payload}]
+        page, _, _ = render(REPORT, context)
+        self.assertNotIn("<img src=x", page)
+        self.assertNotIn("<script>alert", page)
+        self.assertIn("&lt;img", page)
+        self.assertEqual(page.count("<script>"), 1)
+
+    def test_new_handoffs_are_short_while_legacy_handoffs_remain_readable(self):
+        source = REPORT.replace("Implement the approved scope now.", "Implement " + "detail " * 81)
+        with self.assertRaisesRegex(ValueError, "80 words"):
+            render(source, self.modern_context())
+        self.context["kind"] = "saved"
+        _, prompt, _ = render(source, self.context)
+        self.assertIn("detail " * 81, prompt)
+
+    def test_unknown_report_format_is_rejected(self):
+        context = self.modern_context()
+        context["format_version"] = 99
+        with self.assertRaisesRegex(ValueError, "format_version"):
+            render(REPORT, context)
+
+    def test_new_report_cannot_fall_back_to_legacy_format(self):
+        context = self.modern_context()
+        del context["format_version"]
+        with self.assertRaisesRegex(ValueError, "format_version"):
+            render(REPORT, context)
+        context["format_version"] = 1
+        with self.assertRaisesRegex(ValueError, "format_version"):
+            render(REPORT, context)
+
+    def test_not_ready_rejects_an_implementation_instruction_anywhere(self):
+        source = REPORT.replace("**Ready.**", "**Not ready.**").replace(
+            "Implement the approved scope now.",
+            "Work in /repo. Implement all validated phases. Do not start dependent implementation.")
+        with self.assertRaisesRegex(ValueError, "remediation prompt"):
+            render(source, self.modern_context())
+
+    def test_not_ready_rejects_line_and_list_implementation_instructions(self):
+        for instruction in ("Fix the cap.\nImplement Task 2.", "- Implement Task 2.", "Then implement Task 2."):
+            source = REPORT.replace("**Ready.**", "**Not ready.**").replace(
+                "Implement the approved scope now.", instruction + "\nDo not start dependent implementation.")
+            with self.subTest(instruction=instruction), self.assertRaisesRegex(ValueError, "remediation prompt"):
+                render(source, self.modern_context())
+        source = REPORT.replace("**Ready.**", "**Not ready.**").replace(
+            "Implement the approved scope now.", "Do not implement Task 2. Do not start dependent implementation.")
+        self.assertIn("Copy remediation prompt", render(source, self.modern_context())[0])
+
+    def test_backticks_around_prose_do_not_bypass_the_word_limit(self):
+        source = REPORT.replace("Implement the approved scope now.", "`" + "detail " * 81 + "` now.")
+        with self.assertRaisesRegex(ValueError, "80 words"):
+            render(source, self.modern_context())
+
+    def test_backtick_quoted_paths_count_as_one_word(self):
+        path = "`/Users/x/My Projects/" + "deep folder " * 40 + "plan.md`"
+        source = REPORT.replace("Implement the approved scope now.", f"Implement the plan in {path} now.")
+        _, prompt, _ = render(source, self.modern_context())
+        self.assertIn(path, prompt)
+
+    def test_hidden_section_four_tables_do_not_replace_the_visible_confidence_table(self):
+        extra = "\n\n### Technical details\n| Command | Exit |\n|---|---|\n| checks.py | 0 |\n"
+        source = REPORT.replace("| Readiness | 75% | Recorded focused check | No browser check |",
+                                "| Readiness | 75% | Recorded focused check | No browser check |" + extra)
+        page, _, _ = render(source, self.modern_context())
+        self.assertIn("checks.py", page)
+        table = "| Decision | Confidence | Evidence | Remaining uncertainty |\n|---|---|---|---|\n| Readiness | 75% | Recorded focused check | No browser check |"
+        hidden = REPORT.replace(table, "### Technical details\n" + table)
+        with self.assertRaisesRegex(ValueError, "Decision confidence"):
+            render(hidden, self.modern_context())
+
+    def test_confidence_table_is_found_after_other_tables_and_code(self):
+        prefix = "| Summary | Value |\n|---|---|\n| Checks | 2 |\n\n```text\n| not | a | table |\n```\n\n"
+        source = REPORT.replace("| Decision | Confidence |", prefix + "| Decision | Confidence |")
+        page, _, _ = render(source, self.modern_context())
+        self.assertIn("Recorded focused check", page)
+
+    def test_legacy_confidence_table_validation_is_unchanged(self):
+        source = REPORT.replace("| Readiness | 75% | Recorded focused check | No browser check |",
+                                "| Readiness | 75% | Recorded focused check | No browser check |\n\n| Extra | Table |\n|---|---|")
+        with self.assertRaisesRegex(ValueError, "Decision confidence"):
+            render(source, self.context)
+
+    def test_verdict_confidence_must_be_visible(self):
+        source = REPORT.replace("**Ready.** Confidence: 75% (subjective, not a measured probability).",
+                                "**Ready.** Main limit: no browser check.\n\n### Technical details\nConfidence: 75%.")
+        with self.assertRaisesRegex(ValueError, "Confidence"):
+            render(source, self.modern_context())
+
+    def test_long_feature_flow_stacks_vertically(self):
+        context = self.modern_context()
+        context["feature"]["steps"] = [{"title": f"Step {n}", "description": "Does one thing."} for n in range(7)]
+        page, _, _ = render(REPORT, context)
+        self.assertIn('<ol class="feature-flow vertical" role="list">', page)
+
+    def test_modern_report_requires_the_contract_section_headings(self):
+        source = REPORT.replace("## 2. PLAN comparison", "## 2. SPEC comparison", 1)
+        with self.assertRaisesRegex(ValueError, "heading"):
+            render(source, self.modern_context())
+
+    def test_detail_marker_tolerates_crlf_and_casing(self):
+        for marker in ("### Technical details", "### technical Details"):
+            source = REPORT.replace("Recorded focused check; no production run.",
+                                    f"Summary.\n\n{marker}\nExit 0.").replace("\n", "\r\n")
+            with self.subTest(marker=marker):
+                page, _, _ = render(source, self.modern_context())
+                self.assertIn('<details class="technical-details">', page)
+        source = REPORT.replace("No blockers.", "Summary.\r\n\r\n### technical details\r\nHidden blocker.")
+        with self.assertRaisesRegex(ValueError, "Technical details"):
+            render(source, self.modern_context())
+
+    def test_modern_historical_handoff_is_called_historical(self):
+        context = self.modern_context()
+        context["handoff_status"] = "historical"
+        page, _, _ = render(REPORT, context)
+        hero = page[page.index('class="freshness"'):page.index('</p>', page.index('class="freshness"'))]
+        self.assertIn("historical", hero)
 
     def test_complete_report_preserves_prompt_and_both_tables(self):
         page, prompt, current = render(REPORT, self.context)
