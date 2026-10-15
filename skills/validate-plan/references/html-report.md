@@ -38,8 +38,8 @@ After validation, save:
   New reports (`kind: new`) must use `format_version: 2`, a feature overview, and an explicit
   `decisions_without_reply` list (empty when no routine defaults were used).
 - `revised-plan.md` and `revised-spec.md`: copies of the validated revisions.
-- A local research ledger and source evidence when research was proposed, including
-  approved, denied, pending or unavailable lookups. Record only public query text;
+- A local research ledger and source evidence when research ran or was declined,
+  including sent, declined or unavailable lookups. Record only public query text;
   preserve dates and evidence limits. No research requires no empty ledger.
 
 Run the helper from **this skill's** directory (substitute absolute paths):
