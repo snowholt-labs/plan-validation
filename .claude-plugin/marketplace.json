@@ -10,7 +10,7 @@
     {
       "name": "plan-validation",
       "source": "./",
-      "description": "Validate plans, review dependencies with research approval, and revise prompts without execution.",
+      "description": "Validate plans, review dependencies with recorded research, and revise prompts without execution.",
       "version": "0.2.0"
     }
   ]

@@ -45,7 +45,7 @@ Older contexts without a format version still render through the legacy format. 
 
 ## Starting implementation
 
-The launch prompt names your selected phase/tasks or the whole validated scope, with absolute plan/spec/report paths. The next agent reads the report and context.json to recover detailed evidence, decisions and permissions before starting. A phase review never authorizes other phases. Not ready reports supply a short blocker-resolution prompt instead.
+The launch prompt names your selected phase/tasks or the whole validated scope, with absolute plan/spec/report paths. The next agent reads the report and context.json to recover detailed evidence, decisions and permissions before starting. A phase review never authorizes other phases. The prompt tells the agent to continue through passing steps and reviews without asking, and to stop only for a required approval, a failure it cannot fix or the end of the scope. A line above the prompt suggests a reasoning effort with a reason; you choose the actual level in your host. Not ready reports supply a short blocker-resolution prompt instead.
 
 ## Rendering manually
 
