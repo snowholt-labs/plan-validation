@@ -32,7 +32,7 @@ Positional PLAN, SPEC and free-text FOCUS are also accepted. When SPEC is omitte
 ## What happens
 
 1. The agent records the repository, original documents, intended base and authorized scope.
-2. It compares requirements, tasks, current code and verification steps. Relevant dependency risks and the original approach versus at most two strong alternatives are assessed with dated evidence. Public lookups run without a separate prompt and are listed in the report; no private context is sent. It then repairs in-scope document defects.
+2. It compares requirements, tasks, current code and verification steps. Relevant dependency risks and the original approach versus at most two strong alternatives are assessed with dated evidence. The skill does not ask before each public lookup; lookups are listed in the report; no private context is sent. It then repairs in-scope document defects.
 3. It rehearses approved task instructions in a new detached worktree and records actual results.
 4. A separate reviewer checks the revised documents and original scope. The agent resolves or records the findings.
 5. It does not stop to ask routine questions: it applies the recommended best practice and records why. Choices that need approval get a menu in the report: keep the original approach, adopt a verified named alternative, or defer. The recommendation includes reasons, tradeoffs and High/Medium/Low confidence. You answer later; dependent work waits.
@@ -42,7 +42,7 @@ Only the selected plan and spec are edited in the original repository. They rema
 
 ## Research and dependency permissions
 
-Public lookups run by default, without a prompt for each one. Each query uses public terms only, and the report lists every provider, query and date. To turn research off, say so when you start validation, for example "I decline external research for this run." Declined or unavailable research is recorded; independent local checks continue.
+Public lookups run by default: the skill no longer asks before each one. Your host's own permission settings, such as web-tool approvals or a sandbox without network, still apply. Each query uses public terms only, and the report lists every provider, query and date. To turn research off, say so when you start validation, for example "I decline external research for this run." Declined or unavailable research is recorded; independent local checks continue.
 
 Recommendations do not download, install, execute or replace dependencies, change manifests/lockfiles, or enable plugins/services. Inspect planned commands and their wrappers first. Only work dependent on unresolved safety or permission decisions is blocked.
 
