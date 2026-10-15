@@ -38,6 +38,7 @@ If Claude Code is installed, also run `claude plugin validate .` and `claude plu
 ## Git workflow
 
 - Never push directly to `main`. Every change goes through a branch and a pull request.
+- Every PR into `main` is merged with a merge commit, never squash. Only phase PRs into a plan branch are squash merged.
 - Ask the maintainer before any merge. Confirm CI passed on the PR head (`gh pr checks <number>`) before asking. GitHub requires a PR and the `verify` check for `main` and `plan/**` branches; other branches are not protected.
 - "Code and security review" below means a code review and a security review of the PR diff, with findings fixed or explicitly accepted. In Claude Code, run `/code-review` and `/security-review`; in other hosts, use an equivalent independent review.
 
@@ -50,12 +51,12 @@ If Claude Code is installed, also run `claude plugin validate .` and `claude plu
 
 ### Other changes
 
-Use a short-lived branch and a PR into `main`. Squash merge after CI and code and security review pass.
+Use a short-lived branch and a PR into `main`. Merge with a merge commit (not squash) after CI and code and security review pass.
 
 ### Releases
 
 1. Open a dedicated release PR, for example from `release/vX.Y.Z`. It contains only release changes: the version bump in `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` and `.codex-plugin/plugin.json`, the `CHANGELOG.md` entry, and docs that name the release (such as the tag in `docs/wiki/Installation.md` and the release checks in `docs/verification.md`).
-2. Squash merge after CI and code and security review pass.
+2. Merge with a merge commit (not squash) after CI and code and security review pass.
 3. Tag `vX.Y.Z` on the merged `main` commit, then publish the GitHub release.
 
 ### Pull request metadata
