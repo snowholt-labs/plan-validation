@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Shorten new fresh-session handoffs to a 50–80-word target, with explicit phase/validated-plan scope and links to the complete evidence and permission record.
+- Add a local, accessible “Feature at a glance” block diagram, plain-language summaries and expandable technical evidence. Keep both complete score tables, blockers and required approvals visible.
+- Use and disclose recommended defaults for unanswered routine clarifications, including prompt revision; keep required facts and approvals pending.
+- Add report format version 2 while retaining legacy rendering. Existing reports and planning documents are not migrated.
+
 ## 0.2.0 — 2026-10-14
 
 - Add focused review of proposed/changed dependencies and relevant existing security-critical components, with dated primary evidence and High/Medium/Low decision confidence.

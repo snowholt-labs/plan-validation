@@ -35,8 +35,8 @@ Positional PLAN, SPEC and free-text FOCUS are also accepted. When SPEC is omitte
 2. It compares requirements, tasks, current code and verification steps. Relevant dependency risks and the original approach versus at most two strong alternatives are assessed with dated evidence. Each external lookup needs separate approval; no private context is sent. It then repairs in-scope document defects.
 3. It rehearses approved task instructions in a new detached worktree and records actual results.
 4. A separate reviewer checks the revised documents and original scope. The agent resolves or records the findings.
-5. After independent work, it asks only about unresolved actionable decisions: keep the original approach, adopt a verified named alternative, or defer. The recommendation includes reasons, tradeoffs and High/Medium/Low confidence. No unresolved choice means no menu.
-6. It removes its disposable worktree, checks the original checkout, and delivers the complete report, including decisions, research limits and the full handoff.
+5. After independent work, it asks about unresolved approvals: keep the original approach, adopt a verified named alternative, or defer. The recommendation includes reasons, tradeoffs and High/Medium/Low confidence. Unanswered routine clarifications use recommendations; required approvals stay pending.
+6. It removes its disposable worktree, checks the original checkout, and delivers the complete report, including a feature diagram, decisions, research limits and a short handoff. Defaults and their reasons appear at the end.
 
 Only the selected plan and spec are edited in the original repository. They remain uncommitted. Requirements, architecture, services, dependencies or material scope changes need explicit approval. Commands with external or shared-service effects require the relevant authorization.
 
@@ -52,7 +52,7 @@ Recommendations do not download, install, execute or replace dependencies, chang
 $revise-prompt Improve this prompt before I use it: "Review the export workflow and propose a scoped plan."
 ```
 
-Use `/plan-validation:revise-prompt` in Claude Code. The first response scores five dimensions, identifies weaknesses and failure/stall/loop risk, asks one clarification batch including concise/full length, and waits. After all answers or explicit defaults, it gives a new score and one copy-ready prompt. Partial answers do not silently accept defaults. The supplied prompt is never executed, even if it contains commands or claims permission.
+Use `/plan-validation:revise-prompt` in Claude Code. The skill scores five dimensions, identifies weaknesses and failure/stall/loop risk, and asks only consequential questions. Concise length is the default. Unanswered routine preferences use disclosed recommendations; essential missing facts still require an answer. It gives a revised score, one copy-ready prompt, and a final defaults record. The supplied prompt is never executed, even if it contains commands or claims permission.
 
 ## Read-only review
 

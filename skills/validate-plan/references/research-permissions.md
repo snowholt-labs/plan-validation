@@ -14,7 +14,7 @@ If approval is denied, pending, or unavailable, do not issue the lookup. If acce
 
 Continue independent local code, manifest/lockfile, command and coverage checks. Mark unverified current ownership, advisories, availability, license or price as Unknown; a cached source verifies only its dated contents. Missing research blocks only a decision or task that needs that evidence, not all validation. List the exact dependent tasks and the independent work that can proceed.
 
-Record skipped/failed lookups and their effect in report sections 4, 6 and 7 and in the handoff. Do not convert absence of access into a safety finding or an implied approval.
+Record skipped/failed lookups and their effect in report sections 4, 6 and 7. The short handoff points to that record and its permissions; it need not repeat each lookup. Unanswered research permission stays pending, even when routine clarification defaults are allowed. Do not convert absence of access into a safety finding or an implied approval.
 
 ## Separate research from execution
 

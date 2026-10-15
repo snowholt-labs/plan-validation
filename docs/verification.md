@@ -1,5 +1,20 @@
 # Release verification
 
+## Unreleased report readability changes
+
+These checks cover the local source update; they are not publication or live-plugin acceptance results.
+
+| Check | Observed result | Evidence and limit |
+| --- | --- | --- |
+| Renderer regression suite | 42 tests passed | New tests first failed for missing diagram, disclosure, defaults and prompt-length behavior; the later independent-block tests also failed before their fix. Code-review fixes added regressions for Not ready instructions, path word counts, legacy-format fallback, section headings, hidden confidence, line endings and long flows; each failed before its fix. Legacy rendering, arithmetic, injection and readiness checks still pass. |
+| Package and CLI validation | Passed | Local links/manifests, both Claude validation commands, revised prompt skill validation and JavaScript syntax check. No dependency installation or release version change. |
+| Retry demonstration | Expected original failure; corrected control passes all three checks | The new report renders a 56-word remediation prompt. Rendered prompt text exactly matches handoff.txt. No original fixture documents are modified. |
+| Browser layout and evidence controls | Passed on the synthetic demo | Desktop and a requested 390-pixel viewport: diagram remains readable with no horizontal page overflow; both score tables retain five dimensions plus average; technical evidence expands and keyboard activation collapses it. |
+| Browser clipboard | Limited | The button reports success, but the browser automation's virtual clipboard returned no text and could not paste. Actual clipboard paste remains unverified; exported-text equality passed separately. |
+| Independent source review | Finding resolved | A reviewer identified forced sequential arrows for independent feature parts. The flow/blocks option and two regressions resolve it; focused re-review found no important remaining issue. |
+
+Print expansion/restoration was inspected in code but not exercised through a browser print dialog. Fresh-session model behavior, including optional-question defaults and evidence recovery through the short prompt, still needs live Claude/Codex evaluation. Format-version-1 recovery remains supported without migrating saved reports or planning documents.
+
 ## 0.2.0 release checks
 
 Checked on 14 October 2026 on Linux, using Python 3.14.4 and Claude Code 2.1.300. These checks distinguish package behavior, isolated agent exercises and external publication.

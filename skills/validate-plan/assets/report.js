@@ -1,4 +1,14 @@
 "use strict";
+let closedForPrint = null;
+window.addEventListener("beforeprint", () => {
+  if (closedForPrint !== null) return;
+  closedForPrint = [...document.querySelectorAll("details:not([open])")];
+  closedForPrint.forEach(details => { details.open = true; });
+});
+window.addEventListener("afterprint", () => {
+  closedForPrint?.forEach(details => { details.open = false; });
+  closedForPrint = null;
+});
 document.getElementById("print-report").addEventListener("click", () => window.print());
 const copyButton = document.getElementById("copy-prompt");
 if (copyButton) {
@@ -8,7 +18,7 @@ if (copyButton) {
     try {
       if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
       await navigator.clipboard.writeText(prompt.textContent);
-      status.textContent = "Complete prompt copied. Paste it into a fresh session.";
+      status.textContent = "Prompt copied. Paste it into a fresh session.";
     } catch {
       const selection = window.getSelection();
       const range = document.createRange();
@@ -16,7 +26,7 @@ if (copyButton) {
       selection.removeAllRanges();
       selection.addRange(range);
       prompt.focus();
-      status.textContent = "Copy was unavailable. The complete prompt is selected; press Ctrl+C (or Command+C).";
+      status.textContent = "Copy was unavailable. The prompt is selected; press Ctrl+C (or Command+C).";
     }
   });
 }
