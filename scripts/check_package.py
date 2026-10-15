@@ -56,7 +56,7 @@ def main():
             resolved = (path.parent / unquote(parsed.path)).resolve()
             if not resolved.is_relative_to(ROOT) or not resolved.exists():
                 errors.append(f"{path.relative_to(ROOT)}: broken local link {target}")
-    for directory in ("skills", "scripts", "docs", "examples", ".github", ".claude-plugin", ".codex-plugin"):
+    for directory in ("assets", "skills", "scripts", "docs", "examples", ".github", ".claude-plugin", ".codex-plugin"):
         for path in (ROOT / directory).rglob("*"):
             if path.is_symlink():
                 errors.append(f"Unexpected symlink in release: {path.relative_to(ROOT)}")

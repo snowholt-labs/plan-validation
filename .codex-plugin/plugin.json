@@ -9,5 +9,16 @@
   "homepage": "https://github.com/snowholt/plan-validation",
   "repository": "https://github.com/snowholt/plan-validation",
   "license": "MIT",
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Plan Validation",
+    "shortDescription": "Validate implementation plans before work starts",
+    "developerName": "snowholt",
+    "category": "Developer Tools",
+    "websiteURL": "https://github.com/snowholt/plan-validation",
+    "brandColor": "#873F63",
+    "composerIcon": "./assets/plan-validation-small.svg",
+    "logo": "./assets/plan-validation.svg",
+    "logoDark": "./assets/plan-validation-dark.svg"
+  }
 }
