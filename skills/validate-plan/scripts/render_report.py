@@ -172,11 +172,16 @@ def markdown(source):
     return "\n".join(result)
 
 
+def outside_fences(source):
+    """Blank fenced content while keeping offsets and line breaks."""
+    for start, end, _, _ in reversed(fenced_blocks(source)):
+        source = source[:start] + re.sub(r"[^\n]", " ", source[start:end]) + source[end:]
+    return source
+
+
 def sections(source):
     # Prompt content may itself contain numbered Markdown headings.
-    outside_code = source
-    for start, end, _, _ in reversed(fenced_blocks(source)):
-        outside_code = outside_code[:start] + re.sub(r"[^\n]", " ", outside_code[start:end]) + outside_code[end:]
+    outside_code = outside_fences(source)
     found = list(re.finditer(r"^## ([1-8])[.)] +(.+)$", outside_code, re.M))
     if [match.group(1) for match in found] != list("12345678"):
         raise ValueError("Report must contain exactly eight numbered level-two sections, 1 through 8")
@@ -248,8 +253,10 @@ def feature_overview(feature):
         arrow = '<span class="step-arrow" aria-hidden="true">→</span>' if layout == "flow" and index < len(steps) - 1 else ''
         blocks.append('<li><h3>' + escape(step["title"]) + '</h3><p>' + escape(step["description"]) + '</p>' + arrow + '</li>')
     tag = "ol" if layout == "flow" else "ul"
+    # More than five cards in one row become too narrow to read.
+    vertical = " vertical" if layout == "flow" and len(steps) > 5 else ""
     return ('<section id="feature-overview" aria-labelledby="feature-heading"><h2 id="feature-heading">Feature at a glance</h2>'
-            '<p>' + escape(feature["summary"]) + f'</p><{tag} class="feature-{layout}" role="list">' + ''.join(blocks) + f'</{tag}></section>')
+            '<p>' + escape(feature["summary"]) + f'</p><{tag} class="feature-{layout}{vertical}" role="list">' + ''.join(blocks) + f'</{tag}></section>')
 
 
 def defaulted_decisions(decisions):
@@ -278,19 +285,26 @@ def detail_marker(source, number):
     return markers[0]
 
 
-def first_table(source):
-    rows = []
-    for line in source.splitlines():
+def visible_part(source, number):
+    marker = detail_marker(source, number)
+    return source[:marker.start()] if marker else source
+
+
+def decision_table(source):
+    """Return the first table outside code whose first header is Decision."""
+    tables, rows = [], []
+    for line in outside_fences(source).splitlines() + [""]:
         if line.strip().startswith("|"):
             rows.append(cells(line))
         elif rows:
-            break
-    return rows
+            tables.append(rows)
+            rows = []
+    return next((table for table in tables if plain(table[0][0]).lower() == "decision"), [])
 
 
 def word_count(handoff):
-    # A backtick-quoted path is one word, even when it contains spaces.
-    return len(re.sub(r"`[^`\n]+`", "path", handoff).split())
+    # A backtick-quoted absolute path is one word, even when it contains spaces.
+    return len(re.sub(r"`(?:/|~/|[A-Za-z]:[\\/])[^`\n]*`", "path", handoff).split())
 
 
 def section_content(source, number):
@@ -319,9 +333,10 @@ def render(source, context):
     if version == 2 and [plain(heading).strip().lower() for heading, _ in parts] != [heading.lower() for heading in SOURCE_HEADINGS]:
         raise ValueError("Section headings must be: " + ", ".join(SOURCE_HEADINGS))
     plan, spec = scores(parts[1][1]), scores(parts[2][1])
-    confidence_source = parts[3][1]
-    marker = detail_marker(confidence_source, 4) if version == 2 else None
-    decisions = first_table(confidence_source[:marker.start()] if marker else confidence_source)
+    if version == 2:
+        decisions = decision_table(visible_part(parts[3][1], 4))
+    else:
+        decisions = [cells(line) for line in parts[3][1].splitlines() if line.strip().startswith("|")]
     if len(decisions) < 3 or any(len(row) != 4 for row in decisions):
         raise ValueError("Decision confidence requires a four-column table and at least one evidence row")
     verdict_match = re.match(r"(Ready after approvals|Not ready|Ready)\b", plain(parts[0][1]), re.I)
@@ -330,7 +345,8 @@ def render(source, context):
     verdict = verdict_match.group(1)
     if verdict.lower().startswith("ready") and context.get("review_status") != "complete":
         raise ValueError("A Ready report requires a completed cold read with findings dispositioned")
-    confidence_match = re.search(r"Confidence:\s*(Unknown|\d+%)", plain(parts[0][1]), re.I)
+    verdict_source = visible_part(parts[0][1], 1) if version == 2 else parts[0][1]
+    confidence_match = re.search(r"Confidence:\s*(Unknown|\d+%)", plain(verdict_source), re.I)
     if not confidence_match:
         raise ValueError("Section 1 needs Confidence: <percentage or Unknown>")
     confidence = confidence_match.group(1)
@@ -347,7 +363,8 @@ def render(source, context):
         raise ValueError("Section 8 must contain one complete fenced handoff")
     if version == 2 and word_count(handoff) > 80:
         raise ValueError("Fresh-session handoff must be at most 80 words; link to the plan, spec and report for details and wrap paths in backticks")
-    implement = re.search(r"(?:^|[.!?:]\s+)implement\b", handoff.strip(), re.I)
+    # Any "implement" instruction, except a negated one such as "Do not implement".
+    implement = re.search(r"(?<!not )(?<!n't )(?<!never )\bimplement\b", handoff, re.I)
     if verdict.lower() == "not ready" and (implement or "do not start dependent implementation" not in handoff.lower()):
         raise ValueError("Not ready requires a remediation prompt stating: Do not start dependent implementation")
     if context.get("handoff_status") not in {"current", "historical"}:

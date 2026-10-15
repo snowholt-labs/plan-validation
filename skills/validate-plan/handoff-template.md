@@ -12,7 +12,7 @@ Read `[SPEC path]`, `[report.md path]`, its context.json, and repository instruc
 Report results and any defaults chosen. Stop at the selected scope.
 ```
 
-The agent reads the report and context before implementation to recover document hashes, Git state, approvals, research limits, defaulted choices and required reviews. Missing or changed evidence requires reconciliation first; a short prompt is not permission to skip those checks. Use absolute paths to the saved report source and context so a fresh session can read them without a browser. Wrap each path in backticks; a backtick-quoted path counts as one word, even when it contains spaces.
+The agent reads the report and context before implementation to recover document hashes, Git state, approvals, research limits, defaulted choices and required reviews. Missing or changed evidence requires reconciliation first; a short prompt is not permission to skip those checks. Use absolute paths to the saved report source and context so a fresh session can read them without a browser. Wrap each path in backticks; a backtick-quoted absolute path counts as one word, even when it contains spaces.
 
 For **Ready after approvals**, name only the approved independent tasks and state which tasks must wait. Keep the same length limit; point to Open items for the full approval record.
 

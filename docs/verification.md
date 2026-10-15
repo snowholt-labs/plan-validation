@@ -6,7 +6,7 @@ These checks cover the local source update; they are not publication or live-plu
 
 | Check | Observed result | Evidence and limit |
 | --- | --- | --- |
-| Renderer regression suite | 29 tests passed | New tests first failed for missing diagram, disclosure, defaults and prompt-length behavior; the later independent-block tests also failed before their fix. Legacy rendering, arithmetic, injection and readiness checks still pass. |
+| Renderer regression suite | 42 tests passed | New tests first failed for missing diagram, disclosure, defaults and prompt-length behavior; the later independent-block tests also failed before their fix. Code-review fixes added regressions for Not ready instructions, path word counts, legacy-format fallback, section headings, hidden confidence, line endings and long flows; each failed before its fix. Legacy rendering, arithmetic, injection and readiness checks still pass. |
 | Package and CLI validation | Passed | Local links/manifests, both Claude validation commands, revised prompt skill validation and JavaScript syntax check. No dependency installation or release version change. |
 | Retry demonstration | Expected original failure; corrected control passes all three checks | The new report renders a 56-word remediation prompt. Rendered prompt text exactly matches handoff.txt. No original fixture documents are modified. |
 | Browser layout and evidence controls | Passed on the synthetic demo | Desktop and a requested 390-pixel viewport: diagram remains readable with no horizontal page overflow; both score tables retain five dimensions plus average; technical evidence expands and keyboard activation collapses it. |

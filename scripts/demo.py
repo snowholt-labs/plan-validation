@@ -39,7 +39,7 @@ def main():
     try:
         render(output, evidence)
     except BaseException:
-        # The directory was created above, so a failed run leaves nothing behind.
+        # Remove the output directory this run created; parent directories stay.
         shutil.rmtree(output)
         raise
     print("Fixture: 3 tests, 1 expected failure. Corrected control: 3 passed.")

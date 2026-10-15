@@ -52,7 +52,7 @@ The helper uses only Python's standard library. Version 2 adds a local HTML/CSS
 block diagram above the eight evidence sections, optional expandable technical
 details, and the routine-default record at the end. It requires 3–7 feature
 steps, each with a nonempty title and description, and rejects handoffs longer
-than 80 whitespace-separated words. Target 50–80 words; do not add filler to
+than 80 whitespace-separated words; a backtick-quoted absolute path counts as one word. Target 50–80 words; do not add filler to
 meet a minimum. Print/PDF expands details and restores their state afterward.
 Use `feature.layout: flow` (the default) for a genuine sequence with arrows, or
 `blocks` for independent parts displayed without ordering or arrows. The

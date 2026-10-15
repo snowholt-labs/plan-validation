@@ -236,6 +236,21 @@ class ReportTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "remediation prompt"):
             render(source, self.modern_context())
 
+    def test_not_ready_rejects_line_and_list_implementation_instructions(self):
+        for instruction in ("Fix the cap.\nImplement Task 2.", "- Implement Task 2.", "Then implement Task 2."):
+            source = REPORT.replace("**Ready.**", "**Not ready.**").replace(
+                "Implement the approved scope now.", instruction + "\nDo not start dependent implementation.")
+            with self.subTest(instruction=instruction), self.assertRaisesRegex(ValueError, "remediation prompt"):
+                render(source, self.modern_context())
+        source = REPORT.replace("**Ready.**", "**Not ready.**").replace(
+            "Implement the approved scope now.", "Do not implement Task 2. Do not start dependent implementation.")
+        self.assertIn("Copy remediation prompt", render(source, self.modern_context())[0])
+
+    def test_backticks_around_prose_do_not_bypass_the_word_limit(self):
+        source = REPORT.replace("Implement the approved scope now.", "`" + "detail " * 81 + "` now.")
+        with self.assertRaisesRegex(ValueError, "80 words"):
+            render(source, self.modern_context())
+
     def test_backtick_quoted_paths_count_as_one_word(self):
         path = "`/Users/x/My Projects/" + "deep folder " * 40 + "plan.md`"
         source = REPORT.replace("Implement the approved scope now.", f"Implement the plan in {path} now.")
@@ -252,6 +267,30 @@ class ReportTests(unittest.TestCase):
         hidden = REPORT.replace(table, "### Technical details\n" + table)
         with self.assertRaisesRegex(ValueError, "Decision confidence"):
             render(hidden, self.modern_context())
+
+    def test_confidence_table_is_found_after_other_tables_and_code(self):
+        prefix = "| Summary | Value |\n|---|---|\n| Checks | 2 |\n\n```text\n| not | a | table |\n```\n\n"
+        source = REPORT.replace("| Decision | Confidence |", prefix + "| Decision | Confidence |")
+        page, _, _ = render(source, self.modern_context())
+        self.assertIn("Recorded focused check", page)
+
+    def test_legacy_confidence_table_validation_is_unchanged(self):
+        source = REPORT.replace("| Readiness | 75% | Recorded focused check | No browser check |",
+                                "| Readiness | 75% | Recorded focused check | No browser check |\n\n| Extra | Table |\n|---|---|")
+        with self.assertRaisesRegex(ValueError, "Decision confidence"):
+            render(source, self.context)
+
+    def test_verdict_confidence_must_be_visible(self):
+        source = REPORT.replace("**Ready.** Confidence: 75% (subjective, not a measured probability).",
+                                "**Ready.** Main limit: no browser check.\n\n### Technical details\nConfidence: 75%.")
+        with self.assertRaisesRegex(ValueError, "Confidence"):
+            render(source, self.modern_context())
+
+    def test_long_feature_flow_stacks_vertically(self):
+        context = self.modern_context()
+        context["feature"]["steps"] = [{"title": f"Step {n}", "description": "Does one thing."} for n in range(7)]
+        page, _, _ = render(REPORT, context)
+        self.assertIn('<ol class="feature-flow vertical" role="list">', page)
 
     def test_modern_report_requires_the_contract_section_headings(self):
         source = REPORT.replace("## 2. PLAN comparison", "## 2. SPEC comparison", 1)
