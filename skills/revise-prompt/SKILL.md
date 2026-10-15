@@ -26,18 +26,19 @@ Invoke with `$revise-prompt` in Codex, `/plan-validation:revise-prompt` in the C
    - Feasibility and stopping conditions: 0-2
 2. Give at most five concise weaknesses. For each, say why it could reduce answer quality or cause failure.
 3. Report `Failure/stall/loop risk: Low | Medium | High` with one short reason. Flag contradictions, missing access or evidence, unsafe assumptions, unbounded retries, impossible completion conditions, and requests that could still fail after revision.
-4. Ask one batch of no more than five essential clarification questions. Give 2-4 concrete answer choices for every question and mark one `(Recommended)`. Do not ask about information already present.
-5. Always include this final choice: `Prompt length: Concise (Recommended when sufficient) | Full (more context and safeguards)`.
-6. Stop and wait. Do not print or preview the revised prompt before the user answers.
+4. Ask only questions whose answers materially affect the revision, in one batch of at most five. Give 2-4 concrete choices and mark one `(Recommended)` when meaningful. Do not ask about known facts or routine choices you can reasonably resolve.
+5. Use concise length unless the user requests full length or additional detail is necessary. Length is an optional preference, not a reason to stop.
+6. For optional questions, allow a reasonable opportunity to reply when the host supports it while continuing independent critique. If unanswered, use the recommendation and complete the revision. Partial answers do not prevent applying defaults to the remaining routine choices. Do not repeat the same questions.
 
-If the user explicitly says to choose defaults or skip questions, use the recommended choices for anything unanswered and state those assumptions. If the user answers only some questions, wait for the remaining answers or explicit permission to use defaults; do not preview the revision. Do not start another clarification round unless proceeding would be unsafe or would materially change the user's intent.
+Wait only for information essential to preserve the user's intended outcome or authorization, such as a missing prompt or an ambiguous destructive target. Do not guess facts, materially change scope/security/privacy, select a new dependency/service, or treat silence as approval. Continue independent critique while required answers are pending. If the user requests a question-first workflow, honor it. Explicit permission to use defaults removes the wait for optional preferences, not required approvals.
 
 ## Final response: revision
 
-After the user answers:
+After essential information is available, using recorded defaults for unanswered routine choices:
 
 1. State the revised score out of 10 using the same rubric and give a one-sentence reason.
 2. State any remaining failure, stall, or loop risk. If none is identifiable, say so plainly. Never imply that a high score guarantees success.
 3. Print the revised prompt in one copy-ready fenced code block, using the requested concise or full length.
+4. End with **Decisions made without your reply**, giving each defaulted question, choice and brief reason, or `None`. Distinguish these recommendations from actual user answers or permissions.
 
 Preserve the user's intent, facts, voice, target tool or model, and authorization boundaries. Do not invent context, evidence, permissions, citations, or requirements. Add only relevant elements such as a concrete objective, inputs and sources of truth, scope, constraints, output format, acceptance criteria, verification, ambiguity handling, and a clear stopping condition. Keep concise prompts genuinely concise; use headings and fuller safeguards only when they add value.

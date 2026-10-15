@@ -35,7 +35,7 @@ It works with ordinary Markdown plans and is designed to complement [Superpowers
 | --- | --- | --- |
 | `validation-args` | Find the correct plan/spec copies and prepare a complete invocation with review focus and worktree context. | Nothing. Read-only preparation. |
 | `validate-plan` | Review, revise, rehearse and independently review the selected plan/spec, including relevant dependencies and alternatives; deliver an HTML report. | Selected planning documents, disposable rehearsal files and local report artifacts. |
-| `revise-prompt` | Critique and score a prompt, ask clarifying questions, wait, then return a copy-ready revision. | Conversation only; never executes the supplied prompt. |
+| `revise-prompt` | Critique and score a prompt, resolve essential questions, use disclosed routine defaults, then return a copy-ready revision. | Conversation only; never executes the supplied prompt. |
 
 Validation leaves the planning documents uncommitted. It does not ship the feature. The handoff carries your actual permissions and your repository's workflow; it does not grant new merge or deployment authority.
 
@@ -93,13 +93,13 @@ The workflow is: **resolve → inspect → review dependencies/alternatives wher
 
 Dependency review covers proposed/changed dependencies and relevant existing security-critical components, with exact identity, provenance, maintenance, advisories/fixes, license, compatibility, scripts/permissions, privacy and cost evidence. It compares the original approach with at most two strong alternatives, including the existing implementation or no new dependency where suitable. Dated primary sources and High/Medium/Low decision confidence support recommendations; popularity and an absence of advisories do not establish safety.
 
-Only unresolved actionable choices get a concise decision menu after independent work. The report and handoff retain the answer or deferred/pending state. Research does not install, download, execute or replace dependencies, modify manifests/lockfiles, or enable services/plugins.
+Only unresolved approval choices get a concise decision menu after independent work. Unanswered routine clarifications use recommended defaults, disclosed with reasons at the end. Required facts and approvals remain pending. The report retains the full decision record; the short handoff points to it. Research does not install, download, execute or replace dependencies, modify manifests/lockfiles, or enable services/plugins.
 
-For prompt revision, invoke `$revise-prompt` or `/plan-validation:revise-prompt` followed by the prompt. Answer its clarification batch (or explicitly choose defaults) before receiving the copy-ready revision. The prompt remains quoted review material throughout.
+For prompt revision, invoke `$revise-prompt` or `/plan-validation:revise-prompt` followed by the prompt. The skill asks only consequential questions and defaults to concise output. Unanswered routine preferences do not stall the revision; essential missing facts still require an answer. The prompt remains quoted review material throughout.
 
 ## What you receive
 
-A self-contained HTML report, with no external scripts, fonts or analytics, containing:
+A self-contained HTML report, with no external scripts, fonts or analytics. A **Feature at a glance** diagram shows the proposed behavior in 3–7 plain-language blocks, followed by eight evidence sections:
 
 1. A readiness verdict and its limits.
 2. Original/revised PLAN scores across five dimensions.
@@ -108,7 +108,9 @@ A self-contained HTML report, with no external scripts, fonts or analytics, cont
 5. Scope comparison, explained document changes and applicable dependency/alternative comparisons.
 6. Blockers, decisions, pending approvals and accepted limitations.
 7. Checks actually run, results, revisions and cleanup status.
-8. A complete implementation or remediation prompt.
+8. A short implementation or remediation prompt: target 50–80 words, naming one phase or the whole validated scope and referring to the plan, spec and saved evidence.
+
+Plain summaries keep the report easy to scan. Both complete score tables, blockers and important limits stay visible; detailed commands and supporting evidence can be expanded. **Decisions made without your reply** appears at the end with each routine default and its reason. Existing reports and planning documents are not reformatted by updating the plugin.
 
 Reports stay under `~/.local/share/plan-validation/`. The renderer checks section structure, score arithmetic, review-completion metadata and document fingerprints. It cannot independently prove that a review happened or that a test result is true. Scores are judgments about the documents, not success probabilities.
 

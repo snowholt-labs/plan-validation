@@ -19,6 +19,10 @@ from urllib.parse import urlsplit
 
 
 ASSETS = Path(__file__).resolve().parents[1] / "assets"
+READABLE_HEADINGS = (
+    "Can implementation start?", "Plan scores", "Specification scores", "How certain we are",
+    "What changed", "Open items", "What we checked", "Start the next session",
+)
 
 
 def fenced_blocks(source):
@@ -222,7 +226,64 @@ def document_checks(context):
     return results
 
 
+def text_fields(record, keys):
+    return isinstance(record, dict) and all(isinstance(record.get(key), str) and record[key].strip() for key in keys)
+
+
+def feature_overview(feature):
+    if not text_fields(feature, ("summary",)):
+        raise ValueError("Feature overview needs a plain-language summary")
+    steps = feature.get("steps")
+    if not isinstance(steps, list) or not 3 <= len(steps) <= 7 or not all(text_fields(step, ("title", "description")) for step in steps):
+        raise ValueError("Feature overview needs 3–7 blocks with a title and description")
+    layout = feature.get("layout", "flow")
+    if layout not in ("flow", "blocks"):
+        raise ValueError("Feature layout must be flow or blocks")
+    blocks = []
+    for index, step in enumerate(steps):
+        arrow = '<span class="step-arrow" aria-hidden="true">→</span>' if layout == "flow" and index < len(steps) - 1 else ''
+        blocks.append('<li><h3>' + escape(step["title"]) + '</h3><p>' + escape(step["description"]) + '</p>' + arrow + '</li>')
+    tag = "ol" if layout == "flow" else "ul"
+    return ('<section id="feature-overview" aria-labelledby="feature-heading"><h2 id="feature-heading">Feature at a glance</h2>'
+            '<p>' + escape(feature["summary"]) + f'</p><{tag} class="feature-{layout}">' + ''.join(blocks) + f'</{tag}></section>')
+
+
+def defaulted_decisions(decisions):
+    if not isinstance(decisions, list) or not all(text_fields(item, ("question", "decision", "reason")) for item in decisions):
+        raise ValueError("Decisions made without a reply need question, decision and reason; use [] when none")
+    if decisions:
+        content = '<p>These routine defaults are recommendations used, not user approval. Required approvals remain in Open items.</p><ul>'
+        for item in decisions:
+            content += '<li><strong>' + escape(item["question"]) + '</strong><p>' + escape(item["decision"]) + '</p><p>Why: ' + escape(item["reason"]) + '</p></li>'
+        content += '</ul>'
+    else:
+        content = '<p>None. No unanswered routine questions were defaulted.</p>'
+    return ('<aside id="defaulted-decisions" class="decisions" aria-labelledby="decisions-heading">'
+            '<h2 id="decisions-heading">Decisions made without your reply</h2>' + content + '</aside>')
+
+
+def section_content(source, number):
+    """Collapse explicitly marked evidence, never infer what is safe to hide."""
+    fences = fenced_blocks(source)
+    markers = [match for match in re.finditer(r"^### Technical details[ \t]*$", source, re.M)
+               if not any(start <= match.start() < end for start, end, _, _ in fences)]
+    if not markers:
+        return markdown(source)
+    if number not in (1, 4, 5, 7) or len(markers) != 1:
+        raise ValueError("Technical details are allowed once in sections 1, 4, 5 or 7; scores, open items and handoff stay visible")
+    marker = markers[0]
+    summary, detail = source[:marker.start()].strip(), source[marker.end():].strip()
+    if not summary or not detail:
+        raise ValueError("Technical details need a visible summary and nonempty evidence")
+    return markdown(summary) + '<details class="technical-details"><summary>Technical details</summary>' + markdown(detail) + '</details>'
+
+
 def render(source, context):
+    version = context.get("format_version", 1)
+    if type(version) is not int or version not in (1, 2):
+        raise ValueError("format_version must be 1 (legacy) or 2")
+    overview = feature_overview(context.get("feature")) if version == 2 else ''
+    defaults = defaulted_decisions(context.get("decisions_without_reply")) if version == 2 else ''
     parts = sections(source)
     if any(not content for _, content in parts):
         raise ValueError("Every report section must contain its evidence or an explicit Unknown/None")
@@ -251,6 +312,8 @@ def render(source, context):
     handoff = parts[7][1][prompt_start:prompt_end].rstrip("\n")
     if not handoff.strip():
         raise ValueError("Section 8 must contain one complete fenced handoff")
+    if version == 2 and len(handoff.split()) > 80:
+        raise ValueError("Fresh-session handoff must be at most 80 words; link to the plan, spec and report for details")
     if verdict.lower() == "not ready" and (handoff.lstrip().lower().startswith("implement") or "do not start dependent implementation" not in handoff.lower()):
         raise ValueError("Not ready requires a remediation prompt stating: Do not start dependent implementation")
     if context.get("handoff_status") not in {"current", "historical"}:
@@ -274,6 +337,9 @@ def render(source, context):
     script_hash = base64.b64encode(hashlib.sha256(js.encode()).digest()).decode()
     body = []
     for index, (heading, content) in enumerate(parts, 1):
+        rendered = section_content(content, index) if version == 2 else markdown(content)
+        if version == 2:
+            heading = READABLE_HEADINGS[index - 1]
         if index == 8:
             start, end, _, _ = prompts[0]
             intro = content[:start] + content[end:]
@@ -284,7 +350,7 @@ def render(source, context):
                 toolbar = '<p class="warning">Document identity, Git state or approvals changed or could not be checked. This is a historical prompt. Revalidate the changed scope before using it.</p>'
             content_html = markdown(intro) + '<div class="prompt-toolbar">' + toolbar + '</div><pre id="handoff" tabindex="0">' + escape(handoff) + '</pre>'
         else:
-            content_html = markdown(content)
+            content_html = rendered
         body.append(f'<section id="section-{index}" aria-labelledby="heading-{index}"><div class="section-heading"><span>{index:02}</span><h2 id="heading-{index}">{inline(heading)}</h2></div>' + (scope_html if index == 5 else "") + content_html + '</section>')
     title = escape(context["title"])
     note_html = ''.join('<article><h3>' + escape(note["title"]) + '</h3><p>' + inline(note["body"]) + '</p></article>' for note in context.get("notes", []))
@@ -299,6 +365,11 @@ def render(source, context):
     stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
     doc_html = ''.join('<li><strong>' + escape(doc["label"]) + '</strong> · ' + ("matches" if matches else "changed / unavailable") + '<br><code>' + escape(doc["path"]) + '</code><br><small>SHA256 ' + escape(doc["sha256"]) + '</small></li>' for doc, matches in checks)
     prompt_download = '<a href="handoff.txt" download>Prompt .txt</a>' if current else ''
+    overview_link = '<a href="#feature-overview">Feature overview</a>' if overview else ''
+    if version == 2:
+        state = "Plan and spec match the saved review." if fingerprints_match else "Plan or spec changed or could not be read."
+        if not current:
+            state += " Recheck the saved evidence before starting."
     page = f'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-{script_hash}'; img-src data:; base-uri 'none'; form-action 'none'">
@@ -310,9 +381,10 @@ def render(source, context):
 <h1>{title}</h1><p class="lead">{inline(context['summary'])}</p><div class="verdict">{escape(status)}</div>
 <div class="metrics"><div><span>PLAN · average /10</span><strong>{plan[0]} <i>→</i> {plan[1]}</strong></div><div><span>SPEC · average /10</span><strong>{spec[0]} <i>→</i> {spec[1]}</strong></div><div><span>Evidence confidence</span><strong>{escape(confidence)}</strong><small>Subjective estimate, not a measured probability</small></div></div>
 <p class="freshness">{escape(state)} {inline(context['freshness'])}</p></div>
-<nav aria-label="Report sections"><a href="#section-1">Summary</a><a href="#section-2">Scores</a><a href="#scope">Scope</a><a href="#section-5">Changes</a><a href="#section-6">Open items</a><a href="#section-7">Verification</a><a href="#section-8">Start prompt</a></nav>
-<div class="notes">{note_html}</div>{''.join(body)}
+<nav aria-label="Report sections">{overview_link}<a href="#section-1">Summary</a><a href="#section-2">Scores</a><a href="#scope">Scope</a><a href="#section-5">Changes</a><a href="#section-6">Open items</a><a href="#section-7">Checks</a><a href="#section-8">Start prompt</a></nav>
+<div class="notes">{note_html}</div>{overview}{''.join(body)}
 <details class="identity"><summary>Document identity &amp; report provenance</summary><ul>{doc_html}</ul><p>HTML generated {escape(stamp)}. {escape(context.get('provenance', ''))}</p></details>
+{defaults}
 </main><footer>Local report · No external fonts, scripts, analytics or network requests. Scores describe document quality; they do not guarantee implementation success.</footer><script>{js}</script></body></html>'''
     if not current:
         handoff = "HISTORICAL PROMPT — DO NOT EXECUTE.\nDocument identity, Git state or approvals need revalidation before implementation.\n\n" + handoff

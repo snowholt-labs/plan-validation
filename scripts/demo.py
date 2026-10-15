@@ -78,28 +78,41 @@ The original documents are preserved. The separate corrected control demonstrate
 Blocker: revise Task 1 to include R3 and its boundary assertion, then obtain an independent cold read. This report does not authorize real implementation or external actions.
 
 ## 7. Verification and checkout
+The original example failed the delay-limit check; the corrected version passed all three checks. No independent review or production test was run.
+
+### Technical details
 Executed `python3 examples/retry/checks.py uncapped`: exit 1, 3 tests, 1 failure.
 Executed `python3 examples/retry/checks.py corrected`: exit 0, 3 tests passed.
 Actual captured outputs are saved in evidence.json. No agent evaluation, Git rehearsal worktree, production test, model-cost measurement or independent review was performed. The script rendered fixture copies; it did not alter the original documents.
 
 ## 8. Fresh-session handoff
 ```text
-Review the authored retry-delay fixture before treating its plan as ready.
-Use plan.md and spec.md alongside this demonstration report.
-Task 1 omits SPEC requirement R3: cap the retry delay at 30 seconds and assert attempt 6 returns 30.
-Revise that task without expanding scope, reproduce the three acceptance assertions, and obtain an independent review.
-Do not start dependent implementation.
-This example grants no commit, push, PR, merge or deployment permission.
+Work in {ROOT}. Resume validation of the retry-delay fixture using {output / 'plan.md'} and {output / 'spec.md'}.
+
+Read {output / 'report.md'}, its context.json, and repository instructions first. Confirm the saved evidence still applies. Resolve the missing delay cap and independent review within recorded permissions; rerun the three acceptance checks.
+
+Do not start dependent implementation. Report results and any defaults chosen, then stop.
 ```
 '''
     context = {
+        "format_version": 2,
         "title": "Retry delay: a missing boundary",
         "validation_date": datetime.now(timezone.utc).date().isoformat(),
         "kind": "new", "review_status": "not_run", "handoff_status": "current",
-        "summary": "A runnable teaching example: the plan forgot the 30-second cap. Actual fixture results, explicit limits, and a complete remediation handoff.",
+        "summary": "The proposed retry feature should never wait more than 30 seconds. The plan missed that limit; the example below shows the failure and the correction.",
         "freshness": "Fixture copies checked at rendering. No repository or implementation approval is represented.",
         "provenance": "scripts/demo.py; authored public fixture, not an agent benchmark.",
         "documents": documents,
+        "feature": {
+            "summary": "Proposed behavior: retry an unsuccessful action with a longer wait each time, capped at 30 seconds.",
+            "steps": [
+                {"title": "Try the action", "description": "An unsuccessful attempt may need another try."},
+                {"title": "Choose the wait", "description": "Later attempts wait longer."},
+                {"title": "Apply the limit", "description": "The wait never exceeds 30 seconds. This is the missing rule."},
+                {"title": "Retry", "description": "Try again after the limited wait."},
+            ],
+        },
+        "decisions_without_reply": [],
         "scope": {"explanation": "The same one-task fixture is retained; the corrected control adds no requirement.",
                   "approval": "Teaching example only. No real implementation or external-action authorization.",
                   "rows": [{"metric": metric, "original": count, "revised": count, "reason": "Same fixture scope; no plan revision claimed."}

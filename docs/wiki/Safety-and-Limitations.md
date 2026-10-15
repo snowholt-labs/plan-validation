@@ -26,9 +26,9 @@ The default report location is documented in Unix form. Users on other platforms
 
 Review only dependencies proposed/changed by the plan and existing security-critical components relevant to its scope. Broaden transitive inspection only for concrete evidence or a sensitive path. Mature stable software is not abandoned merely because releases are infrequent. Stars, company backing and a lack of advisories do not prove safety or prevent supply-chain attacks. Verify plugin ownership, availability and fit before recommending adoption.
 
-Research never authorizes package downloads, dependency execution/replacement, manifest/lockfile changes or service/plugin enablement. Decisions and their separate execution gates travel in the report and handoff.
+Research never authorizes package downloads, dependency execution/replacement, manifest/lockfile changes or service/plugin enablement. Decisions and separate execution gates remain in the report, which the short handoff requires the next agent to read. Routine defaults never replace required approvals.
 
-`revise-prompt` treats supplied text as data. It critiques, scores, clarifies, waits for answers or explicit defaults, and returns a revision; it does not execute the prompt. Your host still processes that conversation under its own policies.
+`revise-prompt` treats supplied text as data. It critiques, scores, clarifies essential missing facts, and uses disclosed recommendations for unanswered routine preferences. It does not execute the prompt or infer permission from silence. Your host still processes that conversation under its own policies.
 
 ## Verification limits
 
