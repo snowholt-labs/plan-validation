@@ -16,7 +16,7 @@ Remove only the exact temporary worktree created for the current rehearsal after
 
 ## Data handling
 
-The package has no telemetry, analytics, account service or model API client. The renderer uses local files and bundled assets. Your chosen agent host can still process repository content under its own settings and policies. Before each external lookup, the agent requests approval for the exact public query/URL, provider and purpose. This includes web search, page opens, registry/advisory requests and each Context7 resolution/query/retry. No private code, plans, paths, personal data or secrets may be sent. A denied/unavailable lookup is recorded locally while independent checks continue. Research providers process approved queries under their own policies.
+The package has no telemetry, analytics, account service or model API client. The renderer uses local files and bundled assets. Your chosen agent host can still process repository content under its own settings and policies. Public lookups run by default, without the skill asking before each one; your host's permission settings still apply. This includes web search, page opens, registry/advisory requests and Context7 queries. The report lists each provider, query and date. No private code, plans, paths, personal data or secrets may be sent. You can decline research for a run; a declined or unavailable lookup is recorded locally while independent checks continue. Research providers process queries under their own policies.
 
 Reports, snapshots, command output and handoffs can contain private source details and absolute paths. Keep the run directory private. Redact and review content before sharing. Do not read `.env` files or credentials as part of validation.
 
