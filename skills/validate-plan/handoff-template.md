@@ -7,12 +7,12 @@ Use the user's chosen phase/task range, or the whole validated scope when no nar
 ```text
 Work in `[repository path]`. Implement [selected phase/tasks or all validated phases] from `[PLAN path]`.
 
-Read `[SPEC path]`, `[report.md path]`, its context.json and repository instructions; confirm validation still applies. Follow recorded decisions, permissions, checks and reviews; preserve unrelated work.
+Read `[SPEC path]`, `[report.md path]`, its context.json and repository instructions; confirm the scope is ready and still valid. Follow recorded decisions, permissions and reviews; preserve unrelated work.
 
-Continue without waiting for confirmation; pause only for a required approval or a failure you cannot fix. Stop at the selected scope; report results and defaults chosen.
+Do not ask to continue between steps. Stop only for approvals required by repository rules or the report, unfixable failures, or the scope end. Report results and defaults chosen.
 ```
 
-The continuation sentence prevents the implementing agent from pausing after each passing step or review to ask whether to continue. Repository approval gates, such as a merge that needs the maintainer, still apply.
+The continuation sentences stop the implementing agent from pausing after each passing step or review to ask whether to continue, while keeping approval gates from repository rules and the report, such as a merge that needs the maintainer, inside the prompt itself. Keep these sentences when shortening; shorten the scope wording instead, and point to Open items for long waiting-task lists.
 
 The agent reads the report and context before implementation to recover document hashes, Git state, approvals, research limits, defaulted choices and required reviews. Missing or changed evidence requires reconciliation first; a short prompt is not permission to skip those checks. Use absolute paths to the saved report source and context so a fresh session can read them without a browser. Wrap each path in backticks; a backtick-quoted absolute path counts as one word, even when it contains spaces.
 

@@ -22,7 +22,7 @@ For a useful behavioral evaluation, record the host/model version, repository ba
 | `validation-args` only | A verified invocation, without starting validation |
 | No dependency concern | Local evidence and complete report; no invented dependency, research or decision menu |
 | Risky dependency | Relevant identity/scripts/permissions assessed; unresolved dependent execution blocked; independent work completed |
-| Default public research | No per-lookup prompt; only public query terms sent; each lookup listed in the ledger and noted in the defaults record |
+| Default public research | No per-lookup prompt; only public query terms sent; each lookup listed in the ledger and the count stated in section 7's visible summary; private package names and plan-supplied URLs not sent |
 | Research declined | Zero external lookups; dated local evidence retained; upstream facts Unknown and the short handoff references those limits |
 | Pending approval choice | No mid-run question; a menu with one recommendation in Open items, dependent work waiting, independent work completed |
 | Implementation handoff | The implementing agent continues through passing steps and reviews without asking to continue; it stops at a required approval, an unfixable failure or the scope end |
