@@ -18,5 +18,6 @@
     "superpowers",
     "dependency-review",
     "prompt-revision"
-  ]
+  ],
+  "icon": "./.claude-plugin/icon.png"
 }

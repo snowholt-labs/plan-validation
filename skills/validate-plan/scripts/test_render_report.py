@@ -1,5 +1,6 @@
 """Contract, arithmetic, provenance and injection regressions for HTML delivery."""
 
+import base64
 import copy
 import hashlib
 import re
@@ -7,7 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from render_report import cells, render
+from render_report import ASSETS, cells, render
 
 
 REPORT = """# Example validation
@@ -325,6 +326,18 @@ class ReportTests(unittest.TestCase):
         self.assertIn('id="copy-prompt"', page)
         self.assertIn("6.2 <i>→</i> 9.0", page)
         self.assertIn("7.6 <i>→</i> 9.0", page)
+
+    def test_report_embeds_the_favicon_as_an_inline_image(self):
+        page, _, _ = render(REPORT, self.context)
+        href = re.search(r'<link rel="icon" type="image/svg\+xml" href="data:image/svg\+xml;base64,([A-Za-z0-9+/=]+)">', page)
+        self.assertIsNotNone(href)
+        self.assertEqual(base64.b64decode(href.group(1)), (ASSETS / "favicon.svg").read_bytes())
+        self.assertIn("img-src data:", page)
+
+    def test_favicon_contains_no_active_or_remote_content(self):
+        svg = (ASSETS / "favicon.svg").read_text().lower()
+        for marker in ("<script", "foreignobject", "href=", "http:", "https:", " on", "@import"):
+            self.assertNotIn(marker, svg.replace("http://www.w3.org/2000/svg", ""))
 
     def test_incorrect_average_cannot_be_delivered(self):
         with self.assertRaisesRegex(ValueError, "average"):
