@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add plugin icons: light, dark and composer icons for Codex, and a directory icon for Anthropic's plugin directory. Generated HTML reports show an inline favicon.
 - Shorten new fresh-session handoffs to a 50–80-word target, with explicit phase/validated-plan scope and links to the complete evidence and permission record.
 - Add a local, accessible “Feature at a glance” block diagram, plain-language summaries and expandable technical evidence. Keep both complete score tables, blockers and required approvals visible.
 - Use and disclose recommended defaults for unanswered routine clarifications, including prompt revision; keep required facts and approvals pending.
