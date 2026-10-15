@@ -1,6 +1,6 @@
 # Focused dependency and alternatives review
 
-Read this when the scoped plan proposes or changes a dependency, relies on an existing security-critical dependency, or has a consequential build-versus-adopt choice. Apply [per-lookup permission](research-permissions.md) before any external research. Research supports a recommendation; it does not authorize implementation.
+Read this when the scoped plan proposes or changes a dependency, relies on an existing security-critical dependency, or has a consequential build-versus-adopt choice. Follow the [public research](research-permissions.md) rules for any external lookup. Research supports a recommendation; it does not authorize implementation.
 
 ## Select a bounded review
 
@@ -22,7 +22,7 @@ Cover these dimensions proportionately; mark genuinely irrelevant dimensions N/A
 | Security and fixes | Confirmed advisory identifiers, affected/fixed ranges, relevance to the proposed/resolved version and reachable code path, mitigations and unresolved reports. No reported vulnerabilities is not proof of safety. |
 | License and provenance limits | License for the exact component/version and material transitive constraints; compatibility with intended distribution and any unclear ownership or artifact origin. Do not give unsupported legal assurances. |
 | Compatibility and transitive risk | Runtime/framework/platform support, peer requirements, lockfile resolution, relevant transitive conflicts, critical-path components and likely migration breakage. |
-| Scripts and permissions | Available install/build/lifecycle hooks, planned commands, shell/network activity, requested host/plugin permissions and credential access. If scripts are not locally or publicly inspectable under approved research, record Unknown; do not download or execute the package to find out. |
+| Scripts and permissions | Available install/build/lifecycle hooks, planned commands, shell/network activity, requested host/plugin permissions and credential access. If scripts are not locally or publicly inspectable through public research, record Unknown; do not download or execute the package to find out. |
 | Privacy and operations | Data sent/stored, recipients, retention, telemetry, credentials, network dependence and operational burden. Public documentation does not verify deployed behavior. |
 | Cost and lock-in | Current documented price/limits with date, estimated usage assumptions, recurring costs, portability/export, switching and rollback costs. Unknown usage is not zero cost. |
 
@@ -51,12 +51,12 @@ These are evidence judgments, not probabilities or safety ratings. Keep the repo
 
 ## Preserve decisions and authority
 
-Finish all independent checks and prepare the complete report before asking the user to choose. Present a menu only for unresolved actionable choices, not informational findings or already accepted decisions:
+Finish all independent checks and prepare the complete report without stopping to ask. Write a menu in report section 6 only for unresolved actionable choices, not informational findings or already accepted decisions. The user answers it later:
 
 - **Keep original approach:** name it and explain the benefit, risk and any unsatisfied safety/approval conditions.
 - **Adopt [verified named alternative]:** state the concrete benefit, integration effort, costs, tradeoffs and migration/rollback impact. Include at most the two researched alternatives.
 - **Defer:** name the dependent tasks that will wait and the independent work that can continue.
 
-Mark one recommendation and give its reasons and High/Medium/Low confidence. If no alternative is verified, omit adoption and explain that limit. Record a decision ID, user answer or pending/deferred status, exact approval scope, affected tasks and separately required installation/service permission in sections 5–6. The short handoff references that complete record. Routine presentation or execution-order clarifications may use recorded defaults within the approved scope; dependency/service adoption and other required approvals cannot. A recommendation, silence, elapsed time or research approval is not an adoption decision. Adopting an approach does not authorize executing its install/enable commands during validation.
+Mark one recommendation and give its reasons and High/Medium/Low confidence. If no alternative is verified, omit adoption and explain that limit. Record a decision ID, user answer or pending/deferred status, exact approval scope, affected tasks and separately required installation/service permission in sections 5–6. The short handoff references that complete record. Routine presentation or execution-order clarifications may use recorded defaults within the approved scope; dependency/service adoption and other required approvals cannot. A recommendation, silence, elapsed time or completed research is not an adoption decision. Adopting an approach does not authorize executing its install/enable commands during validation.
 
-Retain selected PLAN/SPEC content while approval is pending. Recheck affected documents after an approved revision. Denied research alone does not make every task unsafe; block only dependent work and state what remains independently verified.
+Retain selected PLAN/SPEC content while approval is pending. Recheck affected documents after an approved revision. Declined or failed research alone does not make every task unsafe; block only dependent work and state what remains independently verified.

@@ -6,6 +6,10 @@
 - Shorten new fresh-session handoffs to a 50–80-word target, with explicit phase/validated-plan scope and links to the complete evidence and permission record.
 - Add a local, accessible “Feature at a glance” block diagram, plain-language summaries and expandable technical evidence. Keep both complete score tables, blockers and required approvals visible.
 - Use and disclose recommended defaults for unanswered routine clarifications, including prompt revision; keep required facts and approvals pending.
+- Run public research by default instead of asking before each lookup. Queries stay public-only, every lookup is listed in the report, and users can decline research for a run.
+- Stop asking routine questions during validation. Apply the recommended best practice and disclose it; record choices that need approval as a menu with a recommendation in the report, without pausing independent work.
+- Tell the implementing agent to continue through passing steps and reviews without asking to continue, stopping only for a required approval, an unfixable failure or the scope end.
+- Suggest a reasoning effort for the implementation and validation sessions; never set or require one.
 - Add report format version 2 while retaining legacy rendering. Existing reports and planning documents are not migrated.
 
 ## 0.2.0 — 2026-10-14

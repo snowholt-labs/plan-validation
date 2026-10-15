@@ -15,7 +15,7 @@ Dependency/alternative evidence and research ledger: <local paths, or None with 
 Pending decisions and blocked versus independent tasks: <verified current state>
 
 Read the plan, spec and relevant code, configuration and tests. Work read-only. Do not modify files, commit, post comments, install dependencies, access secrets, or execute implementation/deployment steps. Do not claim tests ran when you only inspected them.
-Do not make external lookups without approval for each exact public query/URL and provider. Use the supplied evidence first. Return any missing lookup request to the parent agent to obtain approval; do not reuse an already completed lookup's permission. Never send private code, plans, paths, personal data or secrets. Do not download or execute dependencies, change manifests/lockfiles, or enable plugins/services.
+Use the supplied evidence first. Public lookups follow the parent run's research rules: if research is allowed, send only exact public, non-confidential queries and list each provider, query/URL and date in Limits; if the user declined research, make none. Never send private code, plans, paths, personal data or secrets. Do not download or execute dependencies, change manifests/lockfiles, or enable plugins/services.
 
 Check:
 - Every requirement and decision in the approved scope has a task and a meaningful verification assertion. Every task serves an approved requirement.

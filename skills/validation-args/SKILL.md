@@ -33,7 +33,7 @@ Read optional plan/spec paths and focus from the user's message following `$vali
 
 ## Output
 
-Return one short sentence, then one fenced `text` block. The block is a skill invocation, not a shell command. Start it with `$validate-plan` for standalone Codex skills, `/plan-validation:validate-plan` for the Claude Code plugin, or `/validate-plan` for standalone Claude skills. Preserve a different installed namespace if the host exposes one. Replace every placeholder with verified values and omit inapplicable optional context. Keep the focus concise; do not print a validation report or claim readiness.
+Return one short sentence that suggests a reasoning effort for the validation session with a brief reason, then one fenced `text` block. Suggest medium for a small, low-risk phase and high for migrations, security boundaries, concurrency or several dependent phases. This is advice the user applies in their host; never set or require an effort level, and keep it out of the command. The block is a skill invocation, not a shell command. Start it with `$validate-plan` for standalone Codex skills, `/plan-validation:validate-plan` for the Claude Code plugin, or `/validate-plan` for standalone Claude skills. Preserve a different installed namespace if the host exposes one. Replace every placeholder with verified values and omit inapplicable optional context. Keep the focus concise; do not print a validation report or claim readiness.
 
 ```text
 $validate-plan PLAN: "<absolute path to the selected plan>"
