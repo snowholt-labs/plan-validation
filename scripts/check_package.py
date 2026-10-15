@@ -40,7 +40,7 @@ def main():
             errors.append(f"{name}: invalid description")
         if not (path.parent / "agents/openai.yaml").is_file():
             errors.append(f"{name}: missing Codex metadata")
-    files = [ROOT / name for name in ("README.md", "CONTRIBUTING.md", "SECURITY.md", "CHANGELOG.md")]
+    files = [ROOT / name for name in ("README.md", "CONTRIBUTING.md", "SECURITY.md", "CHANGELOG.md", "AGENTS.md", "CLAUDE.md")]
     for directory in ("skills", "docs", "examples", ".github"):
         files.extend((ROOT / directory).rglob("*.md"))
     for path in files:
