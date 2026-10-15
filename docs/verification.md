@@ -75,4 +75,4 @@ The renderer and its existing tests/assets were carried over unchanged into the 
 - Calibrated document scores, improved agent accuracy, reduced model cost or net time savings.
 - Browser interaction/accessibility testing of the report during the initial publication run.
 
-The README illustration describes the fixture contents; it is not a browser screenshot. The [CI workflow](https://github.com/snowholt/plan-validation/actions/workflows/ci.yml) provides revision-specific evidence for the deterministic checks that run there. Read an actual successful run before claiming CI passed.
+The README illustration describes the fixture contents; it is not a browser screenshot. The [CI workflow](https://github.com/snowholt-labs/plan-validation/actions/workflows/ci.yml) provides revision-specific evidence for the deterministic checks that run there. Read an actual successful run before claiming CI passed.

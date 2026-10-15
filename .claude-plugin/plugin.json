@@ -6,8 +6,8 @@
     "name": "snowholt",
     "url": "https://github.com/snowholt"
   },
-  "homepage": "https://github.com/snowholt/plan-validation",
-  "repository": "https://github.com/snowholt/plan-validation",
+  "homepage": "https://github.com/snowholt-labs/plan-validation",
+  "repository": "https://github.com/snowholt-labs/plan-validation",
   "license": "MIT",
   "keywords": [
     "plan-validation",

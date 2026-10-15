@@ -40,4 +40,4 @@ Research never authorizes package downloads, dependency execution/replacement, m
 - Cross-platform behavior and live Codex plugin installation need further verification.
 - Third-party marketplace inclusion is a separate process. Public GitHub availability does not imply endorsement or official directory acceptance.
 
-For a suspected vulnerability, use the repository's [security reporting route](https://github.com/snowholt/plan-validation/security/advisories/new).
+For a suspected vulnerability, use the repository's [security reporting route](https://github.com/snowholt-labs/plan-validation/security/advisories/new).
