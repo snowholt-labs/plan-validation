@@ -385,6 +385,7 @@ def render(source, context):
     scope_html = '<aside id="scope" class="scope"><h3>Scope &amp; complexity</h3><p>' + inline(scope["explanation"]) + '</p>' + scope_table + '<p><strong>Approval basis.</strong> ' + inline(scope["approval"]) + '</p></aside>'
     css = (ASSETS / "report.css").read_text()
     js = (ASSETS / "report.js").read_text()
+    favicon = base64.b64encode((ASSETS / "favicon.svg").read_bytes()).decode()
     script_hash = base64.b64encode(hashlib.sha256(js.encode()).digest()).decode()
     body = []
     for index, (heading, content) in enumerate(parts, 1):
@@ -426,7 +427,7 @@ def render(source, context):
     page = f'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-{script_hash}'; img-src data:; base-uri 'none'; form-action 'none'">
-<meta name="referrer" content="no-referrer"><link rel="icon" href="data:,">
+<meta name="referrer" content="no-referrer"><link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,{favicon}">
 <title>{title} — Plan validation</title><style>{css}</style></head><body>
 <a class="skip" href="#content">Skip to report</a>
 <header><a class="wordmark" href="#top">PLAN VALIDATION</a><div class="header-actions"><a href="report.md" download>Source Markdown</a>{prompt_download}<button id="print-report" type="button">Print / PDF</button></div></header>
