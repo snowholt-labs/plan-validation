@@ -35,7 +35,7 @@ After validation, save:
 - `context.json`: the small context record below. Use verified facts; use
   `Unknown` for unrecovered counts. Full document hashes identify the revisions
   that were actually validated, not whatever file happens to exist later.
-  New reports use `format_version: 2`, a feature overview, and an explicit
+  New reports (`kind: new`) must use `format_version: 2`, a feature overview, and an explicit
   `decisions_without_reply` list (empty when no routine defaults were used).
 - `revised-plan.md` and `revised-spec.md`: copies of the validated revisions.
 - A local research ledger and source evidence when research was proposed, including

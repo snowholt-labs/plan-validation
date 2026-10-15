@@ -5,6 +5,7 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -35,6 +36,17 @@ def main():
                          "exit_code": result.returncode, "output": captured})
 
     output.mkdir(parents=True, mode=0o700)
+    try:
+        render(output, evidence)
+    except BaseException:
+        # The directory was created above, so a failed run leaves nothing behind.
+        shutil.rmtree(output)
+        raise
+    print("Fixture: 3 tests, 1 expected failure. Corrected control: 3 passed.")
+    print(f"Example report: {output / 'report.html'}")
+
+
+def render(output, evidence):
     documents = []
     for label in ("PLAN", "SPEC"):
         path = output / (label.lower() + ".md")
@@ -87,9 +99,9 @@ Actual captured outputs are saved in evidence.json. No agent evaluation, Git reh
 
 ## 8. Fresh-session handoff
 ```text
-Work in {ROOT}. Resume validation of the retry-delay fixture using {output / 'plan.md'} and {output / 'spec.md'}.
+Work in `{ROOT}`. Resume validation of the retry-delay fixture using `{output / 'plan.md'}` and `{output / 'spec.md'}`.
 
-Read {output / 'report.md'}, its context.json, and repository instructions first. Confirm the saved evidence still applies. Resolve the missing delay cap and independent review within recorded permissions; rerun the three acceptance checks.
+Read `{output / 'report.md'}`, its context.json, and repository instructions first. Confirm the saved evidence still applies. Resolve the missing delay cap and independent review within recorded permissions; rerun the three acceptance checks.
 
 Do not start dependent implementation. Report results and any defaults chosen, then stop.
 ```
@@ -132,8 +144,6 @@ Do not start dependent implementation. Report results and any defaults chosen, t
                           ("context.json", json.dumps(context, indent=2) + "\n"),
                           ("evidence.json", json.dumps(evidence, indent=2) + "\n")):
         (output / name).write_text(content, encoding="utf-8")
-    print("Fixture: 3 tests, 1 expected failure. Corrected control: 3 passed.")
-    print(f"Example report: {output / 'report.html'}")
 
 
 if __name__ == "__main__":

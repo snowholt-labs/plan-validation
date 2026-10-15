@@ -37,7 +37,7 @@ It works with ordinary Markdown plans and is designed to complement [Superpowers
 | `validate-plan` | Review, revise, rehearse and independently review the selected plan/spec, including relevant dependencies and alternatives; deliver an HTML report. | Selected planning documents, disposable rehearsal files and local report artifacts. |
 | `revise-prompt` | Critique and score a prompt, resolve essential questions, use disclosed routine defaults, then return a copy-ready revision. | Conversation only; never executes the supplied prompt. |
 
-Validation leaves the planning documents uncommitted. It does not ship the feature. The handoff carries your actual permissions and your repository's workflow; it does not grant new merge or deployment authority.
+Validation leaves the planning documents uncommitted. It does not ship the feature. The handoff points to the report, which records your actual permissions; your repository's workflow stays in its own instructions. The handoff does not grant new merge or deployment authority.
 
 ## Install
 

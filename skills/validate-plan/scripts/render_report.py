@@ -23,6 +23,10 @@ READABLE_HEADINGS = (
     "Can implementation start?", "Plan scores", "Specification scores", "How certain we are",
     "What changed", "Open items", "What we checked", "Start the next session",
 )
+SOURCE_HEADINGS = (
+    "Verdict", "PLAN comparison", "SPEC comparison", "Decision confidence",
+    "Changes", "Open items", "Verification and checkout", "Fresh-session handoff",
+)
 
 
 def fenced_blocks(source):
@@ -245,7 +249,7 @@ def feature_overview(feature):
         blocks.append('<li><h3>' + escape(step["title"]) + '</h3><p>' + escape(step["description"]) + '</p>' + arrow + '</li>')
     tag = "ol" if layout == "flow" else "ul"
     return ('<section id="feature-overview" aria-labelledby="feature-heading"><h2 id="feature-heading">Feature at a glance</h2>'
-            '<p>' + escape(feature["summary"]) + f'</p><{tag} class="feature-{layout}">' + ''.join(blocks) + f'</{tag}></section>')
+            '<p>' + escape(feature["summary"]) + f'</p><{tag} class="feature-{layout}" role="list">' + ''.join(blocks) + f'</{tag}></section>')
 
 
 def defaulted_decisions(decisions):
@@ -262,16 +266,38 @@ def defaulted_decisions(decisions):
             '<h2 id="decisions-heading">Decisions made without your reply</h2>' + content + '</aside>')
 
 
-def section_content(source, number):
-    """Collapse explicitly marked evidence, never infer what is safe to hide."""
+def detail_marker(source, number):
+    """Return the one allowed Technical details marker, or None."""
     fences = fenced_blocks(source)
-    markers = [match for match in re.finditer(r"^### Technical details[ \t]*$", source, re.M)
+    markers = [match for match in re.finditer(r"^#{3,6}[ \t]+technical details[ \t]*$", source, re.M | re.I)
                if not any(start <= match.start() < end for start, end, _, _ in fences)]
     if not markers:
-        return markdown(source)
+        return None
     if number not in (1, 4, 5, 7) or len(markers) != 1:
         raise ValueError("Technical details are allowed once in sections 1, 4, 5 or 7; scores, open items and handoff stay visible")
-    marker = markers[0]
+    return markers[0]
+
+
+def first_table(source):
+    rows = []
+    for line in source.splitlines():
+        if line.strip().startswith("|"):
+            rows.append(cells(line))
+        elif rows:
+            break
+    return rows
+
+
+def word_count(handoff):
+    # A backtick-quoted path is one word, even when it contains spaces.
+    return len(re.sub(r"`[^`\n]+`", "path", handoff).split())
+
+
+def section_content(source, number):
+    """Collapse explicitly marked evidence, never infer what is safe to hide."""
+    marker = detail_marker(source, number)
+    if not marker:
+        return markdown(source)
     summary, detail = source[:marker.start()].strip(), source[marker.end():].strip()
     if not summary or not detail:
         raise ValueError("Technical details need a visible summary and nonempty evidence")
@@ -282,13 +308,20 @@ def render(source, context):
     version = context.get("format_version", 1)
     if type(version) is not int or version not in (1, 2):
         raise ValueError("format_version must be 1 (legacy) or 2")
+    if context.get("kind") == "new" and version != 2:
+        raise ValueError("New reports require format_version 2; legacy rendering is for saved reports only")
+    source = source.replace("\r\n", "\n").replace("\r", "\n")
     overview = feature_overview(context.get("feature")) if version == 2 else ''
     defaults = defaulted_decisions(context.get("decisions_without_reply")) if version == 2 else ''
     parts = sections(source)
     if any(not content for _, content in parts):
         raise ValueError("Every report section must contain its evidence or an explicit Unknown/None")
+    if version == 2 and [plain(heading).strip().lower() for heading, _ in parts] != [heading.lower() for heading in SOURCE_HEADINGS]:
+        raise ValueError("Section headings must be: " + ", ".join(SOURCE_HEADINGS))
     plan, spec = scores(parts[1][1]), scores(parts[2][1])
-    decisions = [cells(line) for line in parts[3][1].splitlines() if line.strip().startswith("|")]
+    confidence_source = parts[3][1]
+    marker = detail_marker(confidence_source, 4) if version == 2 else None
+    decisions = first_table(confidence_source[:marker.start()] if marker else confidence_source)
     if len(decisions) < 3 or any(len(row) != 4 for row in decisions):
         raise ValueError("Decision confidence requires a four-column table and at least one evidence row")
     verdict_match = re.match(r"(Ready after approvals|Not ready|Ready)\b", plain(parts[0][1]), re.I)
@@ -312,9 +345,10 @@ def render(source, context):
     handoff = parts[7][1][prompt_start:prompt_end].rstrip("\n")
     if not handoff.strip():
         raise ValueError("Section 8 must contain one complete fenced handoff")
-    if version == 2 and len(handoff.split()) > 80:
-        raise ValueError("Fresh-session handoff must be at most 80 words; link to the plan, spec and report for details")
-    if verdict.lower() == "not ready" and (handoff.lstrip().lower().startswith("implement") or "do not start dependent implementation" not in handoff.lower()):
+    if version == 2 and word_count(handoff) > 80:
+        raise ValueError("Fresh-session handoff must be at most 80 words; link to the plan, spec and report for details and wrap paths in backticks")
+    implement = re.search(r"(?:^|[.!?:]\s+)implement\b", handoff.strip(), re.I)
+    if verdict.lower() == "not ready" and (implement or "do not start dependent implementation" not in handoff.lower()):
         raise ValueError("Not ready requires a remediation prompt stating: Do not start dependent implementation")
     if context.get("handoff_status") not in {"current", "historical"}:
         raise ValueError("Set handoff_status to current or historical after checking Git state and approvals")
@@ -337,10 +371,11 @@ def render(source, context):
     script_hash = base64.b64encode(hashlib.sha256(js.encode()).digest()).decode()
     body = []
     for index, (heading, content) in enumerate(parts, 1):
-        rendered = section_content(content, index) if version == 2 else markdown(content)
         if version == 2:
             heading = READABLE_HEADINGS[index - 1]
         if index == 8:
+            if version == 2:
+                detail_marker(content, index)
             start, end, _, _ = prompts[0]
             intro = content[:start] + content[end:]
             action = "Copy implementation prompt" if verdict.lower().startswith("ready") else "Copy remediation prompt"
@@ -350,13 +385,18 @@ def render(source, context):
                 toolbar = '<p class="warning">Document identity, Git state or approvals changed or could not be checked. This is a historical prompt. Revalidate the changed scope before using it.</p>'
             content_html = markdown(intro) + '<div class="prompt-toolbar">' + toolbar + '</div><pre id="handoff" tabindex="0">' + escape(handoff) + '</pre>'
         else:
-            content_html = rendered
+            content_html = section_content(content, index) if version == 2 else markdown(content)
         body.append(f'<section id="section-{index}" aria-labelledby="heading-{index}"><div class="section-heading"><span>{index:02}</span><h2 id="heading-{index}">{inline(heading)}</h2></div>' + (scope_html if index == 5 else "") + content_html + '</section>')
     title = escape(context["title"])
     note_html = ''.join('<article><h3>' + escape(note["title"]) + '</h3><p>' + inline(note["body"]) + '</p></article>' for note in context.get("notes", []))
-    state = "Document fingerprints match the saved validation." if fingerprints_match else "Document fingerprints differ or files are unavailable."
+    if version == 2:
+        state = "Plan and spec match the saved review." if fingerprints_match else "Plan or spec changed or could not be read."
+        stale = " This handoff is historical. Recheck the saved evidence before starting."
+    else:
+        state = "Document fingerprints match the saved validation." if fingerprints_match else "Document fingerprints differ or files are unavailable."
+        stale = " The handoff is historical; refresh its evidence before implementation."
     if not current:
-        state += " The handoff is historical; refresh its evidence before implementation."
+        state += stale
     kind = context.get("kind")
     if kind not in {"saved", "new"}:
         raise ValueError("Context kind must be saved or new")
@@ -366,10 +406,6 @@ def render(source, context):
     doc_html = ''.join('<li><strong>' + escape(doc["label"]) + '</strong> · ' + ("matches" if matches else "changed / unavailable") + '<br><code>' + escape(doc["path"]) + '</code><br><small>SHA256 ' + escape(doc["sha256"]) + '</small></li>' for doc, matches in checks)
     prompt_download = '<a href="handoff.txt" download>Prompt .txt</a>' if current else ''
     overview_link = '<a href="#feature-overview">Feature overview</a>' if overview else ''
-    if version == 2:
-        state = "Plan and spec match the saved review." if fingerprints_match else "Plan or spec changed or could not be read."
-        if not current:
-            state += " Recheck the saved evidence before starting."
     page = f'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-{script_hash}'; img-src data:; base-uri 'none'; form-action 'none'">

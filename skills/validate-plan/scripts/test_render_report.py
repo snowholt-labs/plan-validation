@@ -72,7 +72,7 @@ class ReportTests(unittest.TestCase):
             path.write_text(label)
             documents.append({"label": label, "path": str(path), "sha256": hashlib.sha256(label.encode()).hexdigest()})
         self.context = {
-            "title": "Example", "validation_date": "2026-10-14", "kind": "new",
+            "title": "Example", "validation_date": "2026-10-14", "kind": "saved",
             "review_status": "complete", "handoff_status": "current", "summary": "The approved scope is ready.",
             "freshness": "Branch and base checked; recorded tests were not repeated.",
             "documents": documents,
@@ -85,7 +85,7 @@ class ReportTests(unittest.TestCase):
     def modern_context(self):
         context = copy.deepcopy(self.context)
         context.update({
-            "format_version": 2,
+            "format_version": 2, "kind": "new",
             "feature": {
                 "summary": "A reader requests a document and sees the result.",
                 "steps": [
@@ -103,7 +103,7 @@ class ReportTests(unittest.TestCase):
         self.assertTrue(current)
         self.assertIn('aria-labelledby="feature-heading"', page)
         self.assertIn("Feature at a glance", page)
-        self.assertIn('<ol class="feature-flow">', page)
+        self.assertIn('<ol class="feature-flow" role="list">', page)
         self.assertLess(page.index('id="feature-overview"'), page.index('id="section-1"'))
         for title in ("Choose a document", "Check access", "Show the result"):
             self.assertIn(title, page)
@@ -127,7 +127,7 @@ class ReportTests(unittest.TestCase):
         context["feature"]["layout"] = "blocks"
         page, _, _ = render(REPORT, context)
         overview = page[page.index('<section id="feature-overview"'):page.index('<section id="section-1"')]
-        self.assertIn('<ul class="feature-blocks">', overview)
+        self.assertIn('<ul class="feature-blocks" role="list">', overview)
         self.assertNotIn('<ol', overview)
         self.assertNotIn('class="step-arrow"', overview)
         self.assertIn("Check access", overview)
@@ -219,6 +219,62 @@ class ReportTests(unittest.TestCase):
         context["format_version"] = 99
         with self.assertRaisesRegex(ValueError, "format_version"):
             render(REPORT, context)
+
+    def test_new_report_cannot_fall_back_to_legacy_format(self):
+        context = self.modern_context()
+        del context["format_version"]
+        with self.assertRaisesRegex(ValueError, "format_version"):
+            render(REPORT, context)
+        context["format_version"] = 1
+        with self.assertRaisesRegex(ValueError, "format_version"):
+            render(REPORT, context)
+
+    def test_not_ready_rejects_an_implementation_instruction_anywhere(self):
+        source = REPORT.replace("**Ready.**", "**Not ready.**").replace(
+            "Implement the approved scope now.",
+            "Work in /repo. Implement all validated phases. Do not start dependent implementation.")
+        with self.assertRaisesRegex(ValueError, "remediation prompt"):
+            render(source, self.modern_context())
+
+    def test_backtick_quoted_paths_count_as_one_word(self):
+        path = "`/Users/x/My Projects/" + "deep folder " * 40 + "plan.md`"
+        source = REPORT.replace("Implement the approved scope now.", f"Implement the plan in {path} now.")
+        _, prompt, _ = render(source, self.modern_context())
+        self.assertIn(path, prompt)
+
+    def test_hidden_section_four_tables_do_not_replace_the_visible_confidence_table(self):
+        extra = "\n\n### Technical details\n| Command | Exit |\n|---|---|\n| checks.py | 0 |\n"
+        source = REPORT.replace("| Readiness | 75% | Recorded focused check | No browser check |",
+                                "| Readiness | 75% | Recorded focused check | No browser check |" + extra)
+        page, _, _ = render(source, self.modern_context())
+        self.assertIn("checks.py", page)
+        table = "| Decision | Confidence | Evidence | Remaining uncertainty |\n|---|---|---|---|\n| Readiness | 75% | Recorded focused check | No browser check |"
+        hidden = REPORT.replace(table, "### Technical details\n" + table)
+        with self.assertRaisesRegex(ValueError, "Decision confidence"):
+            render(hidden, self.modern_context())
+
+    def test_modern_report_requires_the_contract_section_headings(self):
+        source = REPORT.replace("## 2. PLAN comparison", "## 2. SPEC comparison", 1)
+        with self.assertRaisesRegex(ValueError, "heading"):
+            render(source, self.modern_context())
+
+    def test_detail_marker_tolerates_crlf_and_casing(self):
+        for marker in ("### Technical details", "### technical Details"):
+            source = REPORT.replace("Recorded focused check; no production run.",
+                                    f"Summary.\n\n{marker}\nExit 0.").replace("\n", "\r\n")
+            with self.subTest(marker=marker):
+                page, _, _ = render(source, self.modern_context())
+                self.assertIn('<details class="technical-details">', page)
+        source = REPORT.replace("No blockers.", "Summary.\r\n\r\n### technical details\r\nHidden blocker.")
+        with self.assertRaisesRegex(ValueError, "Technical details"):
+            render(source, self.modern_context())
+
+    def test_modern_historical_handoff_is_called_historical(self):
+        context = self.modern_context()
+        context["handoff_status"] = "historical"
+        page, _, _ = render(REPORT, context)
+        hero = page[page.index('class="freshness"'):page.index('</p>', page.index('class="freshness"'))]
+        self.assertIn("historical", hero)
 
     def test_complete_report_preserves_prompt_and_both_tables(self):
         page, prompt, current = render(REPORT, self.context)
