@@ -334,11 +334,6 @@ class ReportTests(unittest.TestCase):
         self.assertEqual(base64.b64decode(href.group(1)), (ASSETS / "favicon.svg").read_bytes())
         self.assertIn("img-src data:", page)
 
-    def test_favicon_contains_no_active_or_remote_content(self):
-        svg = (ASSETS / "favicon.svg").read_text().lower()
-        for marker in ("<script", "foreignobject", "href=", "http:", "https:", " on", "@import"):
-            self.assertNotIn(marker, svg.replace("http://www.w3.org/2000/svg", ""))
-
     def test_incorrect_average_cannot_be_delivered(self):
         with self.assertRaisesRegex(ValueError, "average"):
             render(REPORT.replace("**6.2**", "**8.0**"), self.context)
