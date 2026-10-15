@@ -38,12 +38,12 @@ If Claude Code is installed, also run `claude plugin validate .` and `claude plu
 ## Git workflow
 
 - Never push directly to `main`. Every change goes through a branch and a pull request.
-- Ask the maintainer before any merge. Confirm CI passed on the PR head (`gh pr checks <number>`) before asking; only `main` enforces it.
+- Ask the maintainer before any merge. Confirm CI passed on the PR head (`gh pr checks <number>`) before asking. GitHub requires a PR and the `verify` check for `main` and `plan/**` branches; other branches are not protected.
 - "Code and security review" below means a code review and a security review of the PR diff, with findings fixed or explicitly accepted. In Claude Code, run `/code-review` and `/security-review`; in other hosts, use an equivalent independent review.
 
 ### Plan work
 
-1. Create a plan branch from `main`, for example `plan/<topic>`, and a GitHub milestone named after the plan.
+1. Create a plan branch from `main` named `plan/<topic>` (the protection rule matches only this prefix), and a GitHub milestone named after the plan.
 2. Implement each phase on its own branch from the plan branch and open a PR into the plan branch.
 3. Squash merge the phase PR after CI and code and security review pass.
 4. When all phases are merged, open a PR from the plan branch into `main`. Run code and security review on the full diff to catch cross-phase issues. After CI passes, merge with a merge commit (not squash), so each phase stays visible in history.
