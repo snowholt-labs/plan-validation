@@ -7,9 +7,9 @@ Use the user's chosen phase/task range, or the whole validated scope when no nar
 ```text
 Work in `[repository path]`. Implement [selected phase/tasks or all validated phases] from `[PLAN path]`.
 
-Read `[SPEC path]`, `[report.md path]`, its context.json, and repository instructions first. Confirm the selected scope is ready and validation still applies. Follow recorded decisions, permissions, checks and reviews; preserve unrelated work.
+Read `[SPEC path]`, `[report.md path]`, its context.json and repository instructions; confirm validation still applies. Follow recorded decisions, permissions, checks and reviews; preserve unrelated work.
 
-Continue without waiting for confirmation; pause only for a required approval or a failure you cannot fix. Report results and any defaults chosen. Stop at the selected scope.
+Continue without waiting for confirmation; pause only for a required approval or a failure you cannot fix. Stop at the selected scope; report results and defaults chosen.
 ```
 
 The continuation sentence prevents the implementing agent from pausing after each passing step or review to ask whether to continue. Repository approval gates, such as a merge that needs the maintainer, still apply.
@@ -22,4 +22,4 @@ For **Not ready**, use a short remediation prompt instead of the implementation 
 
 ## Suggested effort
 
-Before the fenced prompt, add one line suggesting a reasoning effort for the implementation session, with a short reason. For example: `Suggested effort: medium. Two small tasks with focused tests.` Recommend the lowest level that fits: low for documentation-only or mechanical edits, medium for routine tasks with clear tests, and high for migrations, security boundaries, concurrency or several dependent phases. Suggest a higher host-specific level only when the evidence shows high would not be enough. This is advice: the user sets the effort in their host. Do not put it inside the prompt, set it in skill metadata or require it.
+Before the fenced prompt, add one line suggesting a reasoning effort for the next session (implementation or remediation), with a short reason. For example: `Suggested effort: medium. Two small tasks with focused tests.` Recommend the lowest level that fits: low for documentation-only or mechanical edits, medium for routine tasks with clear tests, and high for migrations, security boundaries, concurrency or several dependent phases. Suggest a higher host-specific level only when the evidence shows high would not be enough. This is advice: the user sets the effort in their host. Do not put it inside the prompt, set it in skill metadata or require it.

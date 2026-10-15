@@ -50,11 +50,11 @@ For new reports, use format version 2: a “Feature at a glance” diagram with 
 - **Ready after approvals:** only identified non-blocking approvals remain; dependent work waits.
 - **Not ready:** a blocker remains or required independent review/evidence is missing. Include a remediation prompt stating `Do not start dependent implementation.`
 
-Suggest, never set, a reasoning effort for the implementation session, as described in the template. Instantiate [handoff-template.md](handoff-template.md) with verified paths and the selected phase or whole validated scope. Keep revisions, checks, decisions and permissions in the referenced report/context. Never add commit, PR, comment, merge, deployment, dependency or service permissions. Repository-specific workflow belongs in repository instructions, not in the universal launch prompt.
+Suggest, never set, a reasoning effort for the next session, as described in the template. Instantiate [handoff-template.md](handoff-template.md) with verified paths and the selected phase or whole validated scope. Keep revisions, checks, decisions and permissions in the referenced report/context. Never add commit, PR, comment, merge, deployment, dependency or service permissions. Repository-specific workflow belongs in repository instructions, not in the universal launch prompt.
 
 Use `scripts/render_report.py` with the files described in [references/html-report.md](references/html-report.md). Inspect the output and exact `handoff.txt`. The renderer checks structure, arithmetic and document fingerprints; it does not prove that an agent review or command actually occurred.
 
-Return a brief verdict, a clickable absolute link to `report.html`, the suggested effort for the implementation session, and any immediate blocker or pending choice. If routine defaults were used, briefly identify the choices and reasons at the end; the report retains the complete record. The HTML must contain the full report even when chat is concise. If the user asks for the full report in chat, include all eight sections, the feature overview and defaulted decisions as well.
+Return a brief verdict, a clickable absolute link to `report.html`, the suggested effort for the next session, and any immediate blocker or pending choice. If routine defaults were used, briefly identify the choices and reasons at the end; the report retains the complete record. The HTML must contain the full report even when chat is concise. If the user asks for the full report in chat, include all eight sections, the feature overview and defaulted decisions as well.
 
 ## Resume or repeat
 
