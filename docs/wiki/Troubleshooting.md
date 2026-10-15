@@ -28,7 +28,7 @@ Documents, Git state or approvals changed or could not be checked. Revalidate th
 
 ## The renderer rejects the report
 
-Use the [bundled report contract](https://github.com/snowholt/plan-validation/blob/main/skills/validate-plan/references/report-contract.md). Confirm eight numbered sections, five dimensions plus an average in each score table, complete scope metadata and a suitable handoff. Keep the error and original evidence until repaired.
+Use the [bundled report contract](https://github.com/snowholt-labs/plan-validation/blob/main/skills/validate-plan/references/report-contract.md). Confirm eight numbered sections, five dimensions plus an average in each score table, complete scope metadata and a suitable handoff. Keep the error and original evidence until repaired.
 
 ## The browser cannot copy the prompt
 
@@ -36,4 +36,4 @@ Clipboard permissions vary, especially for `file://` pages. Select the complete 
 
 ## Report a reproducible failure
 
-Include release, host/version, OS, the exact relevant command and error lines, plus a minimal redacted example. [Open an issue](https://github.com/snowholt/plan-validation/issues/new/choose). Do not include credentials or private project documents.
+Include release, host/version, OS, the exact relevant command and error lines, plus a minimal redacted example. [Open an issue](https://github.com/snowholt-labs/plan-validation/issues/new/choose). Do not include credentials or private project documents.

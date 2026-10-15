@@ -15,7 +15,7 @@ The initial release is verified on Linux. The manual shell commands below target
 In your terminal:
 
 ```bash
-claude plugin marketplace add snowholt/plan-validation
+claude plugin marketplace add snowholt-labs/plan-validation
 claude plugin install plan-validation@snowholt-plugins
 claude plugin list
 claude plugin details plan-validation
@@ -53,7 +53,7 @@ Your project's plan/spec edits and saved reports remain your files. Review them 
 Inside Codex, request all three skills from the built-in installer:
 
 ```text
-$skill-installer install validate-plan, validation-args and revise-prompt from https://github.com/snowholt/plan-validation, using skills/validate-plan, skills/validation-args and skills/revise-prompt.
+$skill-installer install validate-plan, validation-args and revise-prompt from https://github.com/snowholt-labs/plan-validation, using skills/validate-plan, skills/validation-args and skills/revise-prompt.
 ```
 
 Resolve an existing installation instead of overwriting it. If skills do not appear, restart Codex. Invoke with `$validation-args`, `$validate-plan` and `$revise-prompt`. A packaged plugin may expose a namespace; use the exact name shown by its skill picker.
@@ -74,7 +74,7 @@ for pv_path in "$pv_checkout" "$pv_skills/validate-plan" "$pv_skills/validation-
   fi
 done
 mkdir -p "$HOME/.local/share" "$pv_skills"
-git clone https://github.com/snowholt/plan-validation.git "$pv_checkout"
+git clone https://github.com/snowholt-labs/plan-validation.git "$pv_checkout"
 ln -s "$pv_checkout/skills/validate-plan" "$pv_skills/validate-plan"
 ln -s "$pv_checkout/skills/validation-args" "$pv_skills/validation-args"
 ln -s "$pv_checkout/skills/revise-prompt" "$pv_skills/revise-prompt"
