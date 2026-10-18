@@ -2,15 +2,15 @@
 
 **Rehearse the plan before you hand it to a coding agent.**
 
-[![CI](https://github.com/snowholt/plan-validation/actions/workflows/ci.yml/badge.svg)](https://github.com/snowholt/plan-validation/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/snowholt/plan-validation?include_prereleases)](https://github.com/snowholt/plan-validation/releases)
+[![CI](https://github.com/snowholt-labs/plan-validation/actions/workflows/ci.yml/badge.svg)](https://github.com/snowholt-labs/plan-validation/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/snowholt-labs/plan-validation?include_prereleases)](https://github.com/snowholt-labs/plan-validation/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-D97757)](https://github.com/snowholt/plan-validation/wiki/Installation)
-[![Codex](https://img.shields.io/badge/Codex-skills-168579)](https://github.com/snowholt/plan-validation/wiki/Installation)
+[![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-D97757)](https://github.com/snowholt-labs/plan-validation/wiki/Installation)
+[![Codex](https://img.shields.io/badge/Codex-skills-168579)](https://github.com/snowholt-labs/plan-validation/wiki/Installation)
 
 Three agent skills for prompt revision and the gap between an approved specification and implementation: check the plan against the code, rehearse its instructions in a disposable worktree, and keep a complete evidence report for the next session.
 
-**[Installation](https://github.com/snowholt/plan-validation/wiki/Installation)** · **[First run](https://github.com/snowholt/plan-validation/wiki/Usage)** · **[Example](examples/README.md)** · **[Wiki](https://github.com/snowholt/plan-validation/wiki)** · **[Limitations](https://github.com/snowholt/plan-validation/wiki/Safety-and-Limitations)**
+**[Installation](https://github.com/snowholt-labs/plan-validation/wiki/Installation)** · **[First run](https://github.com/snowholt-labs/plan-validation/wiki/Usage)** · **[Example](examples/README.md)** · **[Wiki](https://github.com/snowholt-labs/plan-validation/wiki)** · **[Limitations](https://github.com/snowholt-labs/plan-validation/wiki/Safety-and-Limitations)**
 
 > **Pilot release:** the package and deterministic renderer are tested separately from agent behavior. The example is an authored, reproducible fixture—not a benchmark or a claim of independently validated agent performance.
 
@@ -46,7 +46,7 @@ Validation leaves the planning documents uncommitted. It does not ship the featu
 Run these commands in your terminal:
 
 ```bash
-claude plugin marketplace add snowholt/plan-validation
+claude plugin marketplace add snowholt-labs/plan-validation
 claude plugin install plan-validation@snowholt-plugins
 ```
 
@@ -61,7 +61,7 @@ Restart the session if the commands do not appear. In Claude Code:
 Ask the built-in installer inside Codex:
 
 ```text
-$skill-installer install validate-plan, validation-args and revise-prompt from https://github.com/snowholt/plan-validation, using skills/validate-plan, skills/validation-args and skills/revise-prompt.
+$skill-installer install validate-plan, validation-args and revise-prompt from https://github.com/snowholt-labs/plan-validation, using skills/validate-plan, skills/validation-args and skills/revise-prompt.
 ```
 
 Then:
@@ -70,7 +70,7 @@ Then:
 $validation-args
 ```
 
-For an inspectable clone with automatic skill-file updates, use the [manual installation guide](https://github.com/snowholt/plan-validation/wiki/Installation). A Codex compatibility manifest is included; directory listing or official marketplace acceptance is not implied.
+For an inspectable clone with automatic skill-file updates, use the [manual installation guide](https://github.com/snowholt-labs/plan-validation/wiki/Installation). A Codex compatibility manifest is included; directory listing or official marketplace acceptance is not implied.
 
 **Requirements:** an agent host with filesystem and command tools, Git, Python 3.10+, an existing repository, a plan and a specification. Rehearsal needs the project's dependencies already available. An independent reviewer is required for a Ready verdict. Linux is the initial verification platform; other platforms need further testing.
 
@@ -131,7 +131,7 @@ Open `/tmp/plan-validation-demo/report.html`. The demo executes a deliberately i
 - **Research and disclosure.** Public lookups, including web search/page opens, registry/advisory requests and Context7 queries, run by default: the skill no longer asks before each one, though your host's own permission settings still apply. Each query goes to its provider under that provider's policies, and the report lists every provider, query and date. Queries never include private code, plans, paths, personal data or secrets. Decline research to make no lookups; independent checks continue. Research grants no execution or installation authority.
 - **Project checks.** Rehearsal can run inspected project commands. Calls to external services or networks require explicit authorization; the plugin does not grant it. Your agent host still processes conversation and repository context under its own data policies.
 
-[Privacy](https://github.com/snowholt/plan-validation#data-handling) and [verification limits](docs/verification.md).
+[Privacy](https://github.com/snowholt-labs/plan-validation#data-handling) and [verification limits](docs/verification.md).
 
 ## Boundaries
 
@@ -140,7 +140,7 @@ Open `/tmp/plan-validation-demo/report.html`. The demo executes a deliberately i
 - Plans and reports can contain private code or paths. Reports are local by default. Your agent host still follows its own data-handling policy.
 - No guarantee of correctness, security, saved time or lower model cost is made. Rehearsal can duplicate substantial implementation work; use it when the extra evidence is worth that cost.
 
-Read [Safety and limitations](https://github.com/snowholt/plan-validation/wiki/Safety-and-Limitations) before a first run.
+Read [Safety and limitations](https://github.com/snowholt-labs/plan-validation/wiki/Safety-and-Limitations) before a first run.
 
 ## Contribute
 
