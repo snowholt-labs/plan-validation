@@ -10,7 +10,7 @@ This is an early pilot. The renderer and packaging have deterministic checks; I 
 
 I would appreciate a small redacted example of something it catches, misses or makes unnecessarily difficult. If it helps your workflow, a GitHub star helps others find it.
 
-[Source, installation and example](https://github.com/snowholt/plan-validation)
+[Source, installation and example](https://github.com/snowholt-labs/plan-validation)
 
 ---
 

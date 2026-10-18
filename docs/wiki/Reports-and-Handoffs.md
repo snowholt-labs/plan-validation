@@ -49,7 +49,7 @@ The launch prompt names your selected phase/tasks or the whole validated scope, 
 
 ## Rendering manually
 
-Use the exact schema and headings in the bundled [HTML report reference](https://github.com/snowholt/plan-validation/blob/main/skills/validate-plan/references/html-report.md):
+Use the exact schema and headings in the bundled [HTML report reference](https://github.com/snowholt-labs/plan-validation/blob/main/skills/validate-plan/references/html-report.md):
 
 ```bash
 python3 /path/to/validate-plan/scripts/render_report.py \
