@@ -1,0 +1,138 @@
+---
+import MobileMenuFooter from '@astrojs/starlight/components/MobileMenuFooter.astro';
+import SidebarPersister from '@astrojs/starlight/components/SidebarPersister.astro';
+import { getEntry } from 'astro:content';
+import { ICONS, withBase } from './icons';
+
+const { sidebar, id } = Astro.locals.starlightRoute;
+const base = withBase('');
+const iconKey = (href: string) => href.slice(base.length).replace(/^\/+|\/+$/g, '') || 'index';
+const groups = sidebar.filter((entry) => entry.type === 'group');
+
+// Pages outside the docs collection have no Markdown copy.
+const slug = id || 'index';
+const markdown = (await getEntry('docs', slug)) ? withBase(`${slug}.md`) : undefined;
+---
+
+<SidebarPersister>
+  <div class="pv-sidebar">
+    {
+      groups.map((group, i) => (
+        <div class="group">
+          <p class="group-label" id={`pv-group-${i}`}>{group.label}</p>
+          <ul aria-labelledby={`pv-group-${i}`}>
+            {group.entries
+              .filter((entry) => entry.type === 'link')
+              .map((entry) => (
+                <li>
+                  <a href={entry.href} aria-current={entry.isCurrent ? 'page' : undefined}>
+                    <span class="icon">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        aria-hidden="true"
+                        set:html={ICONS[iconKey(entry.href)] ?? ''}
+                      />
+                    </span>
+                    {entry.label}
+                  </a>
+                </li>
+              ))}
+          </ul>
+        </div>
+      ))
+    }
+    <div class="agents">
+      <p>Reading this as an agent?</p>
+      <a href={withBase('llms.txt')}>llms.txt</a>
+      {markdown && <a href={markdown}>Page as Markdown</a>}
+    </div>
+  </div>
+</SidebarPersister>
+
+<div class="md:sl-hidden">
+  <MobileMenuFooter />
+</div>
+
+<style>
+  .pv-sidebar {
+    padding-bottom: 1.5rem;
+  }
+  .group + .group {
+    margin-top: 1.375rem;
+  }
+  .group-label {
+    margin: 0 0 0.5rem 0.625rem;
+    color: var(--pv-muted);
+    font: 700 0.8125rem var(--pv-font-display);
+  }
+  ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  li a {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.25rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.75rem;
+    color: var(--pv-ink);
+    font-size: 0.9375rem;
+    line-height: 1.3;
+    text-decoration: none;
+  }
+  li a:hover {
+    background: var(--sl-color-accent-low);
+  }
+  .icon {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 1.875rem;
+    height: 1.875rem;
+    border: 1px solid var(--pv-line);
+    border-radius: 0.5625rem;
+    background: var(--pv-surface);
+    color: var(--pv-plum);
+  }
+  .icon svg {
+    width: 1rem;
+    height: 1rem;
+  }
+  li a[aria-current='page'] {
+    background: var(--pv-plum);
+    color: var(--pv-paper);
+    font-weight: 700;
+  }
+  li a[aria-current='page'] .icon {
+    border-color: transparent;
+    background: color-mix(in srgb, var(--pv-paper) 18%, transparent);
+    color: var(--pv-paper);
+  }
+  a:focus-visible {
+    outline: 3px solid var(--pv-plum);
+    outline-offset: 2px;
+  }
+  .agents {
+    margin-top: 1.375rem;
+    padding: 0.875rem;
+    border: 1px dashed var(--pv-rose);
+    border-radius: 0.875rem;
+    background: var(--pv-surface);
+    font-size: 0.875rem;
+  }
+  .agents p {
+    margin: 0 0 0.5rem;
+    color: var(--pv-muted);
+  }
+  .agents a {
+    display: block;
+    padding: 0.25rem 0;
+    color: var(--pv-plum);
+    font: 0.8125rem var(--pv-font-mono);
+  }
+</style>

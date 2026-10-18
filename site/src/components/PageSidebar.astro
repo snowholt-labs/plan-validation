@@ -1,0 +1,47 @@
+---
+import Default from '@astrojs/starlight/components/PageSidebar.astro';
+import changelog from '../../../CHANGELOG.md?raw';
+
+// The first released heading; "## Unreleased" has no version and is skipped.
+const release = changelog.match(/^## (\d+\.\d+\.\d+) — (\d{4}-\d{2}-\d{2})\s*$/m);
+if (!release) throw new Error('CHANGELOG.md has no released "## x.y.z — YYYY-MM-DD" heading');
+const [, version, date] = release;
+const formatted = new Date(`${date}T00:00:00Z`).toLocaleDateString('en-GB', {
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+  timeZone: 'UTC',
+});
+---
+
+<Default />
+<div class="release">
+  <p class="label">Latest release</p>
+  <p class="version">{version}</p>
+  <p><time datetime={date}>{formatted}</time></p>
+</div>
+
+<style>
+  .release {
+    display: none;
+    margin: 0.5rem var(--sl-sidebar-pad-x) 1.5rem;
+    padding: 0.875rem;
+    border-radius: 0.875rem;
+    background: var(--pv-blush);
+    color: var(--pv-muted);
+    font-size: var(--sl-text-sm);
+  }
+  .release p {
+    margin: 0;
+  }
+  .version {
+    color: var(--pv-plum-deep);
+    font: 700 1.125rem var(--pv-font-display);
+  }
+  /* Wide screens only, matching Starlight's right rail. */
+  @media (min-width: 72rem) {
+    .release {
+      display: block;
+    }
+  }
+</style>

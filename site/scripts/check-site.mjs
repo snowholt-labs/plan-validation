@@ -10,6 +10,10 @@ const REPO_FILE = new RegExp(`^${REPO_URL}/(?:blob|tree)/main/([^?#]+)`);
 const LOADING_REL = new Set(['stylesheet', 'preload', 'modulepreload', 'prefetch', 'preconnect', 'dns-prefetch',
   'icon', 'manifest']);
 const INSTALL = /^(?:claude plugin|\$skill-installer)/;
+const AFFILIATION = 'not affiliated with Anthropic, OpenAI or Superpowers';
+// Must match examples/README.md and the retry demo; the caption also keeps "not a benchmark" on the sheet itself.
+const SHEET = ['R3: the 30-second cap has no task in the plan', '64 != 30', 'Not ready', 'Missing cap and no review',
+  'Authored example fixture, not a benchmark'];
 
 async function walk(dir) {
   const out = [];
@@ -137,6 +141,15 @@ function checkSkipLink(rel, tagList) {
   return tagList.some((t) => t.attrs.id === id) ? [] : [`${rel}: skip link target #${id} missing`];
 }
 
+// Code block lines from Expressive Code's copy-button data-code, which joins lines with \u007f.
+function installLines(tagList) {
+  return tagList
+    .filter((t) => t.attrs['data-code'] !== undefined)
+    .flatMap((t) => t.attrs['data-code'].split(/[\u007f\n]/))
+    .map((line) => line.trim())
+    .filter((line) => INSTALL.test(line));
+}
+
 async function checkInstall(distDir, tagList) {
   let guide = '';
   try {
@@ -144,12 +157,7 @@ async function checkInstall(distDir, tagList) {
   } catch {
     // A missing guide leaves every install command unmatched.
   }
-  const lines = tagList
-    .filter((t) => t.attrs['data-code'] !== undefined)
-    .flatMap((t) => t.attrs['data-code'].split(/[\u007f\n]/))
-    .map((line) => line.trim())
-    .filter((line) => INSTALL.test(line));
-  return lines.filter((line) => !guide.includes(line)).map((line) => `index.html: install command not in get-started.md: ${line}`);
+  return installLines(tagList).filter((line) => !guide.includes(line)).map((line) => `index.html: install command not in get-started.md: ${line}`);
 }
 
 export async function checkSite(distDir, base, repoRoot) {
@@ -174,8 +182,50 @@ export async function checkSite(distDir, base, repoRoot) {
   return errors;
 }
 
+// Visible text: no comments, scripts, styles or tags, entities decoded, whitespace collapsed.
+function pageText(html) {
+  const stripped = html
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, '')
+    .replace(/<\/?[a-z][\w-]*\b(?:"[^"]*"|'[^']*'|[^'">])*>/gi, '');
+  return decode(stripped).replace(/\s+/g, ' ');
+}
+
+async function readText(file) {
+  try {
+    return await readFile(file, 'utf8');
+  } catch {
+    return '';
+  }
+}
+
+export async function checkNotices(distDir, repoRoot) {
+  const errors = [];
+  const pilotLine = (await readText(path.join(repoRoot, 'README.md'))).match(/^>\s*\*\*Pilot release:\*\*.*$/m);
+  const pilot = pilotLine && pilotLine[0].replace(/^>\s*/, '').replace(/\*\*|`/g, '').replace(/\s+/g, ' ').trim();
+  const landingHtml = await readText(path.join(distDir, 'index.html'));
+  const landing = pageText(landingHtml);
+  if (!pilot) errors.push('README.md: pilot release notice not found');
+  else if (!landing.includes(pilot)) errors.push('index.html: README pilot release notice missing');
+  const missing = SHEET.filter((line) => !landing.includes(line));
+  if (missing.length) errors.push(`index.html: rehearsal sheet missing ${missing.map((l) => `"${l}"`).join(', ')}`);
+  if (/fix proposed/i.test(landing)) errors.push('index.html: rehearsal sheet says "fix proposed"');
+  if (!installLines(tags(landingHtml)).length) errors.push('index.html: landing install block has no install command');
+  for (const rel of ['index.html', path.join('examples', 'index.html')]) {
+    const text = rel === 'index.html' ? landing : pageText(await readText(path.join(distDir, rel)));
+    if (!/not a benchmark/i.test(text)) errors.push(`${rel}: "not a benchmark" notice missing`);
+  }
+  for (const file of await walk(distDir)) {
+    if (!file.endsWith('.html')) continue;
+    if (!pageText(await readFile(file, 'utf8')).includes(AFFILIATION)) {
+      errors.push(`${path.relative(distDir, file)}: footer "not affiliated" line missing`);
+    }
+  }
+  return errors;
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const errors = await checkSite('dist', '/plan-validation/', '..');
+  const errors = [...(await checkSite('dist', '/plan-validation/', '..')), ...(await checkNotices('dist', '..'))];
   if (errors.length) {
     console.error(errors.join('\n'));
     process.exit(1);

@@ -31,6 +31,21 @@ const PAIRS = [
   ['paper', 'plum'],
   ['amber', 'amber-tint'],
   ['mint', 'mint-tint'],
+  ['plum-deep', 'paper'],
+  ['paper', 'plum-deep'],
+  ['plum', 'blush'],
+  ['muted', 'blush'],
+  ['plum-deep', 'blush'],
+  ['ink', 'surface'],
+  ['muted', 'surface'],
+  ['amber', 'surface'],
+];
+
+// WCAG 1.4.11: interactive boundaries against every background they sit on.
+const BORDER_PAIRS = [
+  ['border', 'paper'],
+  ['border', 'surface'],
+  ['border', 'blush'],
 ];
 
 for (const [name, selector] of [['light', ":root[data-theme='light']"], ['dark', ':root']]) {
@@ -40,6 +55,14 @@ for (const [name, selector] of [['light', ":root[data-theme='light']"], ['dark',
       assert.ok(t[fg] && t[bg], `${name}: missing --pv-${fg} or --pv-${bg}`);
       const ratio = contrast(t[fg], t[bg]);
       assert.ok(ratio >= 4.5, `${name}: ${fg} ${t[fg]} on ${bg} ${t[bg]} is ${ratio.toFixed(2)}, need 4.5`);
+    }
+  });
+  test(`${name} theme meets 3:1 contrast for interactive borders`, () => {
+    const t = tokens(selector);
+    for (const [fg, bg] of BORDER_PAIRS) {
+      assert.ok(t[fg] && t[bg], `${name}: missing --pv-${fg} or --pv-${bg}`);
+      const ratio = contrast(t[fg], t[bg]);
+      assert.ok(ratio >= 3, `${name}: ${fg} ${t[fg]} on ${bg} ${t[bg]} is ${ratio.toFixed(2)}, need 3`);
     }
   });
 }

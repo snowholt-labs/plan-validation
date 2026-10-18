@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { checkSite } from './check-site.mjs';
+import { checkNotices, checkSite } from './check-site.mjs';
 
 const BASE = '/plan-validation/';
 const SITE = 'https://snowholt-labs.github.io/plan-validation/';
@@ -29,6 +29,43 @@ async function check(files, repoFiles = {}) {
   } finally {
     await rm(tmp, { recursive: true, force: true });
   }
+}
+
+async function notices(files, repoFiles = { 'README.md': README }) {
+  const tmp = await mkdtemp(path.join(tmpdir(), 'check-notices-'));
+  try {
+    const distDir = path.join(tmp, 'dist');
+    const repoRoot = path.join(tmp, 'repo');
+    await mkdir(distDir);
+    await mkdir(repoRoot);
+    await write(distDir, files);
+    await write(repoRoot, repoFiles);
+    return await checkNotices(distDir, repoRoot);
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
+}
+
+const PILOT = 'the renderer is tested separately. The example is an authored fixture\u2014not a benchmark or a claim.';
+const README = `# Plan Validation\n\n> **Pilot release:** ${PILOT}\n`;
+const FOOTER = '<footer><p>Independent project, not affiliated with Anthropic, OpenAI or Superpowers.</p></footer>';
+const LANDING = {
+  pilot: `<blockquote><p><strong>Pilot release:</strong> ${PILOT}</p></blockquote>`,
+  sheet: '<figure><ol><li><span class="sr-only">Fail: </span><span>R3: the 30-second cap has no task in the plan</span></li>' +
+    '<li><span>Acceptance check on the uncapped code failed: <code>64 != 30</code></span></li></ol>' +
+    '<p><span>Not ready</span> <span>Missing cap and no review</span></p>' +
+    '<figcaption>Authored example fixture, not a benchmark.</figcaption></figure>',
+  install: '<div class="copy"><button data-code="claude plugin install X\u007fclaude plugin list">Copy</button></div>',
+};
+
+function site(landing = {}, pages = {}) {
+  const parts = { ...LANDING, ...landing };
+  return {
+    'index.html': `<main>${parts.pilot}${parts.sheet}${parts.install}${FOOTER}</main>`,
+    'examples/index.html': `<main><aside><p>Authored example fixture, not a benchmark.</p></aside>${FOOTER}</main>`,
+    'get-started/index.html': `<main><p>Install</p>${FOOTER}</main>`,
+    ...pages,
+  };
 }
 
 test('missing internal target is reported', async () => {
@@ -131,4 +168,45 @@ test('install line after a quoted > is still checked', async () => {
 test('third-party src after a quoted > is reported', async () => {
   const errs = await check({ 'index.html': '<img alt="a > b" src="https://cdn.example/x.png">' });
   assert.match(errs.join('\n'), /third-party/);
+});
+test('complete notices pass', async () => {
+  assert.deepEqual(await notices(site()), []);
+});
+test('pilot notice required on landing', async () => {
+  const errs = await notices(site({ pilot: '<p>Pilot release: tested.</p>' }));
+  assert.equal(errs.length, 1);
+  assert.match(errs[0], /pilot/i);
+});
+test('rehearsal sheet matches the fixture', async () => {
+  const sheets = [
+    LANDING.sheet.replace('64 != 30', '64 != 31'),
+    LANDING.sheet.replace('Missing cap and no review', '1 blocker'),
+    LANDING.sheet.replace('Not ready', 'Ready'),
+    LANDING.sheet.replace('R3: the 30-second cap', 'R3: the cap'),
+    LANDING.sheet.replace('Missing cap and no review', 'Missing cap and no review, fix proposed'),
+    // The pilot notice also says "not a benchmark", so the sheet's own label is checked here.
+    LANDING.sheet.replace(/<figcaption>.*<\/figcaption>/, ''),
+  ];
+  for (const sheet of sheets) {
+    const errs = await notices(site({ sheet }));
+    assert.equal(errs.length, 1, sheet);
+    assert.match(errs[0], /rehearsal/, sheet);
+  }
+});
+test('benchmark disclaimer required', async () => {
+  const landing = await notices(site({ pilot: '', sheet: LANDING.sheet.replace(/<figcaption>.*<\/figcaption>/, '') }));
+  assert.match(landing.join('\n'), /index\.html.*benchmark/);
+  const examples = await notices(site({}, { 'examples/index.html': `<main><p>A comparative benchmark.</p>${FOOTER}</main>` }));
+  assert.equal(examples.length, 1);
+  assert.match(examples[0], /examples.*benchmark/);
+});
+test('affiliation line required in every footer', async () => {
+  const errs = await notices(site({}, { 'get-started/index.html': '<main><p>Install</p><footer></footer></main>' }));
+  assert.equal(errs.length, 1);
+  assert.match(errs[0], /get-started.*affiliated/);
+});
+test('landing install block required', async () => {
+  const errs = await notices(site({ install: '<button data-code="/plan-validation:validate-plan">Copy</button>' }));
+  assert.equal(errs.length, 1);
+  assert.match(errs[0], /install/);
 });

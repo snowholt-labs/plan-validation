@@ -9,6 +9,7 @@
   --pv-ink: #f6eaf0;
   --pv-muted: #c9aebd;
   --pv-line: #3d2634;
+  --pv-border: #957586;
   --pv-mint: #6fd6ac;
   --pv-mint-tint: #12302a;
   --pv-amber: #f2aa5e;
@@ -50,6 +51,7 @@
   --pv-ink: #2b1622;
   --pv-muted: #6f5463;
   --pv-line: #ecd9e3;
+  --pv-border: #8f6a7e;
   --pv-mint: #1f7a5a;
   --pv-mint-tint: #def3ea;
   --pv-amber: #a2560b;
@@ -84,4 +86,28 @@ code, pre, kbd {
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--pv-font-display);
+}
+
+/* Interactive boundaries use --pv-border (3:1); --pv-line stays for decorative hairlines. */
+site-search button[data-open-modal] {
+  border-color: var(--pv-border);
+}
+site-search button[data-open-modal]:hover {
+  border-color: var(--pv-ink);
+}
+#starlight__search {
+  --pagefind-ui-border: var(--pv-border);
+}
+
+/* Landing page headline and lede (index.mdx). */
+.sl-markdown-content .pv-headline {
+  margin: 0 0 1.125rem;
+  color: var(--pv-plum-deep);
+  font: 800 clamp(2.5rem, 5vw, 3.75rem) / 1.02 var(--pv-font-display);
+  letter-spacing: -0.025em;
+}
+.sl-markdown-content .pv-lede {
+  max-width: 70ch;
+  font-size: 1.3125rem;
+  line-height: 1.5;
 }

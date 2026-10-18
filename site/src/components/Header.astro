@@ -1,0 +1,127 @@
+---
+import Search from '@astrojs/starlight/components/Search.astro';
+import SiteTitle from '@astrojs/starlight/components/SiteTitle.astro';
+import ThemeSelect from '@astrojs/starlight/components/ThemeSelect.astro';
+import plugin from '../../../.claude-plugin/plugin.json';
+import { REPO_URL } from '../../scripts/content-map.mjs';
+import { withBase } from './icons';
+
+const links = [
+  { label: 'Docs', href: withBase('get-started/') },
+  { label: 'Examples', href: withBase('examples/') },
+  { label: 'Changelog', href: withBase('changelog/') },
+  { label: 'GitHub', href: REPO_URL },
+];
+---
+
+<div class="pv-header">
+  <div class="brand">
+    <SiteTitle />
+    <span class="version"><span class="sr-only">Version </span>{plugin.version}</span>
+  </div>
+  <div class="search">
+    <Search />
+  </div>
+  <nav class="links" aria-label="Site">
+    {links.map(({ label, href }) => <a href={href}>{label}</a>)}
+  </nav>
+  <a class="cta" href={withBase('get-started/')}>Get started</a>
+  <div class="theme">
+    <ThemeSelect />
+  </div>
+</div>
+
+<style>
+  .pv-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    height: 100%;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+  .brand :global(.site-title) {
+    color: var(--pv-ink);
+    font-family: var(--pv-font-display);
+    font-weight: 700;
+  }
+  .version {
+    flex: none;
+    padding: 0.125rem 0.5rem;
+    border-radius: 999px;
+    background: var(--pv-blush);
+    color: var(--pv-plum);
+    font: 600 0.75rem var(--pv-font-mono);
+    font-variant-ligatures: none;
+  }
+  .search {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .links {
+    display: flex;
+    gap: 1.25rem;
+    font-size: 0.9375rem;
+  }
+  .links a {
+    color: var(--pv-ink);
+    text-decoration: none;
+  }
+  .links a:hover {
+    color: var(--pv-plum);
+    text-decoration: underline;
+  }
+  .cta {
+    flex: none;
+    padding: 0.5rem 1.125rem;
+    border-radius: 999px;
+    background: var(--pv-plum);
+    color: var(--pv-paper);
+    font: 700 0.9375rem var(--pv-font-display);
+    text-decoration: none;
+  }
+  .cta:hover {
+    background: var(--pv-plum-deep);
+  }
+  .links a:focus-visible,
+  .cta:focus-visible {
+    outline: 3px solid var(--pv-plum);
+    outline-offset: 2px;
+    border-radius: 999px;
+  }
+  .theme {
+    display: flex;
+    flex: none;
+  }
+
+  /* Phones keep the logo, search and Starlight's menu button; the theme switch moves into the menu. */
+  @media (max-width: 49.99rem) {
+    .version,
+    .cta,
+    .theme {
+      display: none;
+    }
+    .search {
+      flex: none;
+      margin-inline-start: auto;
+    }
+  }
+  @media (max-width: 71.99rem) {
+    .links {
+      display: none;
+    }
+  }
+  @media print {
+    .search,
+    .links,
+    .cta,
+    .theme {
+      display: none;
+    }
+  }
+</style>

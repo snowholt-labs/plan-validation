@@ -1,0 +1,25 @@
+---
+import Default from '@astrojs/starlight/components/Footer.astro';
+---
+
+<Default />
+<div class="credits">
+  <p>Created and maintained by <a href="https://github.com/snowholt">snowholt</a>.</p>
+  <p>Independent project, not affiliated with Anthropic, OpenAI or Superpowers.</p>
+</div>
+
+<style>
+  .credits {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--pv-line);
+    color: var(--pv-muted);
+    font-size: var(--sl-text-sm);
+  }
+  .credits p {
+    margin: 0;
+  }
+  .credits a {
+    color: var(--pv-plum);
+  }
+</style>

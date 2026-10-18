@@ -3,18 +3,87 @@ title: Overview
 description: Plan Validation provides three skills for revising prompts and checking an implementation plan against its specification and the current code.
 ---
 
-Plan Validation provides three skills for revising prompts without execution and checking an implementation plan against its approved specification and the current code before handing it to another agent session.
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+import NextRows from '../../components/NextRows.astro';
+import RehearsalSheet from '../../components/RehearsalSheet.astro';
+import { withBase } from '../../components/icons';
 
-Start with **[Get started](/plan-validation/get-started/)**, then follow **[Your first run](/plan-validation/first-run/)** in a repository containing a saved plan and specification.
+<h1 id="_top" class="pv-headline">Rehearse the plan before you hand it to a coding agent.</h1>
 
-| Guide | Contents |
-| --- | --- |
-| [Get started](/plan-validation/get-started/) | Claude Code plugin, Codex skills, updates and removal |
-| [Your first run](/plan-validation/first-run/) | Inputs, worktree selection and focused validation |
-| [Reports and handoffs](/plan-validation/reports-and-handoffs/) | Eight report sections, scores, evidence and freshness |
-| [Safety and limitations](/plan-validation/safety-and-limitations/) | Permissions, command execution, privacy and verification limits |
-| [Troubleshooting](/plan-validation/troubleshooting/) | Discovery problems, missing dependencies and historical reports |
+<p class="pv-lede">Three agent skills for Claude Code and Codex: check the plan against the code, rehearse its instructions in a disposable worktree, and keep a complete evidence report for the next session.</p>
 
-The [repository](https://github.com/snowholt-labs/plan-validation) contains the skills, tests and a [reproducible demonstration](/plan-validation/examples/). This is an independent pilot project. It is not affiliated with Anthropic, OpenAI or Superpowers.
+> **Pilot release:** the package and deterministic renderer are tested separately from agent behavior. The example is an authored, reproducible fixture—not a benchmark or a claim of independently validated agent performance.
 
-See the [changelog](/plan-validation/changelog/) when upgrading.
+<RehearsalSheet />
+
+## Where to go next
+
+<NextRows
+  rows={[
+    {
+      label: 'Get started',
+      href: withBase('get-started/'),
+      description: 'Install the plugin in Claude Code or the skills in Codex, then run your first validation.',
+      icon: 'get-started',
+      primary: true,
+    },
+    {
+      label: 'Features',
+      href: withBase('features/'),
+      description: 'What `validate-plan`, `validation-args` and `revise-prompt` each do, and what they change.',
+      icon: 'features',
+    },
+    {
+      label: 'See the example',
+      href: withBase('examples/'),
+      description: 'The example report: the missing cap, the failing check and the evidence.',
+      icon: 'examples',
+    },
+    {
+      label: 'Security and permissions',
+      href: withBase('security/'),
+      description: 'What the skills can read, write and run, and how to report a vulnerability.',
+      icon: 'security',
+    },
+    {
+      label: 'Reports and handoffs',
+      href: withBase('reports-and-handoffs/'),
+      description: 'How to read the HTML report and pass the handoff to a fresh session.',
+      icon: 'reports-and-handoffs',
+    },
+    {
+      label: 'Changelog',
+      href: withBase('changelog/'),
+      description: 'What changed in each release, newest first.',
+      icon: 'changelog',
+    },
+  ]}
+/>
+
+## Install
+
+<Tabs>
+  <TabItem label="Claude Code">
+
+In your terminal:
+
+```bash
+claude plugin marketplace add snowholt-labs/plan-validation
+claude plugin install plan-validation@snowholt-plugins
+claude plugin list
+claude plugin details plan-validation
+```
+
+  </TabItem>
+  <TabItem label="Codex">
+
+Inside Codex, request all three skills from the built-in installer:
+
+```text
+$skill-installer install validate-plan, validation-args and revise-prompt from https://github.com/snowholt-labs/plan-validation, using skills/validate-plan, skills/validation-args and skills/revise-prompt.
+```
+
+  </TabItem>
+</Tabs>
+
+Needs Git and Python 3.10 or later. [Get started](/plan-validation/get-started/) covers requirements, updates and removal.

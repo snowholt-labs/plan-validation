@@ -37,7 +37,14 @@ export default defineConfig({
       title: 'Plan Validation',
       logo: { src: './src/assets/logo.svg' },
       customCss: ['./src/styles/theme.css'],
-      components: { Head: './src/components/Head.astro' },
+      components: {
+        Footer: './src/components/Footer.astro',
+        Head: './src/components/Head.astro',
+        Header: './src/components/Header.astro',
+        PageSidebar: './src/components/PageSidebar.astro',
+        PageTitle: './src/components/PageTitle.astro',
+        Sidebar: './src/components/Sidebar.astro',
+      },
       sidebar: SIDEBAR.map(({ label, items }) => ({
         label,
         items: items.map(({ label, slug }) => ({ label, slug })),
