@@ -45,7 +45,7 @@ test('syncContent writes every synced page', async () => {
     await mkdir(path.join(repoRoot, 'examples'), { recursive: true });
     await mkdir(path.join(repoRoot, 'assets'), { recursive: true });
     for (const entry of SYNCED) await writeFile(path.join(repoRoot, entry.source), '# Stub\n\nBody\n');
-    await writeFile(path.join(repoRoot, 'assets/plan-validation-small.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>');
+    await writeFile(path.join(repoRoot, 'assets/plan-validation.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>');
     const written = await syncContent(repoRoot, siteDir);
     const docs = path.join(siteDir, 'src/content/docs');
     assert.deepEqual(written.sort(), [

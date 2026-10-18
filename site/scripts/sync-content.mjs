@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { BASE, REPO_URL, SYNCED, WIKI_PAGES } from './content-map.mjs';
 
 const WIKI = REPO_URL + '/wiki';
-const LOGO_SOURCE = 'assets/plan-validation-small.svg';
+const LOGO_SOURCE = 'assets/plan-validation.svg';
 
 function siteHref(slug, hash) {
   return BASE + (slug ? slug + '/' : '') + hash;
