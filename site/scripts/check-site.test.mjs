@@ -201,9 +201,16 @@ test('benchmark disclaimer required', async () => {
   assert.match(examples[0], /examples.*benchmark/);
 });
 test('affiliation line required in every footer', async () => {
-  const errs = await notices(site({}, { 'get-started/index.html': '<main><p>Install</p><footer></footer></main>' }));
-  assert.equal(errs.length, 1);
-  assert.match(errs[0], /get-started.*affiliated/);
+  const pages = [
+    '<main><p>Install</p><footer></footer></main>',
+    // The line outside the footer element does not count.
+    '<main><p>Independent project, not affiliated with Anthropic, OpenAI or Superpowers.</p><footer></footer></main>',
+  ];
+  for (const page of pages) {
+    const errs = await notices(site({}, { 'get-started/index.html': page }));
+    assert.equal(errs.length, 1, page);
+    assert.match(errs[0], /get-started.*affiliated/, page);
+  }
 });
 test('landing install block required', async () => {
   const errs = await notices(site({ install: '<button data-code="/plan-validation:validate-plan">Copy</button>' }));

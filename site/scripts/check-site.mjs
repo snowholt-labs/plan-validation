@@ -11,7 +11,8 @@ const LOADING_REL = new Set(['stylesheet', 'preload', 'modulepreload', 'prefetch
   'icon', 'manifest']);
 const INSTALL = /^(?:claude plugin|\$skill-installer)/;
 const AFFILIATION = 'not affiliated with Anthropic, OpenAI or Superpowers';
-// Must match examples/README.md and the retry demo; the caption also keeps "not a benchmark" on the sheet itself.
+// The spec's rehearsal sheet lines (docs/superpowers/specs/2026-10-18-docs-site-design.md); the caption also keeps
+// "not a benchmark" on the sheet itself.
 const SHEET = ['R3: the 30-second cap has no task in the plan', '64 != 30', 'Not ready', 'Missing cap and no review',
   'Authored example fixture, not a benchmark'];
 
@@ -217,7 +218,8 @@ export async function checkNotices(distDir, repoRoot) {
   }
   for (const file of await walk(distDir)) {
     if (!file.endsWith('.html')) continue;
-    if (!pageText(await readFile(file, 'utf8')).includes(AFFILIATION)) {
+    const footers = [...(await readFile(file, 'utf8')).matchAll(/<footer\b[\s\S]*?<\/footer>/gi)].map((m) => m[0]);
+    if (!footers.some((footer) => pageText(footer).includes(AFFILIATION))) {
       errors.push(`${path.relative(distDir, file)}: footer "not affiliated" line missing`);
     }
   }

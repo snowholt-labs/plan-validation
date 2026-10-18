@@ -7,7 +7,18 @@ import { ICONS, withBase } from './icons';
 const { sidebar, id } = Astro.locals.starlightRoute;
 const base = withBase('');
 const iconKey = (href: string) => href.slice(base.length).replace(/^\/+|\/+$/g, '') || 'index';
-const groups = sidebar.filter((entry) => entry.type === 'group');
+
+// The button layout supports exactly one level: groups of links, each with an icon.
+const groups = sidebar.map((entry) => {
+  if (entry.type !== 'group') throw new Error(`Sidebar: top-level link "${entry.label}" is not supported; put it in a group`);
+  const links = entry.entries.map((link) => {
+    if (link.type !== 'link') throw new Error(`Sidebar: nested group "${link.label}" in "${entry.label}" is not supported`);
+    const icon = ICONS[iconKey(link.href)];
+    if (!icon) throw new Error(`Sidebar: no icon for "${link.label}" (${iconKey(link.href)}) in icons.ts`);
+    return { ...link, icon };
+  });
+  return { label: entry.label, links };
+});
 
 // Pages outside the docs collection have no Markdown copy.
 const slug = id || 'index';
@@ -21,25 +32,23 @@ const markdown = (await getEntry('docs', slug)) ? withBase(`${slug}.md`) : undef
         <div class="group">
           <p class="group-label" id={`pv-group-${i}`}>{group.label}</p>
           <ul aria-labelledby={`pv-group-${i}`}>
-            {group.entries
-              .filter((entry) => entry.type === 'link')
-              .map((entry) => (
-                <li>
-                  <a href={entry.href} aria-current={entry.isCurrent ? 'page' : undefined}>
-                    <span class="icon">
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        aria-hidden="true"
-                        set:html={ICONS[iconKey(entry.href)] ?? ''}
-                      />
-                    </span>
-                    {entry.label}
-                  </a>
-                </li>
-              ))}
+            {group.links.map((entry) => (
+              <li>
+                <a href={entry.href} aria-current={entry.isCurrent ? 'page' : undefined}>
+                  <span class="icon">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      aria-hidden="true"
+                      set:html={entry.icon}
+                    />
+                  </span>
+                  {entry.label}
+                </a>
+              </li>
+            ))}
           </ul>
         </div>
       ))
@@ -128,6 +137,12 @@ const markdown = (await getEntry('docs', slug)) ? withBase(`${slug}.md`) : undef
   .agents p {
     margin: 0 0 0.5rem;
     color: var(--pv-muted);
+  }
+  /* Dark sidebars are blush, so tiles and the agent box need a visible edge. */
+  :global([data-theme='dark']) .icon,
+  :global([data-theme='dark']) .agents {
+    border-color: var(--pv-border);
+    background: var(--pv-paper);
   }
   .agents a {
     display: block;

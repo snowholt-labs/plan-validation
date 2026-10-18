@@ -2,11 +2,16 @@
 import Default from '@astrojs/starlight/components/PageSidebar.astro';
 import changelog from '../../../CHANGELOG.md?raw';
 
-// The first released heading; "## Unreleased" has no version and is skipped.
-const release = changelog.match(/^## (\d+\.\d+\.\d+) — (\d{4}-\d{2}-\d{2})\s*$/m);
-if (!release) throw new Error('CHANGELOG.md has no released "## x.y.z — YYYY-MM-DD" heading');
+// The first "## " heading after any "## Unreleased" must read "x.y.z — YYYY-MM-DD".
+const heading = changelog.match(/^## (?!Unreleased\s*$)(.*)$/m)?.[1].trim();
+const release = heading?.match(/^(\d+\.\d+\.\d+) — (\d{4}-\d{2}-\d{2})$/);
+if (!release) throw new Error(`CHANGELOG.md: latest release heading "${heading}" is not "x.y.z — YYYY-MM-DD"`);
 const [, version, date] = release;
-const formatted = new Date(`${date}T00:00:00Z`).toLocaleDateString('en-GB', {
+const day = new Date(`${date}T00:00:00Z`);
+if (Number.isNaN(day.getTime()) || day.toISOString().slice(0, 10) !== date) {
+  throw new Error(`CHANGELOG.md: latest release date "${date}" is not a real date`);
+}
+const formatted = day.toLocaleDateString('en-GB', {
   day: 'numeric',
   month: 'long',
   year: 'numeric',
@@ -24,6 +29,8 @@ const formatted = new Date(`${date}T00:00:00Z`).toLocaleDateString('en-GB', {
 <style>
   .release {
     display: none;
+    /* Same width as Starlight's "On this page" container, so both share the column's insets. */
+    width: calc(var(--sl-sidebar-width) - 2 * var(--sl-sidebar-pad-x));
     margin: 0.5rem var(--sl-sidebar-pad-x) 1.5rem;
     padding: 0.875rem;
     border-radius: 0.875rem;
@@ -42,6 +49,9 @@ const formatted = new Date(`${date}T00:00:00Z`).toLocaleDateString('en-GB', {
   @media (min-width: 72rem) {
     .release {
       display: block;
+      max-width: calc(
+        (100vw - var(--sl-sidebar-width) - 2 * var(--sl-content-pad-x) - 2 * var(--sl-sidebar-pad-x)) * 0.25
+      );
     }
   }
 </style>

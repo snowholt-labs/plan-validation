@@ -39,6 +39,10 @@ const PAIRS = [
   ['ink', 'surface'],
   ['muted', 'surface'],
   ['amber', 'surface'],
+  ['plum', 'surface'], // also the light "Get started" boundary on the surface nav
+  ['plum', 'rose'],
+  ['ink', 'blush'],
+  ['ink', 'rose'],
 ];
 
 // WCAG 1.4.11: interactive boundaries against every background they sit on.

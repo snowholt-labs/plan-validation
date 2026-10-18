@@ -6,11 +6,12 @@ import plugin from '../../../.claude-plugin/plugin.json';
 import { REPO_URL } from '../../scripts/content-map.mjs';
 import { withBase } from './icons';
 
+// `wide` links show from 72rem; GitHub stays visible from 50rem.
 const links = [
-  { label: 'Docs', href: withBase('get-started/') },
-  { label: 'Examples', href: withBase('examples/') },
-  { label: 'Changelog', href: withBase('changelog/') },
-  { label: 'GitHub', href: REPO_URL },
+  { label: 'Docs', href: withBase('get-started/'), wide: true },
+  { label: 'Examples', href: withBase('examples/'), wide: true },
+  { label: 'Changelog', href: withBase('changelog/'), wide: true },
+  { label: 'GitHub', href: REPO_URL, wide: false },
 ];
 ---
 
@@ -23,7 +24,7 @@ const links = [
     <Search />
   </div>
   <nav class="links" aria-label="Site">
-    {links.map(({ label, href }) => <a href={href}>{label}</a>)}
+    {links.map(({ label, href, wide }) => <a href={href} class:list={{ wide }}>{label}</a>)}
   </nav>
   <a class="cta" href={withBase('get-started/')}>Get started</a>
   <div class="theme">
@@ -53,7 +54,8 @@ const links = [
     flex: none;
     padding: 0.125rem 0.5rem;
     border-radius: 999px;
-    background: var(--pv-blush);
+    /* Blush in light, rose in dark, so the pill stands out from the nav background. */
+    background: var(--sl-color-accent-low);
     color: var(--pv-plum);
     font: 600 0.75rem var(--pv-font-mono);
     font-variant-ligatures: none;
@@ -102,6 +104,7 @@ const links = [
   /* Phones keep the logo, search and Starlight's menu button; the theme switch moves into the menu. */
   @media (max-width: 49.99rem) {
     .version,
+    .links,
     .cta,
     .theme {
       display: none;
@@ -112,7 +115,7 @@ const links = [
     }
   }
   @media (max-width: 71.99rem) {
-    .links {
+    .links .wide {
       display: none;
     }
   }
