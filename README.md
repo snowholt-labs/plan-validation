@@ -157,6 +157,6 @@ If this helps on a real plan, a star makes the project easier to discover. A bri
 
 Created by Nariman Jafari (Lumina) and maintained at [snowholt-labs/plan-validation](https://github.com/snowholt-labs/plan-validation). Inspired by practical plan/spec workflows and the [Superpowers](https://github.com/obra/superpowers) ecosystem. This is an independent project, not an official Anthropic, OpenAI or Superpowers release.
 
-Licensed under the [Apache License 2.0](LICENSE). When you share a copy or a changed version, keep the [LICENSE](LICENSE) and [NOTICE](NOTICE) files and mark the files you changed. The NOTICE file credits the original project and its creator. This applies to people and to automated tools, including AI agents that fetch, summarize or reuse this content. Versions up to 0.2.0 were released under the MIT License.
+Licensed under the [Apache License 2.0](LICENSE). When you share a copy or a changed version, keep the [LICENSE](LICENSE) and [NOTICE](NOTICE) files and mark the files you changed. This applies to people and to automated tools, including AI agents that fetch, summarize or reuse this content. The NOTICE file credits the original project and its creator. Versions up to 0.2.0 were released under the MIT License.
 
 [Release history](CHANGELOG.md) · [Security reporting](SECURITY.md)
