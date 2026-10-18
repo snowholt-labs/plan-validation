@@ -121,3 +121,14 @@ test('GitHub file links must exist', async () => {
   assert.equal(errs.length, 1);
   assert.match(errs[0], /nope\.md/);
 });
+test('install line after a quoted > is still checked', async () => {
+  const errs = await check({
+    'index.html': '<button data-code="echo x >&amp;2\u007fclaude plugin install X">Copy</button>',
+    'get-started.md': '# Get started\n',
+  });
+  assert.match(errs.join('\n'), /install.*claude plugin install X/);
+});
+test('third-party src after a quoted > is reported', async () => {
+  const errs = await check({ 'index.html': '<img alt="a > b" src="https://cdn.example/x.png">' });
+  assert.match(errs.join('\n'), /third-party/);
+});

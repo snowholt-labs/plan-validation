@@ -51,7 +51,7 @@ function attributes(source) {
 
 function tags(html) {
   const stripped = html.replace(/<!--[\s\S]*?-->/g, '').replace(/(<script\b[^>]*>)[\s\S]*?<\/script>/gi, '$1');
-  return [...stripped.matchAll(/<([a-z][\w-]*)\b([^>]*)>/gi)].map((m) => ({
+  return [...stripped.matchAll(/<([a-z][\w-]*)\b((?:"[^"]*"|'[^']*'|[^'">])*)>/gi)].map((m) => ({
     name: m[1].toLowerCase(),
     attrs: attributes(m[2]),
   }));
