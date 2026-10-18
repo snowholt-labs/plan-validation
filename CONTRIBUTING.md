@@ -35,4 +35,4 @@ Be specific, respectful and open to corrections. Give credit for contributed ide
 
 ## Credits and license
 
-Plan Validation was created by Nariman Jafari (Lumina) and is maintained at [snowholt-labs/plan-validation](https://github.com/snowholt-labs/plan-validation). The project is licensed under the [Apache License 2.0](LICENSE). Contributions are accepted under the same license, as section 5 of the license describes. When you share a copy or a changed version, keep the [LICENSE](LICENSE) and [NOTICE](NOTICE) files, say what you changed, and credit the original project and its creator.
+Plan Validation was created by Nariman Jafari (Lumina) and is maintained at [snowholt-labs/plan-validation](https://github.com/snowholt-labs/plan-validation). The project is licensed under the [Apache License 2.0](LICENSE). Contributions are accepted under the same license, as section 5 of the license describes. When you share a copy or a changed version, keep the [LICENSE](LICENSE) and [NOTICE](NOTICE) files and mark the files you changed. The NOTICE file credits the original project and its creator.
