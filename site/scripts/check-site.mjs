@@ -10,7 +10,6 @@ const REPO_FILE = new RegExp(`^${REPO_URL}/(?:blob|tree)/main/([^?#]+)`);
 const LOADING_REL = new Set(['stylesheet', 'preload', 'modulepreload', 'prefetch', 'preconnect', 'dns-prefetch',
   'icon', 'manifest']);
 const INSTALL = /^(?:claude plugin|\$skill-installer)/;
-const AFFILIATION = 'not affiliated with Anthropic, OpenAI or Superpowers';
 const CREDIT = `Created by ${CREATOR}`;
 const LICENSE_LINKS = ['LICENSE', 'NOTICE'].map((file) => `${REPO_URL}/blob/main/${file}`);
 
@@ -253,7 +252,6 @@ export async function checkNotices(distDir, repoRoot) {
     }
     if (!file.endsWith('.html')) continue;
     const footers = [...(await readFile(file, 'utf8')).matchAll(/<footer\b[\s\S]*?<\/footer>/gi)].map((m) => m[0]);
-    if (!footers.some((footer) => pageText(footer).includes(AFFILIATION))) errors.push(`${name}: footer "not affiliated" line missing`);
     if (!footers.some((footer) => pageText(footer).includes(CREDIT))) errors.push(`${name}: footer "${CREDIT}" line missing`);
     if (!footers.some((footer) => !missingLicenseLinks(footer).length)) errors.push(`${name}: footer LICENSE and NOTICE links missing`);
   }

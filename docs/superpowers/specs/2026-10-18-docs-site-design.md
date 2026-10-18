@@ -33,7 +33,7 @@ The site becomes the single home for user documentation, so the docs cannot drif
 
 The site fails, even if it builds, if it:
 
-- Makes claims the project does not support. The pilot-release notice, the "not a benchmark" wording on the example, and the "not affiliated with Anthropic, OpenAI or Superpowers" statement must stay visible where they appear today.
+- Makes claims the project does not support. The pilot-release notice, the "not a benchmark" wording on the example, and the "not affiliated with Anthropic, OpenAI or Superpowers" statement must stay visible where they appear today. *(Superseded on 2026-10-18 by the maintainer: the "not affiliated" line was removed from the site.)*
 - Contacts third parties at runtime: no externally hosted fonts, scripts or images. This matches the self-contained, no-analytics stance of the generated reports.
 - Leaves two editable copies of the same content (for example `CHANGELOG.md` and a hand-copied changelog page).
 - Affects the shipped plugin's behavior: no change to the skills, manifests or the `verify` check's runtime, and no build output or `node_modules` committed. (The marketplace installs the repository root, `"source": "./"`, so the site's source files will be present in installs, just as `docs/` and `examples/` are today. Builder's-call note: this is accepted; moving the plugin into a subfolder is out of scope.)
@@ -87,7 +87,7 @@ Landing page, top to bottom:
 4. "Where to go next" rows: Get started (primary), Features, See the example, Security and permissions, Reports and handoffs, Changelog.
 5. Install block with Claude Code and Codex tabs and a copy button, using the commands in `docs/wiki/Installation.md`.
 
-Required notices (builder's call on exact placement, these override the mockup where it lacks them): the pilot-release notice on the landing page; "not a benchmark" on the rehearsal sheet and the Examples page; "independent project, not affiliated with Anthropic, OpenAI or Superpowers" in the site footer. The mockup's "A real report" wording becomes "the example report". `examples/README.md` currently says "comparative benchmark" rather than "not a benchmark", so the Examples page adds that notice itself at build time (a generated aside), leaving `examples/README.md` as the single source of its text.
+Required notices (builder's call on exact placement, these override the mockup where it lacks them): the pilot-release notice on the landing page; "not a benchmark" on the rehearsal sheet and the Examples page; "independent project, not affiliated with Anthropic, OpenAI or Superpowers" in the site footer. The mockup's "A real report" wording becomes "the example report". `examples/README.md` currently says "comparative benchmark" rather than "not a benchmark", so the Examples page adds that notice itself at build time (a generated aside), leaving `examples/README.md` as the single source of its text. *(Superseded on 2026-10-18 by the maintainer: the "not affiliated" line was removed from the site.)*
 
 Quality floor: responsive down to a 360px phone, visible keyboard focus, reduced motion respected, WCAG AA contrast in both themes, and a skip link.
 
