@@ -55,10 +55,14 @@ def main():
     files = [ROOT / name for name in ("README.md", "CONTRIBUTING.md", "SECURITY.md", "CHANGELOG.md", "AGENTS.md", "CLAUDE.md")]
     for directory in ("skills", "docs", "examples", ".github"):
         files.extend((ROOT / directory).rglob("*.md"))
-    for path in files:
+    # Site pages get the leak check only; the link resolver does not understand site links.
+    site_pages = [path for pattern in ("*.md", "*.mdx") for path in (ROOT / "site/src/content").rglob(pattern)]
+    for path in files + site_pages:
         content = path.read_text()
         if re.search(r"/(?:home|Users)/[^/\s]+/|plan-document-reviewer-prompt", content):
             errors.append(f"{path.relative_to(ROOT)}: private or obsolete instruction leaked")
+        if path in site_pages:
+            continue
         # Only real Markdown links, not the illustrative paths inside fenced code.
         prose = re.sub(r"```[^\n]*\n.*?```", "", content, flags=re.S)
         for target in re.findall(r"\]\(([^)]+)\)", prose):
@@ -74,7 +78,7 @@ def main():
                 errors.append(f"Unexpected symlink in release: {path.relative_to(ROOT)}")
     if errors:
         raise SystemExit("\n".join(errors))
-    print(f"Package {claude['version']}: manifests, three skills, {len(svgs)} SVG icons and {len(files)} Markdown files checked.")
+    print(f"Package {claude['version']}: manifests, three skills, {len(svgs)} SVG icons and {len(files) + len(site_pages)} Markdown files checked.")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,18 @@
+---
+import Default from '@astrojs/starlight/components/PageTitle.astro';
+
+// The landing page writes its own headline as <h1 id="_top"> in index.mdx.
+const isIndex = Astro.locals.starlightRoute.id === '';
+---
+
+{!isIndex && <Default />}
+
+<style is:global>
+  /* Collapse the title panel the landing page leaves empty. */
+  .content-panel:has(> .sl-container:empty) {
+    display: none;
+  }
+  .content-panel:has(> .sl-container:empty) + .content-panel {
+    border-top: 0;
+  }
+</style>
