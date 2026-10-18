@@ -5,12 +5,12 @@
 [![CI](https://github.com/snowholt-labs/plan-validation/actions/workflows/ci.yml/badge.svg)](https://github.com/snowholt-labs/plan-validation/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/snowholt-labs/plan-validation?include_prereleases)](https://github.com/snowholt-labs/plan-validation/releases)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
-[![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-D97757)](https://github.com/snowholt-labs/plan-validation/wiki/Installation)
-[![Codex](https://img.shields.io/badge/Codex-skills-168579)](https://github.com/snowholt-labs/plan-validation/wiki/Installation)
+[![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-D97757)](https://snowholt-labs.github.io/plan-validation/get-started/)
+[![Codex](https://img.shields.io/badge/Codex-skills-168579)](https://snowholt-labs.github.io/plan-validation/get-started/)
 
 Three agent skills for prompt revision and the gap between an approved specification and implementation: check the plan against the code, rehearse its instructions in a disposable worktree, and keep a complete evidence report for the next session.
 
-**[Installation](https://github.com/snowholt-labs/plan-validation/wiki/Installation)** · **[First run](https://github.com/snowholt-labs/plan-validation/wiki/Usage)** · **[Example](examples/README.md)** · **[Wiki](https://github.com/snowholt-labs/plan-validation/wiki)** · **[Limitations](https://github.com/snowholt-labs/plan-validation/wiki/Safety-and-Limitations)**
+**[Installation](https://snowholt-labs.github.io/plan-validation/get-started/)** · **[First run](https://snowholt-labs.github.io/plan-validation/first-run/)** · **[Example](examples/README.md)** · **[Docs](https://snowholt-labs.github.io/plan-validation/)** · **[Limitations](https://snowholt-labs.github.io/plan-validation/safety-and-limitations/)**
 
 > **Pilot release:** the package and deterministic renderer are tested separately from agent behavior. The example is an authored, reproducible fixture—not a benchmark or a claim of independently validated agent performance.
 
@@ -70,7 +70,7 @@ Then:
 $validation-args
 ```
 
-For an inspectable clone with automatic skill-file updates, use the [manual installation guide](https://github.com/snowholt-labs/plan-validation/wiki/Installation). A Codex compatibility manifest is included; directory listing or official marketplace acceptance is not implied.
+For an inspectable clone with automatic skill-file updates, use the [manual installation guide](https://snowholt-labs.github.io/plan-validation/get-started/). A Codex compatibility manifest is included; directory listing or official marketplace acceptance is not implied.
 
 **Requirements:** an agent host with filesystem and command tools, Git, Python 3.10+, an existing repository, a plan and a specification. Rehearsal needs the project's dependencies already available. An independent reviewer is required for a Ready verdict. Linux is the initial verification platform; other platforms need further testing.
 
@@ -140,7 +140,7 @@ Open `/tmp/plan-validation-demo/report.html`. The demo executes a deliberately i
 - Plans and reports can contain private code or paths. Reports are local by default. Your agent host still follows its own data-handling policy.
 - No guarantee of correctness, security, saved time or lower model cost is made. Rehearsal can duplicate substantial implementation work; use it when the extra evidence is worth that cost.
 
-Read [Safety and limitations](https://github.com/snowholt-labs/plan-validation/wiki/Safety-and-Limitations) before a first run.
+Read [Safety and limitations](https://snowholt-labs.github.io/plan-validation/safety-and-limitations/) before a first run.
 
 ## Contribute
 

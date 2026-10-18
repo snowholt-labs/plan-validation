@@ -18,4 +18,4 @@ The `revise-prompt` skill treats supplied instructions as quoted material and ne
 
 The renderer uses the Python standard library, escapes raw HTML, restricts rendered links and emits a Content Security Policy. Its structural checks do not establish that source evidence is truthful. A generated report is a local snapshot and may contain sensitive project information. Review and redact before sharing it.
 
-See the [safety guide](https://github.com/snowholt-labs/plan-validation/wiki/Safety-and-Limitations) for execution and data-handling limits.
+See the [safety guide](https://snowholt-labs.github.io/plan-validation/safety-and-limitations/) for execution and data-handling limits.
