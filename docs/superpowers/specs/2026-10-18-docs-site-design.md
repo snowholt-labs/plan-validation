@@ -87,7 +87,7 @@ Landing page, top to bottom:
 4. "Where to go next" rows: Get started (primary), Features, See the example, Security and permissions, Reports and handoffs, Changelog.
 5. Install block with Claude Code and Codex tabs and a copy button, using the commands in `docs/wiki/Installation.md`.
 
-Required notices (builder's call on exact placement, these override the mockup where it lacks them): the pilot-release notice on the landing page; "not a benchmark" on the rehearsal sheet and the Examples page; "independent project, not affiliated with Anthropic, OpenAI or Superpowers" in the site footer. The mockup's "A real report" wording becomes "the example report".
+Required notices (builder's call on exact placement, these override the mockup where it lacks them): the pilot-release notice on the landing page; "not a benchmark" on the rehearsal sheet and the Examples page; "independent project, not affiliated with Anthropic, OpenAI or Superpowers" in the site footer. The mockup's "A real report" wording becomes "the example report". `examples/README.md` currently says "comparative benchmark" rather than "not a benchmark", so the Examples page adds that notice itself at build time (a generated aside), leaving `examples/README.md` as the single source of its text.
 
 Quality floor: responsive down to a 360px phone, visible keyboard focus, reduced motion respected, WCAG AA contrast in both themes, and a skip link.
 
@@ -115,10 +115,10 @@ Root files that GitHub itself displays (`README.md`, `CHANGELOG.md`, `SECURITY.m
 
 - The site lives in its own top-level folder (suggested name `site/`) with its own `package.json` and lockfile. The Python tooling stays stdlib-only and unaffected.
 - Pin Starlight, Astro and every plugin to exact versions in the lockfile. Starlight is pre-1.0, so treat minor updates as possibly breaking.
-- Each additional package beyond Starlight and Astro is a new dependency and needs the maintainer's approval with a comparison, per the global dependency rules. The research found `starlight-llms-txt` 0.12.0 (by Starlight's lead maintainer) as the likely `llms.txt` choice; it still needs that approval.
+- Each additional package beyond Starlight and Astro is a new dependency and needs the maintainer's approval with a comparison, per the global dependency rules. The research found `starlight-llms-txt` 0.12.0 (by Starlight's lead maintainer) as the likely `llms.txt` choice; it still needs that approval. The implementation plan builds `llms.txt`, per-page Markdown and link checking with small dependency-free scripts instead, so neither `starlight-llms-txt` nor a link-validator plugin is needed.
 - `scripts/check_package.py` must keep passing. It scans `docs/` Markdown for broken relative links and leaked home paths, and fails on symlinks in shipped folders.
 - CI: add a separate site build job on pull requests, without making the existing `verify` job depend on Node. The build must also fail on broken internal links. Deploy with the official GitHub Pages actions on pushes to `main` only, with least-privilege permissions (`pages: write` and `id-token: write` on the deploy job only).
-- Link and leak checks: after the wiki pages leave `docs/`, `check_package.py` no longer covers them. The site build takes over internal link checking (a link-validator plugin is the expected route and needs dependency approval), and the home-path leak check must be extended to the site's content folder.
+- Link and leak checks: after the wiki pages leave `docs/`, `check_package.py` no longer covers them. The site build takes over internal link checking (the plan's dependency-free checker; a link-validator plugin would need dependency approval), and the home-path leak check must be extended to the site's content folder.
 - Follow the repository's plan workflow in `AGENTS.md`: a `plan/docs-site` branch, phase PRs squash merged into it, then a merge-commit PR into `main`.
 
 ## GitHub settings
