@@ -1,0 +1,108 @@
+---
+import { ICONS } from './icons';
+
+interface Props {
+  rows: Array<{ label: string; href: string; description: string; icon: string; primary?: boolean }>;
+}
+
+const { rows } = Astro.props;
+for (const { label, icon } of rows) {
+  if (!ICONS[icon]) throw new Error(`NextRows: unknown icon "${icon}" for "${label}"`);
+}
+// Backtick-quoted words in a description render as inline code.
+const parts = (text: string) => text.split('`');
+---
+
+<ul class="rows not-content">
+  {
+    rows.map(({ label, href, description, icon, primary }, i) => (
+      <li class:list={['row', { primary }]}>
+        <a href={href} aria-describedby={`pv-next-${i}`}>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            aria-hidden="true"
+            set:html={ICONS[icon]}
+          />
+          {label}
+        </a>
+        <p id={`pv-next-${i}`}>
+          {parts(description).map((part, j) => (j % 2 ? <code>{part}</code> : part))}
+        </p>
+      </li>
+    ))
+  }
+</ul>
+
+<style>
+  .rows {
+    display: grid;
+    gap: 0.75rem;
+    max-width: 56.25rem;
+    margin: 0 0 3.5rem;
+    padding: 0;
+    list-style: none;
+    container-type: inline-size;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: 17.5rem minmax(0, 1fr);
+    align-items: center;
+    gap: 1.5rem;
+  }
+  a {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.8125rem 1.125rem;
+    border: 1px solid var(--pv-plum);
+    border-radius: 0.875rem;
+    background: var(--pv-rose);
+    box-shadow: 0 2px 0 var(--pv-plum);
+    color: var(--pv-plum-deep);
+    font: 700 1rem var(--pv-font-display);
+    text-decoration: none;
+  }
+  a:hover,
+  .primary a {
+    background: var(--pv-plum);
+    color: var(--pv-paper);
+  }
+  .primary a {
+    border-color: var(--pv-plum-deep);
+    box-shadow: 0 2px 0 var(--pv-plum-deep);
+  }
+  .primary a:hover {
+    background: var(--pv-plum-deep);
+  }
+  a:focus-visible {
+    outline: 3px solid var(--pv-plum);
+    outline-offset: 3px;
+  }
+  svg {
+    flex: none;
+    width: 1.125rem;
+    height: 1.125rem;
+  }
+  p {
+    margin: 0;
+    color: var(--pv-ink);
+  }
+  @container (max-width: 36rem) {
+    .row {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0.375rem;
+    }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    a {
+      transition: background-color 0.15s, color 0.15s, transform 0.15s;
+    }
+    a:active {
+      transform: translateY(2px);
+      box-shadow: none;
+    }
+  }
+</style>

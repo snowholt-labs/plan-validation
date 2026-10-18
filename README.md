@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/snowholt-labs/plan-validation/actions/workflows/ci.yml/badge.svg)](https://github.com/snowholt-labs/plan-validation/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/snowholt-labs/plan-validation?include_prereleases)](https://github.com/snowholt-labs/plan-validation/releases)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-D97757)](https://github.com/snowholt-labs/plan-validation/wiki/Installation)
 [![Codex](https://img.shields.io/badge/Codex-skills-168579)](https://github.com/snowholt-labs/plan-validation/wiki/Installation)
 
@@ -155,6 +155,8 @@ If this helps on a real plan, a star makes the project easier to discover. A bri
 
 ## Credits and license
 
-Created and maintained by [snowholt](https://github.com/snowholt). Inspired by practical plan/spec workflows and the [Superpowers](https://github.com/obra/superpowers) ecosystem. This is an independent project, not an official Anthropic, OpenAI or Superpowers release.
+Created by Nariman Jafari (Lumina) and maintained at [snowholt-labs/plan-validation](https://github.com/snowholt-labs/plan-validation). Inspired by practical plan/spec workflows and the [Superpowers](https://github.com/obra/superpowers) ecosystem. This is an independent project, not an official Anthropic, OpenAI or Superpowers release.
 
-[MIT](LICENSE). [Release history](CHANGELOG.md) · [Security reporting](SECURITY.md)
+Licensed under the [Apache License 2.0](LICENSE). When you share a copy or a changed version, keep the [LICENSE](LICENSE) and [NOTICE](NOTICE) files, say what you changed, and credit the original project and its creator. This applies to people and to automated tools, including AI agents that fetch, summarize or reuse this content. Versions up to 0.2.0 were released under the MIT License.
+
+[Release history](CHANGELOG.md) · [Security reporting](SECURITY.md)

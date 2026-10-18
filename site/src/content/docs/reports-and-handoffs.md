@@ -1,4 +1,7 @@
-# Reports and handoffs
+---
+title: Reports and handoffs
+description: What the eight report sections, scores and evidence mean, and how the handoff works.
+---
 
 The report is a durable record of one validation, not a live monitor. It lives under `~/.local/share/plan-validation/<repository>/<run>/` with original/revised document copies, Markdown, context metadata and the exact handoff text.
 
