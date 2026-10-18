@@ -10,6 +10,10 @@
   --pv-muted: #c9aebd;
   --pv-line: #3d2634;
   --pv-border: #957586;
+  /* The dark sidebar is blush, so tiles and the agent box get a paper fill and a visible edge. */
+  --pv-tile-bg: var(--pv-paper);
+  --pv-tile-border: var(--pv-border);
+  --pv-agents-border: var(--pv-border);
   --pv-mint: #6fd6ac;
   --pv-mint-tint: #12302a;
   --pv-amber: #f2aa5e;
@@ -52,6 +56,9 @@
   --pv-muted: #6f5463;
   --pv-line: #ecd9e3;
   --pv-border: #8f6a7e;
+  --pv-tile-bg: var(--pv-surface);
+  --pv-tile-border: var(--pv-line);
+  --pv-agents-border: var(--pv-rose);
   --pv-mint: #1f7a5a;
   --pv-mint-tint: #def3ea;
   --pv-amber: #a2560b;
@@ -88,12 +95,19 @@ h1, h2, h3, h4, h5, h6 {
   font-family: var(--pv-font-display);
 }
 
-/* Interactive boundaries use --pv-border (3:1); --pv-line stays for decorative hairlines. */
-site-search button[data-open-modal] {
+/* Starlight draws these interactive boundaries with gray-5, which is the decorative --pv-line.
+   They use --pv-border (3:1) instead; tables, code frames and other hairlines keep gray-5. */
+site-search button[data-open-modal],
+.pagination-links a,
+mobile-starlight-toc .toggle {
   border-color: var(--pv-border);
 }
-site-search button[data-open-modal]:hover {
+site-search button[data-open-modal]:hover,
+.pagination-links a:hover {
   border-color: var(--pv-ink);
+}
+.sl-markdown-content details {
+  --sl-details-border-color: var(--pv-border);
 }
 #starlight__search {
   --pagefind-ui-border: var(--pv-border);

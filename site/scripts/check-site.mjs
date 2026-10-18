@@ -11,10 +11,20 @@ const LOADING_REL = new Set(['stylesheet', 'preload', 'modulepreload', 'prefetch
   'icon', 'manifest']);
 const INSTALL = /^(?:claude plugin|\$skill-installer)/;
 const AFFILIATION = 'not affiliated with Anthropic, OpenAI or Superpowers';
-// The spec's rehearsal sheet lines (docs/superpowers/specs/2026-10-18-docs-site-design.md); the caption also keeps
-// "not a benchmark" on the sheet itself.
-const SHEET = ['R3: the 30-second cap has no task in the plan', '64 != 30', 'Not ready', 'Missing cap and no review',
-  'Authored example fixture, not a benchmark'];
+// Every rehearsal sheet line in the spec (docs/superpowers/specs/2026-10-18-docs-site-design.md), checked inside
+// the sheet's <figure data-rehearsal-sheet>. The caption keeps "not a benchmark" on the sheet itself.
+const SHEET = [
+  'plan.md: retry delay (one phase, one task)',
+  'R1: attempt 0 returns 1 second, covered by Task 1',
+  'R2: the delay doubles, covered by Task 1',
+  'R3: the 30-second cap has no task in the plan',
+  'Acceptance check on the uncapped code failed: 64 != 30',
+  'No independent review has run yet',
+  'Not ready',
+  'Missing cap and no review',
+  'Authored example fixture, not a benchmark',
+];
+const SHEET_FIGURE = /<figure\b(?:"[^"]*"|'[^']*'|[^'">])*\bdata-rehearsal-sheet\b(?:"[^"]*"|'[^']*'|[^'">])*>[\s\S]*?<\/figure>/i;
 
 async function walk(dir) {
   const out = [];
@@ -208,13 +218,19 @@ export async function checkNotices(distDir, repoRoot) {
   const landing = pageText(landingHtml);
   if (!pilot) errors.push('README.md: pilot release notice not found');
   else if (!landing.includes(pilot)) errors.push('index.html: README pilot release notice missing');
-  const missing = SHEET.filter((line) => !landing.includes(line));
-  if (missing.length) errors.push(`index.html: rehearsal sheet missing ${missing.map((l) => `"${l}"`).join(', ')}`);
-  if (/fix proposed/i.test(landing)) errors.push('index.html: rehearsal sheet says "fix proposed"');
+  const figure = landingHtml.match(SHEET_FIGURE);
+  if (!figure) errors.push('index.html: rehearsal sheet <figure data-rehearsal-sheet> missing');
+  else {
+    const sheet = pageText(figure[0]);
+    const missing = SHEET.filter((line) => !sheet.includes(line));
+    if (missing.length) errors.push(`index.html: rehearsal sheet missing ${missing.map((l) => `"${l}"`).join(', ')}`);
+    if (/fix proposed/i.test(sheet)) errors.push('index.html: rehearsal sheet says "fix proposed"');
+  }
   if (!installLines(tags(landingHtml)).length) errors.push('index.html: landing install block has no install command');
-  for (const rel of ['index.html', path.join('examples', 'index.html')]) {
-    const text = rel === 'index.html' ? landing : pageText(await readText(path.join(distDir, rel)));
-    if (!/not a benchmark/i.test(text)) errors.push(`${rel}: "not a benchmark" notice missing`);
+  // The landing page's "not a benchmark" label is part of the sheet check above.
+  const examples = path.join('examples', 'index.html');
+  if (!/not a benchmark/i.test(pageText(await readText(path.join(distDir, examples))))) {
+    errors.push(`${examples}: "not a benchmark" notice missing`);
   }
   for (const file of await walk(distDir)) {
     if (!file.endsWith('.html')) continue;

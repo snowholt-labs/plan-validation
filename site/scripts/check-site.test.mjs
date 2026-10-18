@@ -51,8 +51,12 @@ const README = `# Plan Validation\n\n> **Pilot release:** ${PILOT}\n`;
 const FOOTER = '<footer><p>Independent project, not affiliated with Anthropic, OpenAI or Superpowers.</p></footer>';
 const LANDING = {
   pilot: `<blockquote><p><strong>Pilot release:</strong> ${PILOT}</p></blockquote>`,
-  sheet: '<figure><ol><li><span class="sr-only">Fail: </span><span>R3: the 30-second cap has no task in the plan</span></li>' +
-    '<li><span>Acceptance check on the uncapped code failed: <code>64 != 30</code></span></li></ol>' +
+  sheet: '<figure class="sheet" data-rehearsal-sheet><header><p>plan.md: retry delay (one phase, one task)</p></header><ol>' +
+    '<li><span class="sr-only">Pass: </span><span>R1: attempt 0 returns 1 second, covered by Task 1</span></li>' +
+    '<li><span>R2: the delay doubles, covered by Task 1</span></li>' +
+    '<li><span class="sr-only">Fail: </span><span>R3: the 30-second cap has no task in the plan</span></li>' +
+    '<li><span>Acceptance check on the uncapped code failed: <code>64 != 30</code></span></li>' +
+    '<li><span>No independent review has run yet</span></li></ol>' +
     '<p><span>Not ready</span> <span>Missing cap and no review</span></p>' +
     '<figcaption>Authored example fixture, not a benchmark.</figcaption></figure>',
   install: '<div class="copy"><button data-code="claude plugin install X\u007fclaude plugin list">Copy</button></div>',
@@ -183,6 +187,12 @@ test('rehearsal sheet matches the fixture', async () => {
     LANDING.sheet.replace('Missing cap and no review', '1 blocker'),
     LANDING.sheet.replace('Not ready', 'Ready'),
     LANDING.sheet.replace('R3: the 30-second cap', 'R3: the cap'),
+    LANDING.sheet.replace('R1: attempt 0 returns 1 second', 'R1: attempt 0 returns 2 seconds'),
+    LANDING.sheet.replace('No independent review has run yet', 'Review passed'),
+    LANDING.sheet.replace('one phase, one task', 'two phases'),
+    // Lines outside the sheet's figure do not count.
+    LANDING.sheet.replace('<span>Not ready</span>', '<span>Ready</span>') + '<p>Not ready</p>',
+    LANDING.sheet.replace(' data-rehearsal-sheet', ''),
     LANDING.sheet.replace('Missing cap and no review', 'Missing cap and no review, fix proposed'),
     // The pilot notice also says "not a benchmark", so the sheet's own label is checked here.
     LANDING.sheet.replace(/<figcaption>.*<\/figcaption>/, ''),
@@ -194,11 +204,10 @@ test('rehearsal sheet matches the fixture', async () => {
   }
 });
 test('benchmark disclaimer required', async () => {
-  const landing = await notices(site({ pilot: '', sheet: LANDING.sheet.replace(/<figcaption>.*<\/figcaption>/, '') }));
-  assert.match(landing.join('\n'), /index\.html.*benchmark/);
-  const examples = await notices(site({}, { 'examples/index.html': `<main><p>A comparative benchmark.</p>${FOOTER}</main>` }));
-  assert.equal(examples.length, 1);
-  assert.match(examples[0], /examples.*benchmark/);
+  // The landing page's label is covered by the rehearsal sheet test; this checks the Examples page alone.
+  const errs = await notices(site({}, { 'examples/index.html': `<main><p>A comparative benchmark.</p>${FOOTER}</main>` }));
+  assert.equal(errs.length, 1);
+  assert.match(errs[0], /examples.*benchmark/);
 });
 test('affiliation line required in every footer', async () => {
   const pages = [

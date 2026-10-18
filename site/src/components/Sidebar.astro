@@ -103,9 +103,9 @@ const markdown = (await getEntry('docs', slug)) ? withBase(`${slug}.md`) : undef
     place-items: center;
     width: 1.875rem;
     height: 1.875rem;
-    border: 1px solid var(--pv-line);
+    border: 1px solid var(--pv-tile-border);
     border-radius: 0.5625rem;
-    background: var(--pv-surface);
+    background: var(--pv-tile-bg);
     color: var(--pv-plum);
   }
   .icon svg {
@@ -129,20 +129,14 @@ const markdown = (await getEntry('docs', slug)) ? withBase(`${slug}.md`) : undef
   .agents {
     margin-top: 1.375rem;
     padding: 0.875rem;
-    border: 1px dashed var(--pv-rose);
+    border: 1px dashed var(--pv-agents-border);
     border-radius: 0.875rem;
-    background: var(--pv-surface);
+    background: var(--pv-tile-bg);
     font-size: 0.875rem;
   }
   .agents p {
     margin: 0 0 0.5rem;
     color: var(--pv-muted);
-  }
-  /* Dark sidebars are blush, so tiles and the agent box need a visible edge. */
-  :global([data-theme='dark']) .icon,
-  :global([data-theme='dark']) .agents {
-    border-color: var(--pv-border);
-    background: var(--pv-paper);
   }
   .agents a {
     display: block;

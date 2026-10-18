@@ -9,7 +9,7 @@ const LINES = [
 ];
 ---
 
-<figure class="sheet not-content" aria-labelledby="pv-sheet-title">
+<figure class="sheet not-content" aria-labelledby="pv-sheet-title" data-rehearsal-sheet>
   <header>
     <p class="title" id="pv-sheet-title">plan.md: retry delay (one phase, one task)</p>
     <p class="path">examples/retry</p>
@@ -51,8 +51,6 @@ const LINES = [
     border: 1px solid var(--pv-line);
     border-radius: 1.25rem;
     background-color: var(--pv-surface);
-    background-image: repeating-linear-gradient(transparent 0 2.4375rem, var(--pv-blush) 2.4375rem 2.5rem);
-    background-position: 0 3.875rem;
     container-type: inline-size;
   }
   header,
@@ -88,6 +86,9 @@ const LINES = [
     align-items: center;
     gap: 0.875rem;
     min-height: 2.5rem;
+    padding-block: 0.375rem;
+    /* Ruled lines follow each row, so wrapped text never sits on a rule. */
+    border-bottom: 1px solid var(--pv-blush);
     color: var(--pv-ink);
     font-size: 0.9375rem;
     line-height: 1.35;
