@@ -8,6 +8,7 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'Plan Validation',
+      logo: { src: './src/assets/logo.svg' },
       social: [
         {
           icon: 'github',

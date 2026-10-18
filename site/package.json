@@ -6,8 +6,10 @@
     "node": ">=24"
   },
   "scripts": {
-    "build": "astro build",
-    "dev": "astro dev"
+    "sync": "node scripts/sync-content.mjs",
+    "test": "node --test 'scripts/*.test.mjs'",
+    "build": "npm run sync && astro build",
+    "dev": "npm run sync && astro dev"
   },
   "dependencies": {
     "astro": "7.4.0",
