@@ -45,6 +45,12 @@ const links = [
     gap: 0.5rem;
     min-width: 0;
   }
+  /* From 50rem the brand keeps its natural width and the search shrinks instead, so the title never clips. */
+  @media (min-width: 50rem) {
+    .brand {
+      flex: none;
+    }
+  }
   .brand :global(.site-title) {
     color: var(--pv-ink);
     font-family: var(--pv-font-display);

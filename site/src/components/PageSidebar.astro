@@ -1,5 +1,6 @@
 ---
-import Default from '@astrojs/starlight/components/PageSidebar.astro';
+import MobileTableOfContents from '@astrojs/starlight/components/MobileTableOfContents.astro';
+import TableOfContents from '@astrojs/starlight/components/TableOfContents.astro';
 import changelog from '../../../CHANGELOG.md?raw';
 
 // The first "## " heading after any "## Unreleased" must read "x.y.z — YYYY-MM-DD".
@@ -19,19 +20,69 @@ const formatted = day.toLocaleDateString('en-GB', {
 });
 ---
 
-<Default />
-<div class="release">
-  <p class="label">Latest release</p>
-  <p class="version">{version}</p>
-  <p><time datetime={date}>{formatted}</time></p>
-</div>
+{/* Starlight's default PageSidebar, with the release card inside the same container as "On this page". */}
+{
+  Astro.locals.starlightRoute.toc && (
+    <>
+      <div class="mobile-toc">
+        <MobileTableOfContents />
+      </div>
+      <div class="right-sidebar-panel">
+        <div class="sl-container">
+          <TableOfContents />
+          <div class="release">
+            <p class="label">Latest release</p>
+            <p class="version">{version}</p>
+            <p><time datetime={date}>{formatted}</time></p>
+          </div>
+        </div>
+      </div>
+    </>
+  )
+}
 
 <style>
-  .release {
+  /* Default PageSidebar styles; the right rail shows from 72rem, the mobile ToC below. */
+  .right-sidebar-panel {
     display: none;
-    /* Same width as Starlight's "On this page" container, so both share the column's insets. */
+    padding: 1rem var(--sl-sidebar-pad-x);
+  }
+  .sl-container {
     width: calc(var(--sl-sidebar-width) - 2 * var(--sl-sidebar-pad-x));
-    margin: 0.5rem var(--sl-sidebar-pad-x) 1.5rem;
+  }
+  .right-sidebar-panel :global(h2) {
+    margin-bottom: 0.5rem;
+    color: var(--sl-color-white);
+    font-size: var(--sl-text-h5);
+    font-weight: 600;
+    line-height: var(--sl-line-height-headings);
+  }
+  .right-sidebar-panel :global(:where(a)) {
+    display: block;
+    color: var(--sl-color-gray-3);
+    font-size: var(--sl-text-xs);
+    text-decoration: none;
+    overflow-wrap: anywhere;
+  }
+  .right-sidebar-panel :global(:where(a):hover) {
+    color: var(--sl-color-white);
+  }
+  @media (min-width: 72rem) {
+    .mobile-toc {
+      display: none;
+    }
+    .right-sidebar-panel {
+      display: block;
+    }
+    .sl-container {
+      max-width: calc(
+        (100vw - var(--sl-sidebar-width) - 2 * var(--sl-content-pad-x) - 2 * var(--sl-sidebar-pad-x)) * 0.25
+      );
+    }
+  }
+
+  .release {
+    margin-top: 1.5rem;
     padding: 0.875rem;
     border-radius: 0.875rem;
     background: var(--pv-blush);
@@ -44,14 +95,5 @@ const formatted = day.toLocaleDateString('en-GB', {
   .version {
     color: var(--pv-plum-deep);
     font: 700 1.125rem var(--pv-font-display);
-  }
-  /* Wide screens only, matching Starlight's right rail. */
-  @media (min-width: 72rem) {
-    .release {
-      display: block;
-      max-width: calc(
-        (100vw - var(--sl-sidebar-width) - 2 * var(--sl-content-pad-x) - 2 * var(--sl-sidebar-pad-x)) * 0.25
-      );
-    }
   }
 </style>
