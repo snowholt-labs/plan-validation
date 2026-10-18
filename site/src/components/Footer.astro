@@ -5,6 +5,7 @@ import LastUpdated from 'virtual:starlight/components/LastUpdated';
 import Pagination from 'virtual:starlight/components/Pagination';
 import config from 'virtual:starlight/user-config';
 import { Icon } from '@astrojs/starlight/components';
+import { CREATOR, REPO_URL } from '../../scripts/content-map.mjs';
 ---
 
 <footer class="sl-flex">
@@ -23,7 +24,11 @@ import { Icon } from '@astrojs/starlight/components';
   }
 
   <div class="credits" data-pagefind-ignore>
-    <p>Created and maintained by <a href="https://github.com/snowholt">snowholt</a>.</p>
+    <p>Created by {CREATOR} and maintained at <a href={REPO_URL}>snowholt-labs/plan-validation</a>.</p>
+    <p>
+      Licensed under the <a href={`${REPO_URL}/blob/main/LICENSE`}>Apache License 2.0</a>.{' '}
+      Keep the <a href={`${REPO_URL}/blob/main/NOTICE`}>NOTICE</a> credit when you share or change it.
+    </p>
     <p>Independent project, not affiliated with Anthropic, OpenAI or Superpowers.</p>
   </div>
 </footer>

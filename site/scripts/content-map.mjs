@@ -1,5 +1,12 @@
 export const REPO_URL = 'https://github.com/snowholt-labs/plan-validation';
 export const BASE = '/plan-validation/';
+export const CREATOR = 'Nariman Jafari (Lumina)';
+
+// NOTICE's second paragraph, the attribution request, on one line.
+export function attribution(notice) {
+  const paragraph = notice.split(/\n\s*\n/)[1];
+  return paragraph ? paragraph.replace(/\s+/g, ' ').trim() : '';
+}
 
 export const WIKI_PAGES = {
   '': '',

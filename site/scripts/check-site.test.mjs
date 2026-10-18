@@ -31,7 +31,7 @@ async function check(files, repoFiles = {}) {
   }
 }
 
-async function notices(files, repoFiles = { 'README.md': README }) {
+async function notices(files, repoFiles = { 'README.md': README, NOTICE }) {
   const tmp = await mkdtemp(path.join(tmpdir(), 'check-notices-'));
   try {
     const distDir = path.join(tmp, 'dist');
@@ -48,7 +48,10 @@ async function notices(files, repoFiles = { 'README.md': README }) {
 
 const PILOT = 'the renderer is tested separately. The example is an authored fixture\u2014not a benchmark or a claim.';
 const README = `# Plan Validation\n\n> **Pilot release:** ${PILOT}\n`;
-const FOOTER = '<footer><p>Independent project, not affiliated with Anthropic, OpenAI or Superpowers.</p></footer>';
+const CREDIT = 'Plan Validation was created by Nariman Jafari (Lumina). Keep the NOTICE file.';
+const NOTICE = `Plan Validation\nCopyright 2026 Nariman Jafari (Lumina)\n\n${CREDIT.replace('Lumina). ', 'Lumina).\n')}\n`;
+const FOOTER = '<footer><p>Created by Nariman Jafari (Lumina) and maintained at <a href="#">the repository</a>.</p>' +
+  '<p>Independent project, not affiliated with Anthropic, OpenAI or Superpowers.</p></footer>';
 const LANDING = {
   pilot: `<blockquote><p><strong>Pilot release:</strong> ${PILOT}</p></blockquote>`,
   sheet: '<figure class="sheet" data-rehearsal-sheet><header><p>plan.md: retry delay (one phase, one task)</p></header><ol>' +
@@ -60,12 +63,15 @@ const LANDING = {
     '<p><span>Not ready</span> <span>Missing cap and no review</span></p>' +
     '<figcaption>Authored example fixture, not a benchmark.</figcaption></figure>',
   install: '<div class="copy"><button data-code="claude plugin install X\u007fclaude plugin list">Copy</button></div>',
+  credit: `<h2>Credits and license</h2><p>${CREDIT}</p>`,
 };
 
 function site(landing = {}, pages = {}) {
   const parts = { ...LANDING, ...landing };
   return {
-    'index.html': `<main>${parts.pilot}${parts.sheet}${parts.install}${FOOTER}</main>`,
+    'index.html': `<main>${parts.pilot}${parts.sheet}${parts.install}${parts.credit}${FOOTER}</main>`,
+    'llms.txt': `# Plan Validation\n\n${CREDIT}\n`,
+    'get-started.md': `# Get started\n\nInstall.\n\n---\n\n${CREDIT}\n`,
     'examples/index.html': `<main><aside><p>Authored example fixture, not a benchmark.</p></aside>${FOOTER}</main>`,
     'get-started/index.html': `<main><p>Install</p>${FOOTER}</main>`,
     ...pages,
@@ -210,10 +216,11 @@ test('benchmark disclaimer required', async () => {
   assert.match(errs[0], /examples.*benchmark/);
 });
 test('affiliation line required in every footer', async () => {
+  const credit = '<p>Created by Nariman Jafari (Lumina).</p>';
   const pages = [
-    '<main><p>Install</p><footer></footer></main>',
+    `<main><p>Install</p><footer>${credit}</footer></main>`,
     // The line outside the footer element does not count.
-    '<main><p>Independent project, not affiliated with Anthropic, OpenAI or Superpowers.</p><footer></footer></main>',
+    `<main><p>Independent project, not affiliated with Anthropic, OpenAI or Superpowers.</p><footer>${credit}</footer></main>`,
   ];
   for (const page of pages) {
     const errs = await notices(site({}, { 'get-started/index.html': page }));
@@ -225,4 +232,27 @@ test('landing install block required', async () => {
   const errs = await notices(site({ install: '<button data-code="/plan-validation:validate-plan">Copy</button>' }));
   assert.equal(errs.length, 1);
   assert.match(errs[0], /install/);
+});
+test('creator credit required in every footer', async () => {
+  const page = FOOTER.replace('Created by Nariman Jafari (Lumina)', 'Created by snowholt');
+  const errs = await notices(site({}, { 'get-started/index.html': `<main><p>Install</p>${page}</main>` }));
+  assert.equal(errs.length, 1);
+  assert.match(errs[0], /get-started.*Created by Nariman Jafari \(Lumina\)/);
+});
+test('NOTICE attribution required on the landing page, llms.txt and Markdown copies', async () => {
+  const cases = [
+    [site({ credit: '<h2>Credits and license</h2>' }), /index\.html: NOTICE/],
+    [site({}, { 'llms.txt': '# Plan Validation\n' }), /llms\.txt: NOTICE/],
+    [site({}, { 'get-started.md': '# Get started\n\nInstall.\n' }), /get-started\.md: NOTICE/],
+  ];
+  for (const [files, error] of cases) {
+    const errs = await notices(files);
+    assert.equal(errs.length, 1, String(error));
+    assert.match(errs[0], error);
+  }
+});
+test('NOTICE without an attribution paragraph is reported', async () => {
+  const errs = await notices(site(), { 'README.md': README, NOTICE: 'Plan Validation\n' });
+  assert.equal(errs.length, 1);
+  assert.match(errs[0], /NOTICE: attribution paragraph not found/);
 });
