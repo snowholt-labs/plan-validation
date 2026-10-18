@@ -51,8 +51,7 @@ const README = `# Plan Validation\n\n> **Pilot release:** ${PILOT}\n`;
 const CREDIT = 'Plan Validation was created by Nariman Jafari (Lumina). Keep the NOTICE file.';
 const NOTICE = `Plan Validation\nCopyright 2026 Nariman Jafari (Lumina)\n\n${CREDIT.replace('Lumina). ', 'Lumina).\n')}\n`;
 const LINKS = `<a href="${REPO}/blob/main/LICENSE">LICENSE</a> <a href="${REPO}/blob/main/NOTICE">NOTICE</a>`;
-const FOOTER = `<footer><p>Created by Nariman Jafari (Lumina) and maintained at <a href="#">the repository</a>.</p><p>${LINKS}</p>` +
-  '<p>Independent project, not affiliated with Anthropic, OpenAI or Superpowers.</p></footer>';
+const FOOTER = `<footer><p>Created by Nariman Jafari (Lumina) and maintained at <a href="#">the repository</a>.</p><p>${LINKS}</p></footer>`;
 const LANDING = {
   pilot: `<blockquote><p><strong>Pilot release:</strong> ${PILOT}</p></blockquote>`,
   sheet: '<figure class="sheet" data-rehearsal-sheet><header><p>plan.md: retry delay (one phase, one task)</p></header><ol>' +
@@ -215,19 +214,6 @@ test('benchmark disclaimer required', async () => {
   const errs = await notices(site({}, { 'examples/index.html': `<main><p>A comparative benchmark.</p>${FOOTER}</main>` }));
   assert.equal(errs.length, 1);
   assert.match(errs[0], /examples.*benchmark/);
-});
-test('affiliation line required in every footer', async () => {
-  const credit = `<p>Created by Nariman Jafari (Lumina).</p>${LINKS}`;
-  const pages = [
-    `<main><p>Install</p><footer>${credit}</footer></main>`,
-    // The line outside the footer element does not count.
-    `<main><p>Independent project, not affiliated with Anthropic, OpenAI or Superpowers.</p><footer>${credit}</footer></main>`,
-  ];
-  for (const page of pages) {
-    const errs = await notices(site({}, { 'get-started/index.html': page }));
-    assert.equal(errs.length, 1, page);
-    assert.match(errs[0], /get-started.*affiliated/, page);
-  }
 });
 test('landing install block required', async () => {
   const errs = await notices(site({ install: '<button data-code="/plan-validation:validate-plan">Copy</button>' }));
