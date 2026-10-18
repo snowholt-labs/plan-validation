@@ -10,6 +10,21 @@ const REPO_FILE = new RegExp(`^${REPO_URL}/(?:blob|tree)/main/([^?#]+)`);
 const LOADING_REL = new Set(['stylesheet', 'preload', 'modulepreload', 'prefetch', 'preconnect', 'dns-prefetch',
   'icon', 'manifest']);
 const INSTALL = /^(?:claude plugin|\$skill-installer)/;
+const AFFILIATION = 'not affiliated with Anthropic, OpenAI or Superpowers';
+// Every rehearsal sheet line in the spec (docs/superpowers/specs/2026-10-18-docs-site-design.md), checked inside
+// the sheet's <figure data-rehearsal-sheet>. The caption keeps "not a benchmark" on the sheet itself.
+const SHEET = [
+  'plan.md: retry delay (one phase, one task)',
+  'R1: attempt 0 returns 1 second, covered by Task 1',
+  'R2: the delay doubles, covered by Task 1',
+  'R3: the 30-second cap has no task in the plan',
+  'Acceptance check on the uncapped code failed: 64 != 30',
+  'No independent review has run yet',
+  'Not ready',
+  'Missing cap and no review',
+  'Authored example fixture, not a benchmark',
+];
+const SHEET_FIGURE = /<figure\b(?:"[^"]*"|'[^']*'|[^'">])*\bdata-rehearsal-sheet\b(?:"[^"]*"|'[^']*'|[^'">])*>[\s\S]*?<\/figure>/i;
 
 async function walk(dir) {
   const out = [];
@@ -137,6 +152,15 @@ function checkSkipLink(rel, tagList) {
   return tagList.some((t) => t.attrs.id === id) ? [] : [`${rel}: skip link target #${id} missing`];
 }
 
+// Code block lines from Expressive Code's copy-button data-code, which joins lines with \u007f.
+function installLines(tagList) {
+  return tagList
+    .filter((t) => t.attrs['data-code'] !== undefined)
+    .flatMap((t) => t.attrs['data-code'].split(/[\u007f\n]/))
+    .map((line) => line.trim())
+    .filter((line) => INSTALL.test(line));
+}
+
 async function checkInstall(distDir, tagList) {
   let guide = '';
   try {
@@ -144,12 +168,7 @@ async function checkInstall(distDir, tagList) {
   } catch {
     // A missing guide leaves every install command unmatched.
   }
-  const lines = tagList
-    .filter((t) => t.attrs['data-code'] !== undefined)
-    .flatMap((t) => t.attrs['data-code'].split(/[\u007f\n]/))
-    .map((line) => line.trim())
-    .filter((line) => INSTALL.test(line));
-  return lines.filter((line) => !guide.includes(line)).map((line) => `index.html: install command not in get-started.md: ${line}`);
+  return installLines(tagList).filter((line) => !guide.includes(line)).map((line) => `index.html: install command not in get-started.md: ${line}`);
 }
 
 export async function checkSite(distDir, base, repoRoot) {
@@ -174,8 +193,57 @@ export async function checkSite(distDir, base, repoRoot) {
   return errors;
 }
 
+// Visible text: no comments, scripts, styles or tags, entities decoded, whitespace collapsed.
+function pageText(html) {
+  const stripped = html
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, '')
+    .replace(/<\/?[a-z][\w-]*\b(?:"[^"]*"|'[^']*'|[^'">])*>/gi, '');
+  return decode(stripped).replace(/\s+/g, ' ');
+}
+
+async function readText(file) {
+  try {
+    return await readFile(file, 'utf8');
+  } catch {
+    return '';
+  }
+}
+
+export async function checkNotices(distDir, repoRoot) {
+  const errors = [];
+  const pilotLine = (await readText(path.join(repoRoot, 'README.md'))).match(/^>\s*\*\*Pilot release:\*\*.*$/m);
+  const pilot = pilotLine && pilotLine[0].replace(/^>\s*/, '').replace(/\*\*|`/g, '').replace(/\s+/g, ' ').trim();
+  const landingHtml = await readText(path.join(distDir, 'index.html'));
+  const landing = pageText(landingHtml);
+  if (!pilot) errors.push('README.md: pilot release notice not found');
+  else if (!landing.includes(pilot)) errors.push('index.html: README pilot release notice missing');
+  const figure = landingHtml.match(SHEET_FIGURE);
+  if (!figure) errors.push('index.html: rehearsal sheet <figure data-rehearsal-sheet> missing');
+  else {
+    const sheet = pageText(figure[0]);
+    const missing = SHEET.filter((line) => !sheet.includes(line));
+    if (missing.length) errors.push(`index.html: rehearsal sheet missing ${missing.map((l) => `"${l}"`).join(', ')}`);
+    if (/fix proposed/i.test(sheet)) errors.push('index.html: rehearsal sheet says "fix proposed"');
+  }
+  if (!installLines(tags(landingHtml)).length) errors.push('index.html: landing install block has no install command');
+  // The landing page's "not a benchmark" label is part of the sheet check above.
+  const examples = path.join('examples', 'index.html');
+  if (!/not a benchmark/i.test(pageText(await readText(path.join(distDir, examples))))) {
+    errors.push(`${examples}: "not a benchmark" notice missing`);
+  }
+  for (const file of await walk(distDir)) {
+    if (!file.endsWith('.html')) continue;
+    const footers = [...(await readFile(file, 'utf8')).matchAll(/<footer\b[\s\S]*?<\/footer>/gi)].map((m) => m[0]);
+    if (!footers.some((footer) => pageText(footer).includes(AFFILIATION))) {
+      errors.push(`${path.relative(distDir, file)}: footer "not affiliated" line missing`);
+    }
+  }
+  return errors;
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const errors = await checkSite('dist', '/plan-validation/', '..');
+  const errors = [...(await checkSite('dist', '/plan-validation/', '..')), ...(await checkNotices('dist', '..'))];
   if (errors.length) {
     console.error(errors.join('\n'));
     process.exit(1);

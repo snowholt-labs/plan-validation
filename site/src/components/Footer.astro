@@ -1,0 +1,74 @@
+---
+// Starlight's default Footer, with the credit and affiliation lines inside the <footer> element.
+import EditLink from 'virtual:starlight/components/EditLink';
+import LastUpdated from 'virtual:starlight/components/LastUpdated';
+import Pagination from 'virtual:starlight/components/Pagination';
+import config from 'virtual:starlight/user-config';
+import { Icon } from '@astrojs/starlight/components';
+---
+
+<footer class="sl-flex">
+  <div class="meta sl-flex">
+    <EditLink />
+    <LastUpdated />
+  </div>
+  <Pagination />
+
+  {
+    config.credits && (
+      <a class="kudos sl-flex" href="https://starlight.astro.build">
+        <Icon name={'starlight'} /> {Astro.locals.t('builtWithStarlight.label')}
+      </a>
+    )
+  }
+
+  <div class="credits" data-pagefind-ignore>
+    <p>Created and maintained by <a href="https://github.com/snowholt">snowholt</a>.</p>
+    <p>Independent project, not affiliated with Anthropic, OpenAI or Superpowers.</p>
+  </div>
+</footer>
+
+<style>
+  footer {
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  .meta {
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.75rem 3rem;
+    margin-top: 3rem;
+    color: var(--sl-color-gray-3);
+    font-size: var(--sl-text-sm);
+  }
+  .meta > :global(p:only-child) {
+    margin-inline-start: auto;
+  }
+  .kudos {
+    align-items: center;
+    gap: 0.5em;
+    margin: 1.5rem auto;
+    color: var(--sl-color-gray-3);
+    font-size: var(--sl-text-xs);
+    text-decoration: none;
+  }
+  .kudos:hover {
+    color: var(--sl-color-white);
+  }
+  .kudos :global(svg) {
+    color: var(--sl-color-orange);
+  }
+  .credits {
+    margin-top: 0.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--pv-line);
+    color: var(--pv-muted);
+    font-size: var(--sl-text-sm);
+  }
+  .credits p {
+    margin: 0;
+  }
+  .credits a {
+    color: var(--pv-plum);
+  }
+</style>
