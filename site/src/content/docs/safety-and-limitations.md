@@ -1,4 +1,7 @@
-# Safety and limitations
+---
+title: Safety and limitations
+description: What the skills may run, what stays private and what a validation cannot prove.
+---
 
 ## Execution permissions
 

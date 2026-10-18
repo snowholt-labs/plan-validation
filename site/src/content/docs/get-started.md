@@ -1,4 +1,7 @@
-# Installation
+---
+title: Get started
+description: Install the Plan Validation skills in Claude Code or Codex, and update or remove them.
+---
 
 ## Requirements
 

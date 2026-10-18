@@ -1,4 +1,7 @@
-# Troubleshooting
+---
+title: Troubleshooting
+description: Fixes for skills that do not appear, missing dependencies and report problems.
+---
 
 ## The skill does not appear
 
