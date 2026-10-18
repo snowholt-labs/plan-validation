@@ -50,7 +50,8 @@ const PILOT = 'the renderer is tested separately. The example is an authored fix
 const README = `# Plan Validation\n\n> **Pilot release:** ${PILOT}\n`;
 const CREDIT = 'Plan Validation was created by Nariman Jafari (Lumina). Keep the NOTICE file.';
 const NOTICE = `Plan Validation\nCopyright 2026 Nariman Jafari (Lumina)\n\n${CREDIT.replace('Lumina). ', 'Lumina).\n')}\n`;
-const FOOTER = '<footer><p>Created by Nariman Jafari (Lumina) and maintained at <a href="#">the repository</a>.</p>' +
+const LINKS = `<a href="${REPO}/blob/main/LICENSE">LICENSE</a> <a href="${REPO}/blob/main/NOTICE">NOTICE</a>`;
+const FOOTER = `<footer><p>Created by Nariman Jafari (Lumina) and maintained at <a href="#">the repository</a>.</p><p>${LINKS}</p>` +
   '<p>Independent project, not affiliated with Anthropic, OpenAI or Superpowers.</p></footer>';
 const LANDING = {
   pilot: `<blockquote><p><strong>Pilot release:</strong> ${PILOT}</p></blockquote>`,
@@ -63,7 +64,7 @@ const LANDING = {
     '<p><span>Not ready</span> <span>Missing cap and no review</span></p>' +
     '<figcaption>Authored example fixture, not a benchmark.</figcaption></figure>',
   install: '<div class="copy"><button data-code="claude plugin install X\u007fclaude plugin list">Copy</button></div>',
-  credit: `<h2>Credits and license</h2><p>${CREDIT}</p>`,
+  credit: `<h2>Credits and license</h2><p>${CREDIT}</p><p>${LINKS}</p>`,
 };
 
 function site(landing = {}, pages = {}) {
@@ -216,7 +217,7 @@ test('benchmark disclaimer required', async () => {
   assert.match(errs[0], /examples.*benchmark/);
 });
 test('affiliation line required in every footer', async () => {
-  const credit = '<p>Created by Nariman Jafari (Lumina).</p>';
+  const credit = `<p>Created by Nariman Jafari (Lumina).</p>${LINKS}`;
   const pages = [
     `<main><p>Install</p><footer>${credit}</footer></main>`,
     // The line outside the footer element does not count.
@@ -241,7 +242,7 @@ test('creator credit required in every footer', async () => {
 });
 test('NOTICE attribution required on the landing page, llms.txt and Markdown copies', async () => {
   const cases = [
-    [site({ credit: '<h2>Credits and license</h2>' }), /index\.html: NOTICE/],
+    [site({ credit: `<h2>Credits and license</h2>${LINKS}` }), /index\.html: NOTICE/],
     [site({}, { 'llms.txt': '# Plan Validation\n' }), /llms\.txt: NOTICE/],
     [site({}, { 'get-started.md': '# Get started\n\nInstall.\n' }), /get-started\.md: NOTICE/],
   ];
@@ -255,4 +256,15 @@ test('NOTICE without an attribution paragraph is reported', async () => {
   const errs = await notices(site(), { 'README.md': README, NOTICE: 'Plan Validation\n' });
   assert.equal(errs.length, 1);
   assert.match(errs[0], /NOTICE: attribution paragraph not found/);
+});
+test('LICENSE and NOTICE links required in the footer and the landing credits', async () => {
+  for (const file of ['LICENSE', 'NOTICE']) {
+    const without = (html) => html.replace(new RegExp(`<a href="[^"]*/${file}">${file}</a>`), '');
+    const footerErrs = await notices(site({}, { 'get-started/index.html': `<main><p>Install</p>${without(FOOTER)}</main>` }));
+    assert.equal(footerErrs.length, 1, file);
+    assert.match(footerErrs[0], /get-started.*footer LICENSE and NOTICE links/);
+    const landingErrs = await notices(site({ credit: without(LANDING.credit) }));
+    assert.equal(landingErrs.length, 1, file);
+    assert.match(landingErrs[0], new RegExp(`index\\.html: credits section missing ${file} link`));
+  }
 });
