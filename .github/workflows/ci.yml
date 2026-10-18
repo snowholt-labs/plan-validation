@@ -27,3 +27,29 @@ jobs:
         run: python3 scripts/check_package.py
       - name: Reproduce the demonstration
         run: python3 scripts/demo.py --output "$RUNNER_TEMP/plan-validation-demo"
+
+  site:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Fetch the exact public revision
+        shell: bash
+        run: |
+          git init --quiet .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --quiet --no-tags --depth=1 origin "$GITHUB_SHA"
+          git checkout --quiet --detach FETCH_HEAD
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - name: Install locked site dependencies
+        working-directory: site
+        run: npm ci
+      - name: Test the site scripts
+        working-directory: site
+        run: npm test
+      - name: Build and check the site
+        working-directory: site
+        run: npm run build
