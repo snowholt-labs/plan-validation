@@ -33,7 +33,7 @@ test('external and anchor links are untouched', () => {
 });
 test('toPage strips the H1 and adds front matter and the generated note', () => {
   const out = toPage('# Security policy\n\nText', { source: 'SECURITY.md', slug: 'security', title: 'Security and permissions', description: 'd' });
-  assert.match(out, /^---\ntitle: Security and permissions\ndescription: d\n---\n/);
+  assert.match(out, /^---\ntitle: \"Security and permissions\"\ndescription: \"d\"\n---\n/);
   assert.match(out, /Generated from SECURITY.md/);
   assert.doesNotMatch(out, /^# Security policy/m);
 });
@@ -55,7 +55,7 @@ test('syncContent writes every synced page', async () => {
       path.join(docs, 'examples/safety-cases.md'),
       path.join(docs, 'security.md'),
     ]);
-    for (const file of written) assert.match(await readFile(file, 'utf8'), /^---\ntitle: /);
+    for (const file of written) assert.match(await readFile(file, 'utf8'), /^---\ntitle: \"/);
     const svg = '<svg xmlns="http://www.w3.org/2000/svg"/>';
     assert.equal(await readFile(path.join(siteDir, 'public/favicon.svg'), 'utf8'), svg);
     assert.equal(await readFile(path.join(siteDir, 'src/assets/logo.svg'), 'utf8'), svg);
@@ -65,6 +65,25 @@ test('syncContent writes every synced page', async () => {
 });
 test('unmapped wiki page fails instead of shipping a dead link', () => {
   assert.throws(() => rewriteLinks('[x](https://github.com/snowholt-labs/plan-validation/wiki/Nope)', 'SECURITY.md'), /unmapped wiki page/);
+});
+test('only a leading H1 is removed', () => {
+  const md = 'Intro\n\n```bash\n# install\nnpm ci\n```\n';
+  assert.ok(toPage(md, { source: 'SECURITY.md', title: 't', description: 'd' }).includes('# install\nnpm ci'));
+});
+test('front matter values are quoted', () => {
+  const out = toPage('x', { source: 'SECURITY.md', title: '- Notes #1', description: 'Say "hi" #tag' });
+  assert.match(out, /^---\ntitle: "- Notes #1"\ndescription: "Say \\"hi\\" #tag"\n---\n/);
+});
+test('inherited object keys are not wiki pages', () => {
+  assert.throws(() => rewriteLinks('[x](https://github.com/snowholt-labs/plan-validation/wiki/constructor)', 'SECURITY.md'), /unmapped wiki page/);
+});
+test('inline code and tilde fences are untouched', () => {
+  for (const md of ['Use `[x](foo.md)` literally', '~~~md\n[x](foo.md)\n~~~'])
+    assert.equal(rewriteLinks(md, 'CONTRIBUTING.md'), md);
+});
+test('unsupported link forms fail instead of shipping dead links', () => {
+  for (const md of ['[a](docs/x.md "Title")', '[b]: ../y.md'])
+    assert.throws(() => rewriteLinks(md, 'CONTRIBUTING.md'), /not supported/);
 });
 test('relative link to a synced source keeps its anchor', () => {
   assert.equal(rewriteLinks('[s](../SECURITY.md#reporting)', 'examples/README.md'), '[s](/plan-validation/security/#reporting)');
