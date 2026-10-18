@@ -1,6 +1,7 @@
 import type { APIRoute, GetStaticPaths } from 'astro';
 import { getCollection } from 'astro:content';
-import { BASE, SIDEBAR } from '../../scripts/content-map.mjs';
+import notice from '../../../NOTICE?raw';
+import { BASE, SIDEBAR, attribution } from '../../scripts/content-map.mjs';
 
 export const prerender = true;
 
@@ -19,5 +20,7 @@ export const GET: APIRoute = ({ props, site }) => {
   const { entry } = props;
   const { title, description } = entry.data;
   const body = entry.id === 'index' ? `${description}\n\n${landing(site)}\n` : entry.body;
-  return new Response(`# ${title}\n\n${body}`, { headers: { 'Content-Type': 'text/markdown; charset=utf-8' } });
+  return new Response(`# ${title}\n\n${body.trimEnd()}\n\n---\n\n${attribution(notice)}\n`, {
+    headers: { 'Content-Type': 'text/markdown; charset=utf-8' },
+  });
 };

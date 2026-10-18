@@ -1,7 +1,7 @@
 import { readFile, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { REPO_URL } from './content-map.mjs';
+import { CREATOR, REPO_URL, attribution } from './content-map.mjs';
 
 const ORIGIN = 'https://snowholt-labs.github.io';
 const LEAK = /\/(?:home|Users)\/[^/\s]+\//;
@@ -11,6 +11,13 @@ const LOADING_REL = new Set(['stylesheet', 'preload', 'modulepreload', 'prefetch
   'icon', 'manifest']);
 const INSTALL = /^(?:claude plugin|\$skill-installer)/;
 const AFFILIATION = 'not affiliated with Anthropic, OpenAI or Superpowers';
+const CREDIT = `Created by ${CREATOR}`;
+const LICENSE_LINKS = ['LICENSE', 'NOTICE'].map((file) => `${REPO_URL}/blob/main/${file}`);
+
+function missingLicenseLinks(html) {
+  const hrefs = tags(html).filter((t) => t.name === 'a').map((t) => t.attrs.href);
+  return LICENSE_LINKS.filter((link) => !hrefs.includes(link)).map((link) => link.split('/').pop());
+}
 // Every rehearsal sheet line in the spec (docs/superpowers/specs/2026-10-18-docs-site-design.md), checked inside
 // the sheet's <figure data-rehearsal-sheet>. The caption keeps "not a benchmark" on the sheet itself.
 const SHEET = [
@@ -232,12 +239,23 @@ export async function checkNotices(distDir, repoRoot) {
   if (!/not a benchmark/i.test(pageText(await readText(path.join(distDir, examples))))) {
     errors.push(`${examples}: "not a benchmark" notice missing`);
   }
+  // The NOTICE attribution must reach readers of the landing page and agents reading llms.txt or a Markdown copy.
+  const credit = attribution(await readText(path.join(repoRoot, 'NOTICE')));
+  if (!credit) errors.push('NOTICE: attribution paragraph not found');
+  else if (!landing.includes(credit)) errors.push('index.html: NOTICE attribution missing');
+  const landingMain = landingHtml.replace(/<footer\b[\s\S]*?<\/footer>/gi, '');
+  const landingLinks = missingLicenseLinks(landingMain);
+  if (landingLinks.length) errors.push(`index.html: credits section missing ${landingLinks.join(' and ')} link`);
   for (const file of await walk(distDir)) {
+    const name = path.relative(distDir, file);
+    if (credit && (file.endsWith('.md') || name === 'llms.txt')) {
+      if (!(await readFile(file, 'utf8')).replace(/\s+/g, ' ').includes(credit)) errors.push(`${name}: NOTICE attribution missing`);
+    }
     if (!file.endsWith('.html')) continue;
     const footers = [...(await readFile(file, 'utf8')).matchAll(/<footer\b[\s\S]*?<\/footer>/gi)].map((m) => m[0]);
-    if (!footers.some((footer) => pageText(footer).includes(AFFILIATION))) {
-      errors.push(`${path.relative(distDir, file)}: footer "not affiliated" line missing`);
-    }
+    if (!footers.some((footer) => pageText(footer).includes(AFFILIATION))) errors.push(`${name}: footer "not affiliated" line missing`);
+    if (!footers.some((footer) => pageText(footer).includes(CREDIT))) errors.push(`${name}: footer "${CREDIT}" line missing`);
+    if (!footers.some((footer) => !missingLicenseLinks(footer).length)) errors.push(`${name}: footer LICENSE and NOTICE links missing`);
   }
   return errors;
 }

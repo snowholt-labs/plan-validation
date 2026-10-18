@@ -47,7 +47,7 @@ Decided by the maintainer:
 - **Hosting:** GitHub Pages at the project `github.io` address.
 - **Wiki:** the site replaces the wiki and becomes the single home.
 - **Generator:** Astro Starlight, approved 2026-10-18 after a dependency comparison (Starlight 0.42.6 released 2026-10-08, Astro 7.4.0, MIT). VitePress, MkDocs Material, Docusaurus and a hand-built generator were compared and rejected.
-- **Attribution:** the site footer credits `snowholt` as creator and maintainer, matching the README credit line and linking to `https://github.com/snowholt`. No other personal name appears. The existing `snowholt` uses in LICENSE, the manifests and the `snowholt-plugins` marketplace stay unchanged.
+- **Attribution:** the site footer credits `snowholt` as creator and maintainer, matching the README credit line and linking to `https://github.com/snowholt`. No other personal name appears. The existing `snowholt` uses in LICENSE, the manifests and the `snowholt-plugins` marketplace stay unchanged. *Superseded on 2026-10-18 by the maintainer: the project is relicensed under Apache-2.0 with a NOTICE file, and the credit reads "Nariman Jafari (Lumina)" in LICENSE/NOTICE, the README, the manifests, the footer, the landing page, `llms.txt` and the Markdown page copies. The `snowholt-plugins` marketplace owner is unchanged.*
 
 ## Design reference
 

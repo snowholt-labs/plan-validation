@@ -32,3 +32,7 @@ If Claude Code is installed, also run `claude plugin validate .` and `claude plu
 No third-party Python packages are required. Do not introduce runtime dependencies without a concrete need and maintainer agreement. Update both plugin versions and the marketplace version together for a release. User documentation lives in `site/src/content/docs/`; the changelog, security policy, contributing guide, `examples/README.md` and `examples/safety-cases.md` are synced into the site from the root files.
 
 Be specific, respectful and open to corrections. Give credit for contributed ideas and code. See [docs/evaluation.md](docs/evaluation.md) for behavior evaluation; passing renderer tests alone does not validate the agent workflow.
+
+## Credits and license
+
+Plan Validation was created by Nariman Jafari (Lumina) and is maintained at [snowholt-labs/plan-validation](https://github.com/snowholt-labs/plan-validation). The project is licensed under the [Apache License 2.0](LICENSE). Contributions are accepted under the same license, as section 5 of the license describes. When you share a copy or a changed version, keep the [LICENSE](LICENSE) and [NOTICE](NOTICE) files, say what you changed, and credit the original project and its creator.
