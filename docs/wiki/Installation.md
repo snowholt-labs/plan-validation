@@ -40,7 +40,17 @@ claude plugin marketplace update snowholt-plugins
 claude plugin update plan-validation@snowholt-plugins
 ```
 
-Restart Claude Code after updating. To remove the plugin:
+Restart Claude Code after updating.
+
+The repository moved from `snowholt/plan-validation` to `snowholt-labs/plan-validation`. Older installations still work through GitHub's redirect, which stops if the old path is reused. Run `claude plugin marketplace list`; if `snowholt-plugins` shows the old source, add it again from the new location:
+
+```bash
+claude plugin marketplace remove snowholt-plugins
+claude plugin marketplace add snowholt-labs/plan-validation
+claude plugin install plan-validation@snowholt-plugins
+```
+
+To remove the plugin:
 
 ```bash
 claude plugin uninstall plan-validation@snowholt-plugins
@@ -89,6 +99,12 @@ For the manual clone on `main`:
 
 ```bash
 git -C "$HOME/.local/share/plan-validation-skills" pull --ff-only
+```
+
+A clone made before the move to `snowholt-labs/plan-validation` can point at the new location first:
+
+```bash
+git -C "$HOME/.local/share/plan-validation-skills" remote set-url origin https://github.com/snowholt-labs/plan-validation.git
 ```
 
 An installer-created copy does not follow that clone. Use the installer to prepare a replacement version after preserving any local changes; do not overwrite a customized skill without reviewing the diff.
