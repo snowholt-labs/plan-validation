@@ -8,7 +8,7 @@ A plan can read well and still point to a file that does not exist, leave out an
 ## Why use it
 
 - **Both directions of coverage.** Every requirement should have a task and a test, and every task should serve a requirement that was approved.
-- **Instructions that actually run.** The selected scope is rehearsed against a recorded Git base, using focused checks you approve.
+- **Exercise the instructions.** The selected scope is rehearsed against a recorded Git base, using focused checks you approve.
 - **Visible scope changes.** Phases, numbered tasks, supporting work and dependencies are compared before and after revision, so nothing shifts quietly.
 - **Evidence that outlasts the session.** The original and revised documents, fingerprints, real results, review findings and a complete handoff are saved.
 

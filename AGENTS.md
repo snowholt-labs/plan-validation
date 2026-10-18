@@ -39,7 +39,7 @@ If Claude Code is installed, also run `claude plugin validate .` and `claude plu
 - Skill text is behavioral contract: changes to permissions, research approval, evidence labels or report semantics affect agent behavior. Check them against `docs/evaluation.md`. Renderer tests do not validate agent behavior.
 - For renderer or `report.js` changes, add a regression for the observable failure. Do not test wording for its own sake.
 - Do not add runtime dependencies without maintainer agreement.
-- Documentation lives in `site/src/content/docs/` and is published as the documentation site. Root files (`CHANGELOG.md`, `SECURITY.md`, `CONTRIBUTING.md`, `examples/`) feed the site at build time; edit them at the root, not in the synced copies. `dist/`, `publication-notes/`, `superpowers-comparison/` and `2026-10-14-superpowers-validate-plan-research/` are gitignored local material, not part of the package.
+- User documentation lives in `site/src/content/docs/` and is published as the documentation site. `docs/` still holds `evaluation.md` and `verification.md`. Root files (`CHANGELOG.md`, `SECURITY.md`, `CONTRIBUTING.md`, `examples/README.md`, `examples/safety-cases.md`) are synced into the site at build time; edit them at the root, not in the synced copies. `dist/`, `publication-notes/`, `superpowers-comparison/` and `2026-10-14-superpowers-validate-plan-research/` are gitignored local material, not part of the package.
 
 ## Git workflow
 
