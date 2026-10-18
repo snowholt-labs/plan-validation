@@ -1,0 +1,87 @@
+/* Plum theme. Dark is the default; light applies under data-theme='light'. */
+:root {
+  --pv-paper: #1c1118;
+  --pv-surface: #24141d;
+  --pv-blush: #2a1822;
+  --pv-rose: #4a2a3d;
+  --pv-plum: #e08fb5;
+  --pv-plum-deep: #f8d6e6;
+  --pv-ink: #f6eaf0;
+  --pv-muted: #c9aebd;
+  --pv-line: #3d2634;
+  --pv-mint: #6fd6ac;
+  --pv-mint-tint: #12302a;
+  --pv-amber: #f2aa5e;
+  --pv-amber-tint: #3a2410;
+
+  /* --pv-font-display, --pv-font-body and --pv-font-mono come from the Astro fonts config. */
+  --sl-font: var(--pv-font-body);
+  --sl-font-mono: var(--pv-font-mono);
+
+  --sl-color-white: var(--pv-ink);
+  --sl-color-gray-1: var(--pv-ink);
+  --sl-color-gray-2: var(--pv-ink);
+  --sl-color-gray-3: var(--pv-muted);
+  --sl-color-gray-4: var(--pv-muted);
+  --sl-color-gray-5: var(--pv-line);
+  --sl-color-gray-6: var(--pv-blush);
+  --sl-color-gray-7: var(--pv-blush);
+  --sl-color-black: var(--pv-paper);
+  --sl-color-accent-low: var(--pv-rose);
+  --sl-color-accent: var(--pv-plum);
+  --sl-color-accent-high: var(--pv-plum-deep);
+  --sl-color-green: var(--pv-mint);
+  --sl-color-green-low: var(--pv-mint-tint);
+  --sl-color-orange: var(--pv-amber);
+  --sl-color-orange-low: var(--pv-amber-tint);
+  --sl-color-text: var(--pv-ink);
+  --sl-color-text-accent: var(--pv-plum);
+  --sl-color-text-invert: var(--pv-paper);
+  --sl-color-bg-accent: var(--pv-plum);
+}
+
+:root[data-theme='light'] {
+  --pv-paper: #fbf6f8;
+  --pv-surface: #ffffff;
+  --pv-blush: #f6e4ec;
+  --pv-rose: #f1cfdf;
+  --pv-plum: #873f63;
+  --pv-plum-deep: #5e2645;
+  --pv-ink: #2b1622;
+  --pv-muted: #6f5463;
+  --pv-line: #ecd9e3;
+  --pv-mint: #1f7a5a;
+  --pv-mint-tint: #def3ea;
+  --pv-amber: #a2560b;
+  --pv-amber-tint: #fdebd6;
+
+  --sl-color-white: var(--pv-ink);
+  --sl-color-gray-1: var(--pv-ink);
+  --sl-color-gray-2: var(--pv-ink);
+  --sl-color-gray-3: var(--pv-muted);
+  --sl-color-gray-4: var(--pv-muted);
+  --sl-color-gray-5: var(--pv-line);
+  --sl-color-gray-6: var(--pv-blush);
+  --sl-color-gray-7: var(--pv-surface);
+  --sl-color-black: var(--pv-paper);
+  --sl-color-accent-low: var(--pv-blush);
+  --sl-color-accent: var(--pv-plum);
+  --sl-color-accent-high: var(--pv-plum-deep);
+  --sl-color-green: var(--pv-mint);
+  --sl-color-green-low: var(--pv-mint-tint);
+  --sl-color-orange: var(--pv-amber);
+  --sl-color-orange-low: var(--pv-amber-tint);
+  --sl-color-text: var(--pv-ink);
+  --sl-color-text-accent: var(--pv-plum);
+  --sl-color-text-invert: var(--pv-paper);
+  --sl-color-bg-accent: var(--pv-plum);
+}
+
+/* Off so that `!=` and `=>` read literally. */
+code, pre, kbd {
+  font-variant-ligatures: none;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--pv-font-display);
+}
