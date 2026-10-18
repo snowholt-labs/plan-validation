@@ -23,6 +23,6 @@ python3 scripts/demo.py --output /tmp/plan-validation-demo
 
 If Claude Code is installed, also run `claude plugin validate .` and `claude plugin validate .claude-plugin/plugin.json`.
 
-No third-party Python packages are required. Do not introduce runtime dependencies without a concrete need and maintainer agreement. Update both plugin versions and the marketplace version together for a release. Wiki source files live in `docs/wiki/`; maintainers publish them to the GitHub wiki.
+No third-party Python packages are required. Do not introduce runtime dependencies without a concrete need and maintainer agreement. Update both plugin versions and the marketplace version together for a release. Documentation lives in `site/src/content/docs/`; the changelog, security policy, contributing guide and examples are synced into the site from the root files.
 
 Be specific, respectful and open to corrections. Give credit for contributed ideas and code. See [docs/evaluation.md](docs/evaluation.md) for behavior evaluation; passing renderer tests alone does not validate the agent workflow.
