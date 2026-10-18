@@ -3,12 +3,12 @@
   "version": "0.2.0",
   "description": "Validate plans with focused dependency review, recorded public research and complete evidence reports; revise prompts without executing them.",
   "author": {
-    "name": "snowholt",
+    "name": "Nariman Jafari (Lumina)",
     "url": "https://github.com/snowholt"
   },
   "homepage": "https://github.com/snowholt-labs/plan-validation",
   "repository": "https://github.com/snowholt-labs/plan-validation",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "keywords": [
     "plan-validation",
     "agent-skills",

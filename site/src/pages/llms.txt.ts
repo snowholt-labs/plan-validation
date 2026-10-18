@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
-import { BASE, SIDEBAR } from '../../scripts/content-map.mjs';
+import notice from '../../../NOTICE?raw';
+import { BASE, REPO_URL, SIDEBAR, attribution } from '../../scripts/content-map.mjs';
 
 export const prerender = true;
 
@@ -21,6 +22,7 @@ export const GET: APIRoute = async ({ site }) => {
       const { title, description } = byId.get(id)!.data;
       return `- [${title}](${new URL(`${BASE}${id}.md`, site)}): ${description}`;
     });
-  const body = `# Plan Validation\n\n> ${SUMMARY}\n\n## Docs\n\n${lines.join('\n')}\n`;
+  const license = `License: [Apache-2.0](${REPO_URL}/blob/main/LICENSE). Credit: [NOTICE](${REPO_URL}/blob/main/NOTICE).`;
+  const body = `# Plan Validation\n\n> ${SUMMARY}\n\n${attribution(notice)}\n\n${license}\n\n## Docs\n\n${lines.join('\n')}\n`;
   return new Response(body, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
 };
