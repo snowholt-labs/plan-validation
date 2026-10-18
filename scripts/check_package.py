@@ -36,8 +36,8 @@ def main():
         svg = path.read_text().lower().replace('xmlns="http://www.w3.org/2000/svg"', "")
         if re.search(r"<script|foreignobject|href|url\(|@import|javascript:|https?:|\son[a-z]+\s*=|/home/|/users/", svg):
             errors.append(f"{path.relative_to(ROOT)}: SVG contains active, linked or local-path content")
-    if (ROOT / "skills/validate-plan/assets/favicon.svg").read_bytes() != (ROOT / "assets/plan-validation-small.svg").read_bytes():
-        errors.append("Report favicon and Codex composer icon differ")
+    if (ROOT / "skills/validate-plan/assets/favicon.svg").read_bytes() != (ROOT / "assets/plan-validation.svg").read_bytes():
+        errors.append("Report favicon and assets/plan-validation.svg differ")
     for name in ("validate-plan", "validation-args", "revise-prompt"):
         path = ROOT / "skills" / name / "SKILL.md"
         content = path.read_text()
