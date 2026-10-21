@@ -94,7 +94,7 @@ ln -s "$pv_checkout/skills/revise-prompt" "$pv_skills/revise-prompt"
 SH
 ```
 
-Codex supports user skills at `~/.agents/skills` and follows symlinked skill folders. See the [official skills documentation](https://learn.chatgpt.com/docs/build-skills). The clone tracks `main`; inspect changes before updating. For a fixed pilot revision, check out `v0.2.0` in the clone instead.
+Codex supports user skills at `~/.agents/skills` and follows symlinked skill folders. See the [official skills documentation](https://learn.chatgpt.com/docs/build-skills). The clone tracks `main`; inspect changes before updating. For a fixed pilot revision, check out `v0.3.0` in the clone instead.
 
 ### Update or disable
 
