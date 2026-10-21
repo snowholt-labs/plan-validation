@@ -27,6 +27,9 @@ SOURCE_HEADINGS = (
     "Verdict", "PLAN comparison", "SPEC comparison", "Decision confidence",
     "Changes", "Open items", "Verification and checkout", "Fresh-session handoff",
 )
+HISTORICAL_PREFIX = "HISTORICAL PROMPT — DO NOT EXECUTE.\nDocument identity, Git state or approvals need revalidation before implementation.\n\n"
+# Phase IDs become file names, so they cannot contain path separators.
+PHASE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9.-]{0,15}\Z")
 
 
 def fenced_blocks(source):
@@ -318,22 +321,125 @@ def section_content(source, number):
     return markdown(summary) + '<details class="technical-details"><summary>Technical details</summary>' + markdown(detail) + '</details>'
 
 
+def phase_plan(context, verdict):
+    """Return the validated phase list: every task once, in plan order."""
+    inventory = context.get("task_inventory")
+    if (not isinstance(inventory, list) or not inventory or not all(isinstance(task, str) and task.strip() for task in inventory)
+            or len(set(inventory)) != len(inventory)):
+        raise ValueError("Phase grouping needs task_inventory: a nonempty list of unique task IDs")
+    phases = context.get("phases")
+    if not isinstance(phases, list) or not phases:
+        raise ValueError("Phase grouping needs a nonempty phases list")
+    seen, covered, waiting = set(), [], False
+    for phase in phases:
+        if not isinstance(phase, dict):
+            raise ValueError("Phase entries must be objects")
+        pid = phase.get("id")
+        if not isinstance(pid, str) or not PHASE_ID.fullmatch(pid) or pid.lower() in seen:
+            raise ValueError(f"Phase ID {pid!r} must be unique, 1-16 letters, digits, dots or hyphens, starting with a letter or digit")
+        seen.add(pid.lower())
+        if not text_fields(phase, ("title",)):
+            raise ValueError(f"Phase {pid} needs a title")
+        tasks = phase.get("tasks")
+        if not isinstance(tasks, list) or not tasks or not all(isinstance(task, str) for task in tasks):
+            raise ValueError(f"Phase {pid} needs a nonempty list of task IDs")
+        covered.extend(tasks)
+        if type(phase.get("docs_only")) is not bool or type(phase.get("security_review")) is not bool:
+            raise ValueError(f"Phase {pid} needs boolean docs_only and security_review")
+        if phase["docs_only"] and phase["security_review"]:
+            raise ValueError(f"Phase {pid} cannot be docs-only and need a security review")
+        if phase["security_review"] and not text_fields(phase, ("security_reason",)):
+            raise ValueError(f"Phase {pid} needs a security_reason")
+        status = phase.get("status")
+        if status not in ("ready", "waiting"):
+            raise ValueError(f"Phase {pid} status must be ready or waiting")
+        if status == "waiting" and not text_fields(phase, ("waits_for",)):
+            raise ValueError(f"Phase {pid} must name what it waits for")
+        if waiting and status == "ready":
+            raise ValueError(f"Phase {pid} cannot start before an earlier waiting phase")
+        waiting = waiting or status == "waiting"
+    if covered != inventory:
+        raise ValueError("Phases must cover task_inventory exactly once, in plan order")
+    if waiting and verdict.lower() == "ready":
+        raise ValueError("Phase waiting for approval contradicts a Ready verdict")
+    return phases
+
+
+def phase_table(phases, verdict):
+    def status(phase):
+        if phase["status"] == "waiting":
+            return "Waits for " + inline(phase["waits_for"])
+        # A remediation-only report never shows a phase as startable.
+        return "Waits for remediation" if verdict.lower() == "not ready" else "Can start"
+    rows = ''.join('<tr>' + ''.join(f'<td>{cell}</td>' for cell in (
+        escape(phase["id"]) + ': ' + inline(phase["title"]), escape(", ".join(phase["tasks"])),
+        "Docs only" if phase["docs_only"] else "Code",
+        "Yes — " + inline(phase["security_reason"]) if phase["security_review"] else "No",
+        status(phase))) + '</tr>' for phase in phases)
+    head = ''.join(f'<th scope="col">{title}</th>' for title in ("Phase", "Tasks", "Kind", "Security review", "Status"))
+    return f'<div class="table-scroll" role="region" aria-label="Phase plan" tabindex="0"><table><thead><tr>{head}</tr></thead><tbody>{rows}</tbody></table></div>'
+
+
+def handoff_prompts(section, version, verdict, context):
+    """Return validated (start, end, text) prompt spans and their (phase_id, prompt) pairs."""
+    prompts = [(start, end, section[body_start:body_end].rstrip("\n")) for start, end, body_start, body_end in fenced_blocks(section)]
+    ready = []
+    if version == 3 and verdict.lower() != "not ready":
+        ready = [phase["id"] for phase in phase_plan(context, verdict) if phase["status"] == "ready"]
+    if ready:
+        if len(prompts) != len(ready):
+            raise ValueError("Section 8 needs one fenced prompt per ready phase, in order")
+    elif len(prompts) != 1:
+        raise ValueError("Section 8 must contain one complete fenced handoff")
+    for index, (_, _, prompt) in enumerate(prompts):
+        if not prompt.strip():
+            raise ValueError("Section 8 must contain one complete fenced handoff")
+        if version >= 2 and word_count(prompt) > 80:
+            raise ValueError("Fresh-session handoff must be at most 80 words; link to the plan, spec and report for details and wrap paths in backticks")
+        if version == 3 and len(re.findall(r"^ {0,3}`{3,}", prompt, re.M)) % 2:
+            raise ValueError("A phase prompt has an unbalanced inner code fence; use a longer outer fence")
+        if ready:
+            # Every stop sentence names this phase, unnegated. "Phase 1.2", "Phase 1-b" and
+            # "Phase 12" are other phases; a sentence-ending period is not.
+            own = re.compile(rf"{re.escape(ready[index])}(?![A-Za-z0-9-]|\.[A-Za-z0-9])", re.I)
+            stops = list(re.finditer(r"\bstop\s+at\s+the\s+end\s+of\s+phase\s+", prompt, re.I))
+            if not stops or any(not own.match(prompt, stop.end()) or re.search(r"(?:\bnot|n't|\bnever)\s+$", prompt[:stop.start()], re.I)
+                                for stop in stops):
+                raise ValueError(f"Phase {ready[index]} prompt must say: Stop at the end of Phase {ready[index]}")
+    # Any "implement" instruction, except a negated one such as "Do not implement".
+    implement = re.search(r"(?<!not )(?<!n't )(?<!never )\bimplement\b", prompts[0][2], re.I)
+    # With no startable phase, a version 3 prompt is a remediation prompt even before Not ready.
+    if (verdict.lower() == "not ready" or (version == 3 and not ready)) and (implement or "do not start dependent implementation" not in prompts[0][2].lower()):
+        raise ValueError("Not ready requires a remediation prompt stating: Do not start dependent implementation")
+    return prompts, list(zip(ready, (prompt for _, _, prompt in prompts)))
+
+
+def phase_handoffs(source, context):
+    """Return (phase_id, prompt) for each ready phase of a version 3 Ready report."""
+    version = context.get("format_version", 1)
+    parts = sections(source.replace("\r\n", "\n").replace("\r", "\n"))
+    verdict_match = re.match(r"(Ready after approvals|Not ready|Ready)\b", plain(parts[0][1]), re.I)
+    if version != 3 or not verdict_match:
+        return []
+    return handoff_prompts(parts[7][1], version, verdict_match.group(1), context)[1]
+
+
 def render(source, context):
     version = context.get("format_version", 1)
-    if type(version) is not int or version not in (1, 2):
-        raise ValueError("format_version must be 1 (legacy) or 2")
-    if context.get("kind") == "new" and version != 2:
-        raise ValueError("New reports require format_version 2; legacy rendering is for saved reports only")
+    if type(version) is not int or version not in (1, 2, 3):
+        raise ValueError("format_version must be 1 (legacy), 2 or 3")
+    if context.get("kind") == "new" and version != 3:
+        raise ValueError("New reports require format_version 3; legacy rendering is for saved reports only")
     source = source.replace("\r\n", "\n").replace("\r", "\n")
-    overview = feature_overview(context.get("feature")) if version == 2 else ''
-    defaults = defaulted_decisions(context.get("decisions_without_reply")) if version == 2 else ''
+    overview = feature_overview(context.get("feature")) if version >= 2 else ''
+    defaults = defaulted_decisions(context.get("decisions_without_reply")) if version >= 2 else ''
     parts = sections(source)
     if any(not content for _, content in parts):
         raise ValueError("Every report section must contain its evidence or an explicit Unknown/None")
-    if version == 2 and [plain(heading).strip().lower() for heading, _ in parts] != [heading.lower() for heading in SOURCE_HEADINGS]:
+    if version >= 2 and [plain(heading).strip().lower() for heading, _ in parts] != [heading.lower() for heading in SOURCE_HEADINGS]:
         raise ValueError("Section headings must be: " + ", ".join(SOURCE_HEADINGS))
     plan, spec = scores(parts[1][1]), scores(parts[2][1])
-    if version == 2:
+    if version >= 2:
         decisions = decision_table(visible_part(parts[3][1], 4))
     else:
         decisions = [cells(line) for line in parts[3][1].splitlines() if line.strip().startswith("|")]
@@ -343,9 +449,11 @@ def render(source, context):
     if not verdict_match:
         raise ValueError("Section 1 must begin with Ready, Ready after approvals or Not ready")
     verdict = verdict_match.group(1)
+    if version == 3:
+        phase_plan(context, verdict)
     if verdict.lower().startswith("ready") and context.get("review_status") != "complete":
         raise ValueError("A Ready report requires a completed cold read with findings dispositioned")
-    verdict_source = visible_part(parts[0][1], 1) if version == 2 else parts[0][1]
+    verdict_source = visible_part(parts[0][1], 1) if version >= 2 else parts[0][1]
     confidence_match = re.search(r"Confidence:\s*(Unknown|\d+%)", plain(verdict_source), re.I)
     if not confidence_match:
         raise ValueError("Section 1 needs Confidence: <percentage or Unknown>")
@@ -354,19 +462,8 @@ def render(source, context):
         confidence = "Unknown"
     if confidence != "Unknown" and (not 0 <= int(confidence[:-1]) <= 100 or int(confidence[:-1]) % 5):
         raise ValueError("Confidence must be Unknown or a percentage in steps of five")
-    prompts = fenced_blocks(parts[7][1])
-    if len(prompts) != 1:
-        raise ValueError("Section 8 must contain one complete fenced handoff")
-    _, _, prompt_start, prompt_end = prompts[0]
-    handoff = parts[7][1][prompt_start:prompt_end].rstrip("\n")
-    if not handoff.strip():
-        raise ValueError("Section 8 must contain one complete fenced handoff")
-    if version == 2 and word_count(handoff) > 80:
-        raise ValueError("Fresh-session handoff must be at most 80 words; link to the plan, spec and report for details and wrap paths in backticks")
-    # Any "implement" instruction, except a negated one such as "Do not implement".
-    implement = re.search(r"(?<!not )(?<!n't )(?<!never )\bimplement\b", handoff, re.I)
-    if verdict.lower() == "not ready" and (implement or "do not start dependent implementation" not in handoff.lower()):
-        raise ValueError("Not ready requires a remediation prompt stating: Do not start dependent implementation")
+    prompts, pairs = handoff_prompts(parts[7][1], version, verdict, context)
+    handoff = prompts[0][2]
     if context.get("handoff_status") not in {"current", "historical"}:
         raise ValueError("Set handoff_status to current or historical after checking Git state and approvals")
     checks = document_checks(context)
@@ -389,25 +486,38 @@ def render(source, context):
     script_hash = base64.b64encode(hashlib.sha256(js.encode()).digest()).decode()
     body = []
     for index, (heading, content) in enumerate(parts, 1):
-        if version == 2:
+        if version >= 2:
             heading = READABLE_HEADINGS[index - 1]
         if index == 8:
-            if version == 2:
+            if version >= 2:
                 detail_marker(content, index)
-            start, end, _, _ = prompts[0]
-            intro = content[:start] + content[end:]
-            action = "Copy implementation prompt" if verdict.lower().startswith("ready") else "Copy remediation prompt"
-            if current:
-                toolbar = f'<button id="copy-prompt" type="button">{action}</button><span id="copy-status" role="status" aria-live="polite"></span>'
+            intro = content
+            for start, end, _ in reversed(prompts):
+                intro = intro[:start] + intro[end:]
+            warning = '<p class="warning">Document identity, Git state or approvals changed or could not be checked. This is a historical prompt. Revalidate the changed scope before using it.</p>'
+            content_html = markdown(intro)
+            if version == 3:
+                content_html += phase_table(context["phases"], verdict)
+            if pairs:
+                titles = {phase["id"]: phase["title"] for phase in context["phases"]}
+                for phase_id, prompt in pairs:
+                    target = escape("handoff-" + phase_id)
+                    toolbar = (f'<button class="copy-prompt" type="button" data-copy-target="{target}">Copy Phase {escape(phase_id)} prompt</button>'
+                               '<span class="copy-status" role="status" aria-live="polite"></span>') if current else warning
+                    content_html += (f'<h3>Phase {escape(phase_id)}: {inline(titles[phase_id])}</h3><div class="prompt-toolbar">' + toolbar
+                                     + f'</div><pre id="{target}" tabindex="0">' + escape(prompt) + '</pre>')
             else:
-                toolbar = '<p class="warning">Document identity, Git state or approvals changed or could not be checked. This is a historical prompt. Revalidate the changed scope before using it.</p>'
-            content_html = markdown(intro) + '<div class="prompt-toolbar">' + toolbar + '</div><pre id="handoff" tabindex="0">' + escape(handoff) + '</pre>'
+                # In version 3 a single prompt is always a remediation prompt.
+                action = "Copy implementation prompt" if verdict.lower().startswith("ready") and version < 3 else "Copy remediation prompt"
+                toolbar = (f'<button id="copy-prompt" class="copy-prompt" type="button" data-copy-target="handoff">{action}</button>'
+                           '<span id="copy-status" class="copy-status" role="status" aria-live="polite"></span>') if current else warning
+                content_html += '<div class="prompt-toolbar">' + toolbar + '</div><pre id="handoff" tabindex="0">' + escape(handoff) + '</pre>'
         else:
-            content_html = section_content(content, index) if version == 2 else markdown(content)
+            content_html = section_content(content, index) if version >= 2 else markdown(content)
         body.append(f'<section id="section-{index}" aria-labelledby="heading-{index}"><div class="section-heading"><span>{index:02}</span><h2 id="heading-{index}">{inline(heading)}</h2></div>' + (scope_html if index == 5 else "") + content_html + '</section>')
     title = escape(context["title"])
     note_html = ''.join('<article><h3>' + escape(note["title"]) + '</h3><p>' + inline(note["body"]) + '</p></article>' for note in context.get("notes", []))
-    if version == 2:
+    if version >= 2:
         state = "Plan and spec match the saved review." if fingerprints_match else "Plan or spec changed or could not be read."
         stale = " This handoff is historical. Recheck the saved evidence before starting."
     else:
@@ -441,7 +551,7 @@ def render(source, context):
 {defaults}
 </main><footer>Local report · No external fonts, scripts, analytics or network requests. Scores describe document quality; they do not guarantee implementation success.</footer><script>{js}</script></body></html>'''
     if not current:
-        handoff = "HISTORICAL PROMPT — DO NOT EXECUTE.\nDocument identity, Git state or approvals need revalidation before implementation.\n\n" + handoff
+        handoff = HISTORICAL_PREFIX + handoff
     return page, handoff, current
 
 
@@ -462,9 +572,17 @@ def main():
             args.output.with_suffix(".md").write_text(source, encoding="utf-8")
         args.output.write_text(page, encoding="utf-8")
         args.output.with_name("handoff.txt").write_text(handoff + "\n", encoding="utf-8")
+        # A re-render must never leave an earlier, unmarked phase prompt behind.
+        for stale in args.output.parent.glob("handoff-phase-*.txt"):
+            stale.unlink()
+        phase_files = []
+        for phase_id, prompt in phase_handoffs(source, context):
+            path = args.output.with_name(f"handoff-phase-{phase_id}.txt")
+            path.write_text(("" if current else HISTORICAL_PREFIX) + prompt + "\n", encoding="utf-8")
+            phase_files.append(str(path.resolve()))
     except (ValueError, KeyError, OSError, ArithmeticError) as error:
         parser.exit(1, f"Report not generated: {error}\n")
-    print(json.dumps({"html": str(args.output.resolve()), "handoff": str(args.output.with_name("handoff.txt").resolve()), "handoff_current": current}))
+    print(json.dumps({"html": str(args.output.resolve()), "handoff": str(args.output.with_name("handoff.txt").resolve()), "handoff_current": current, "phase_handoffs": phase_files}))
 
 
 if __name__ == "__main__":

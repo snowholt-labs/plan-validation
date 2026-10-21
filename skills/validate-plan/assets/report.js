@@ -10,11 +10,11 @@ window.addEventListener("afterprint", () => {
   closedForPrint = null;
 });
 document.getElementById("print-report").addEventListener("click", () => window.print());
-const copyButton = document.getElementById("copy-prompt");
-if (copyButton) {
+// getElementById, not a selector: phase IDs may contain dots.
+document.querySelectorAll("button[data-copy-target]").forEach(copyButton => {
   copyButton.addEventListener("click", async () => {
-    const prompt = document.getElementById("handoff");
-    const status = document.getElementById("copy-status");
+    const prompt = document.getElementById(copyButton.dataset.copyTarget);
+    const status = copyButton.nextElementSibling;
     try {
       if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
       await navigator.clipboard.writeText(prompt.textContent);
@@ -29,4 +29,4 @@ if (copyButton) {
       status.textContent = "Copy was unavailable. The prompt is selected; press Ctrl+C (or Command+C).";
     }
   });
-}
+});

@@ -3,12 +3,15 @@
 import base64
 import copy
 import hashlib
+import json
 import re
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-from render_report import ASSETS, cells, render
+from render_report import ASSETS, HISTORICAL_PREFIX, cells, phase_handoffs, phase_plan, render
 
 
 REPORT = """# Example validation
@@ -58,6 +61,7 @@ Implement the approved scope now.
 Keep Persian text: «سلام» and literal <code> & "quotes".
 Run /code-review and /security-review; fix confirmed findings before each PR.
 Squash into the plan branch after green checks. Ask before the normal main merge.
+Stop at the end of Phase 1; it is the last phase.
 ```
 """
 
@@ -86,7 +90,9 @@ class ReportTests(unittest.TestCase):
     def modern_context(self):
         context = copy.deepcopy(self.context)
         context.update({
-            "format_version": 2, "kind": "new",
+            "format_version": 3, "kind": "new",
+            "task_inventory": ["1"],
+            "phases": [{"id": "1", "title": "Example", "tasks": ["1"], "docs_only": False, "security_review": False, "status": "ready"}],
             "feature": {
                 "summary": "A reader requests a document and sees the result.",
                 "steps": [
@@ -469,6 +475,252 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         self.assertTrue(current)
         self.assertIn("No dependency change or unresolved choice", page)
         self.assertEqual(prompt, REPORT.split("```text\n")[1].split("\n```")[0])
+
+
+    def test_phases_must_cover_the_task_inventory_once_in_order(self):
+        for inventory, tasks in ((["1", "2", "3"], [["1"], ["3"]]), (["1", "2", "3"], [["1", "2"], ["2", "3"]]),
+                                 (["1", "2", "3"], [["2", "1"], ["3"]]), (["1", "2"], [["1", "2"], []])):
+            with self.subTest(tasks=tasks):
+                context = self.modern_context()
+                context["task_inventory"] = inventory
+                context["phases"] = [dict(context["phases"][0], id=str(i + 1), tasks=t) for i, t in enumerate(tasks)]
+                with self.assertRaisesRegex(ValueError, "Phase"):
+                    phase_plan(context, "Ready")
+
+    def test_letter_task_ids_match_exactly(self):
+        context = self.modern_context()
+        context["task_inventory"] = ["5", "5b", "6"]
+        context["phases"][0]["tasks"] = ["5", "5b", "6"]
+        self.assertEqual(phase_plan(context, "Ready")[0]["tasks"], ["5", "5b", "6"])
+
+    def test_phase_ids_cannot_become_paths(self):
+        for bad in ("../x", "a/b", "", ".hidden", "x" * 17):
+            with self.subTest(bad=bad):
+                context = self.modern_context()
+                context["phases"][0]["id"] = bad
+                with self.assertRaisesRegex(ValueError, "Phase"):
+                    phase_plan(context, "Ready")
+        context = self.modern_context()
+        context["task_inventory"] = ["1", "2"]
+        context["phases"] = [dict(context["phases"][0], id="A", tasks=["1"]), dict(context["phases"][0], id="a", tasks=["2"])]
+        with self.assertRaisesRegex(ValueError, "Phase"):
+            phase_plan(context, "Ready")
+
+    def test_waiting_phase_holds_back_later_phases_and_blocks_ready(self):
+        context = self.modern_context()
+        context["task_inventory"] = ["1", "2"]
+        first = dict(context["phases"][0], tasks=["1"], status="waiting", waits_for="D1")
+        second = dict(context["phases"][0], id="2", tasks=["2"], status="ready")
+        context["phases"] = [first, second]
+        with self.assertRaisesRegex(ValueError, "Phase"):
+            phase_plan(context, "Ready after approvals")
+        context["phases"][1]["status"], context["phases"][1]["waits_for"] = "waiting", "D1"
+        with self.assertRaisesRegex(ValueError, "Phase"):
+            phase_plan(context, "Ready")
+        self.assertEqual(len(phase_plan(context, "Not ready")), 2)
+
+    def test_phase_flags_must_be_consistent(self):
+        for change in ({"docs_only": True, "security_review": True, "security_reason": "x"},
+                       {"security_review": True}, {"status": "waiting"}, {"status": "later"}, {"docs_only": "no"}):
+            with self.subTest(change=change):
+                context = self.modern_context()
+                context["phases"][0].update(change)
+                with self.assertRaisesRegex(ValueError, "Phase"):
+                    phase_plan(context, "Not ready")
+
+    def test_malformed_phase_fields_are_value_errors(self):
+        for change in ({"task_inventory": [["1"]]}, {"task_inventory": "1"}, {"phases": [["1"]]},
+                       {"phases": [{"id": 1, "title": "x", "tasks": ["1"]}]}, {"phases": "1"}):
+            with self.subTest(change=change):
+                context = self.modern_context()
+                context.update(change)
+                with self.assertRaisesRegex(ValueError, "Phase"):
+                    phase_plan(context, "Ready")
+
+    def test_new_reports_require_version_three(self):
+        context = self.modern_context()
+        context["format_version"] = 2
+        with self.assertRaisesRegex(ValueError, "format_version"):
+            render(REPORT, context)
+        context["kind"] = "saved"
+        render(REPORT, context)
+
+    def two_phase(self):
+        context = self.modern_context()
+        context["task_inventory"] = ["1", "2"]
+        context["phases"] = [dict(context["phases"][0], tasks=["1"]), dict(context["phases"][0], id="2", tasks=["2"])]
+        prompts = ("Implement Phase 1. Stop at the end of Phase 1 and print the Phase 2 prompt from the report; do not start it.",
+                   "Implement Phase 2. Stop at the end of Phase 2; it is the last phase.")
+        source = REPORT.split("## 8. Fresh-session handoff")[0] + "## 8. Fresh-session handoff\n" + "".join(
+            f"```text\n{prompt}\n```\n" for prompt in prompts)
+        return source, context
+
+    def test_each_ready_phase_gets_its_own_prompt(self):
+        source, context = self.two_phase()
+        _, prompt, _ = render(source, context)
+        self.assertTrue(prompt.startswith("Implement Phase 1."))
+        self.assertEqual([pid for pid, _ in phase_handoffs(source, context)], ["1", "2"])
+
+    def test_prompt_count_must_match_ready_phases(self):
+        source, context = self.two_phase()
+        source = source.replace("**Ready.**", "**Ready after approvals.**")
+        context["phases"][1].update(status="waiting", waits_for="D1")
+        with self.assertRaisesRegex(ValueError, "prompt"):
+            render(source, context)
+
+    def test_prompt_must_stop_at_its_own_phase(self):
+        source, context = self.two_phase()
+        for other in ("12", "1.2", "1-b", "1b"):
+            with self.subTest(other=other):
+                bad = source.replace("Stop at the end of Phase 1 and", f"Stop at the end of Phase {other} and")
+                with self.assertRaisesRegex(ValueError, "Phase 1"):
+                    render(bad, context)
+        render(source.replace("Stop at the end of Phase 2;", "Stop at the end of Phase 2."), context)
+        render(source.replace("Stop at the end of Phase 1 and", "Stop at the end of\nPhase 1 and"), context)
+
+    def test_first_phase_waiting_needs_a_non_implementation_prompt(self):
+        source, context = self.two_phase()
+        for phase in context["phases"]:
+            phase.update(status="waiting", waits_for="D1")
+        source = source.replace("**Ready.**", "**Ready after approvals.**")
+        with self.assertRaisesRegex(ValueError, "one"):
+            render(source, context)
+        waiting = source.split("## 8.")[0] + "## 8. Fresh-session handoff\n```text\nRecord D1, then re-render the report. Do not start dependent implementation.\n```\n"
+        _, prompt, _ = render(waiting, context)
+        self.assertIn("Do not start dependent implementation.", prompt)
+        self.assertEqual(phase_handoffs(waiting, context), [])
+        with self.assertRaisesRegex(ValueError, "Do not start dependent implementation"):
+            render(waiting.replace("Record D1, then", "Implement Phase 1, then"), context)
+
+    def test_every_phase_prompt_has_the_word_limit(self):
+        source, context = self.two_phase()
+        with self.assertRaisesRegex(ValueError, "80 words"):
+            render(source.replace("Implement Phase 2.", "Implement Phase 2. " + "detail " * 80), context)
+
+    def test_inner_fence_in_a_phase_prompt_counts_once(self):
+        source, context = self.two_phase()
+        source = source.replace("```text\nImplement Phase 2.", "````text\nImplement Phase 2.\n```\nexample\n```\n").replace(
+            "it is the last phase.\n```", "it is the last phase.\n````")
+        self.assertEqual(len(phase_handoffs(source, context)), 2)
+        self.assertIn("example", phase_handoffs(source, context)[1][1])
+
+    def test_not_ready_keeps_one_remediation_prompt(self):
+        source, context = self.two_phase()
+        context["phases"][0].update(status="waiting", waits_for="Blocker")
+        context["phases"][1].update(status="waiting", waits_for="Blocker")
+        source = source.replace("**Ready.**", "**Not ready.**")
+        with self.assertRaisesRegex(ValueError, "one"):
+            render(source, context)
+        remediation = REPORT.replace("**Ready.**", "**Not ready.**").replace(
+            "Implement the approved scope now.", "Resume validation. Do not start dependent implementation.")
+        self.assertEqual(phase_handoffs(remediation, context), [])
+
+    def run_renderer(self, directory, source, context):
+        (directory / "in.md").write_text(source, encoding="utf-8")
+        (directory / "in.json").write_text(json.dumps(context), encoding="utf-8")
+        script = Path(__file__).with_name("render_report.py")
+        return subprocess.run([sys.executable, str(script), "--report", str(directory / "in.md"), "--context", str(directory / "in.json"),
+                               "--output", str(directory / "report.html")], capture_output=True, text=True)
+
+    def test_main_writes_one_file_per_phase_and_marks_historical_files(self):
+        source, context = self.two_phase()
+        root = Path(self.directory.name)
+        for status in ("current", "historical"):
+            context["handoff_status"] = status
+            out = root / status
+            out.mkdir()
+            result = self.run_renderer(out, source, context)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            files = json.loads(result.stdout)["phase_handoffs"]
+            self.assertEqual(files, [str((out / f"handoff-phase-{pid}.txt").resolve()) for pid in ("1", "2")])
+            for pid, prompt in phase_handoffs(source, context):
+                text = (out / f"handoff-phase-{pid}.txt").read_text(encoding="utf-8")
+                self.assertEqual(text, (HISTORICAL_PREFIX if status == "historical" else "") + prompt + "\n")
+        out = root / "current"
+        for phase in context["phases"]:
+            phase.update(status="waiting", waits_for="Blocker")
+        context["handoff_status"] = "current"
+        remediation = source.split("## 8.")[0].replace("**Ready.**", "**Not ready.**") + (
+            "## 8. Fresh-session handoff\n```text\nResume validation. Do not start dependent implementation.\n```\n")
+        result = self.run_renderer(out, remediation, context)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(list(out.glob("handoff-phase-*.txt")), [])
+
+    def test_phase_table_lists_every_phase_with_its_flags(self):
+        source, context = self.two_phase()
+        context["phases"][1].update(docs_only=True)
+        context["phases"][0].update(security_review=True, security_reason="Renders untrusted text.")
+        page, _, _ = render(source, context)
+        start = page.index('aria-label="Phase plan"')
+        table = page[start:page.index("</table>", start)]
+        for text in ("Tasks", "Kind", "Security review", "Status", "Docs only", "Code", "Yes — Renders untrusted text.", "Can start"):
+            self.assertIn(text, table)
+        self.assertEqual(table.count("<tr>"), 3)
+
+    def test_every_copy_button_targets_an_existing_prompt(self):
+        source, context = self.two_phase()
+        page, _, _ = render(source, context)
+        targets = re.findall(r'data-copy-target="([^"]+)"', page)
+        self.assertEqual(targets, ["handoff-1", "handoff-2"])
+        for target in targets:
+            self.assertIn(f'<pre id="{target}"', page)
+        self.assertIn("Copy Phase 2 prompt", page)
+        self.assertNotIn("```text", page)
+
+    def test_historical_phase_report_offers_no_copy_button(self):
+        source, context = self.two_phase()
+        context["handoff_status"] = "historical"
+        page, _, _ = render(source, context)
+        # report.js is inlined and names the attribute, so look for markup only.
+        self.assertNotIn('data-copy-target="', page)
+        self.assertNotIn('href="handoff.txt"', page)
+        self.assertEqual(page.count("This is a historical prompt."), 2)
+
+    def test_not_ready_phase_table_offers_no_start(self):
+        source = REPORT.replace("**Ready.**", "**Not ready.**").replace(
+            "Implement the approved scope now.", "Resume validation. Do not start dependent implementation.")
+        page, _, _ = render(source, self.modern_context())
+        self.assertIn("Waits for remediation", page)
+        self.assertNotIn("Can start", page)
+        self.assertIn("Copy remediation prompt", page)
+
+    def test_saved_reports_keep_a_working_copy_button(self):
+        page, _, _ = render(REPORT, self.context)
+        self.assertIn('data-copy-target="handoff"', page)
+        self.assertIn('<pre id="handoff"', page)
+
+    def test_phase_titles_cannot_inject_markup(self):
+        source, context = self.two_phase()
+        context["phases"][0]["title"] = "<img src=x onerror=alert(1)>"
+        context["phases"][1].update(status="waiting", waits_for="<script>alert(2)</script>")
+        source = source.replace("**Ready.**", "**Ready after approvals.**").split("```text\nImplement Phase 2.")[0]
+        page, _, _ = render(source, context)
+        self.assertNotIn("<img src=x", page)
+        self.assertNotIn("<script>alert", page)
+        self.assertIn("&lt;img src=x", page)
+
+    def test_first_phase_waiting_offers_a_remediation_copy_button(self):
+        source, context = self.two_phase()
+        for phase in context["phases"]:
+            phase.update(status="waiting", waits_for="D1")
+        source = source.split("## 8.")[0].replace("**Ready.**", "**Ready after approvals.**") + (
+            "## 8. Fresh-session handoff\n```text\nRecord D1, then re-render the report. Do not start dependent implementation.\n```\n")
+        page, _, _ = render(source, context)
+        self.assertIn("Copy remediation prompt", page)
+        self.assertNotIn("Copy implementation prompt", page)
+
+    def test_mismatched_inner_fence_cannot_split_phase_prompts(self):
+        source, context = self.two_phase()
+        source = source.replace("do not start it.\n```", "do not start it.\n```bash\nnpm test\n```\nThen report results.\n```")
+        with self.assertRaisesRegex(ValueError, "fence"):
+            render(source, context)
+
+    def test_prompt_cannot_negate_or_move_its_stop(self):
+        source, context = self.two_phase()
+        for bad in ("Do not stop at the end of Phase 1 and", "Stop at the end of Phase 2. Stop at the end of Phase 1 and"):
+            with self.subTest(bad=bad):
+                with self.assertRaisesRegex(ValueError, "Phase 1"):
+                    render(source.replace("Stop at the end of Phase 1 and", bad), context)
 
 
 if __name__ == "__main__":
