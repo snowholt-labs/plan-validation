@@ -15,7 +15,7 @@
 - Stop asking routine questions during validation. Apply the recommended best practice and disclose it; record choices that need approval as a menu with a recommendation in the report, without pausing independent work.
 - Tell the implementing agent to continue through passing steps and reviews without asking to continue, stopping only for a required approval, an unfixable failure or the scope end.
 - Suggest a reasoning effort for the validation and next sessions; never set or require one.
-- Add report format version 2 while retaining legacy rendering. Version 2 now renders saved reports only; new reports use version 3. Existing reports and planning documents are not migrated.
+- Report format version 2 (the "Feature at a glance" diagram and "Decisions made without your reply") was added during this release's development and is superseded by version 3, which keeps both. The renderer still reads saved version 1 and 2 reports. Existing reports and planning documents are not migrated.
 
 ## 0.2.0 — 2026-10-14
 
