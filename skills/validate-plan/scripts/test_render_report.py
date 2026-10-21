@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from render_report import ASSETS, cells, render
+from render_report import ASSETS, cells, phase_plan, render
 
 
 REPORT = """# Example validation
@@ -58,6 +58,7 @@ Implement the approved scope now.
 Keep Persian text: «سلام» and literal <code> & "quotes".
 Run /code-review and /security-review; fix confirmed findings before each PR.
 Squash into the plan branch after green checks. Ask before the normal main merge.
+Stop at the end of Phase 1; it is the last phase.
 ```
 """
 
@@ -86,7 +87,9 @@ class ReportTests(unittest.TestCase):
     def modern_context(self):
         context = copy.deepcopy(self.context)
         context.update({
-            "format_version": 2, "kind": "new",
+            "format_version": 3, "kind": "new",
+            "task_inventory": ["1"],
+            "phases": [{"id": "1", "title": "Example", "tasks": ["1"], "docs_only": False, "security_review": False, "status": "ready"}],
             "feature": {
                 "summary": "A reader requests a document and sees the result.",
                 "steps": [
@@ -469,6 +472,75 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         self.assertTrue(current)
         self.assertIn("No dependency change or unresolved choice", page)
         self.assertEqual(prompt, REPORT.split("```text\n")[1].split("\n```")[0])
+
+
+    def test_phases_must_cover_the_task_inventory_once_in_order(self):
+        for inventory, tasks in ((["1", "2", "3"], [["1"], ["3"]]), (["1", "2", "3"], [["1", "2"], ["2", "3"]]),
+                                 (["1", "2", "3"], [["2", "1"], ["3"]]), (["1", "2"], [["1", "2"], []])):
+            with self.subTest(tasks=tasks):
+                context = self.modern_context()
+                context["task_inventory"] = inventory
+                context["phases"] = [dict(context["phases"][0], id=str(i + 1), tasks=t) for i, t in enumerate(tasks)]
+                with self.assertRaisesRegex(ValueError, "Phase"):
+                    phase_plan(context, "Ready")
+
+    def test_letter_task_ids_match_exactly(self):
+        context = self.modern_context()
+        context["task_inventory"] = ["5", "5b", "6"]
+        context["phases"][0]["tasks"] = ["5", "5b", "6"]
+        self.assertEqual(phase_plan(context, "Ready")[0]["tasks"], ["5", "5b", "6"])
+
+    def test_phase_ids_cannot_become_paths(self):
+        for bad in ("../x", "a/b", "", ".hidden", "x" * 17):
+            with self.subTest(bad=bad):
+                context = self.modern_context()
+                context["phases"][0]["id"] = bad
+                with self.assertRaisesRegex(ValueError, "Phase"):
+                    phase_plan(context, "Ready")
+        context = self.modern_context()
+        context["task_inventory"] = ["1", "2"]
+        context["phases"] = [dict(context["phases"][0], id="A", tasks=["1"]), dict(context["phases"][0], id="a", tasks=["2"])]
+        with self.assertRaisesRegex(ValueError, "Phase"):
+            phase_plan(context, "Ready")
+
+    def test_waiting_phase_holds_back_later_phases_and_blocks_ready(self):
+        context = self.modern_context()
+        context["task_inventory"] = ["1", "2"]
+        first = dict(context["phases"][0], tasks=["1"], status="waiting", waits_for="D1")
+        second = dict(context["phases"][0], id="2", tasks=["2"], status="ready")
+        context["phases"] = [first, second]
+        with self.assertRaisesRegex(ValueError, "Phase"):
+            phase_plan(context, "Ready after approvals")
+        context["phases"][1]["status"], context["phases"][1]["waits_for"] = "waiting", "D1"
+        with self.assertRaisesRegex(ValueError, "Phase"):
+            phase_plan(context, "Ready")
+        self.assertEqual(len(phase_plan(context, "Not ready")), 2)
+
+    def test_phase_flags_must_be_consistent(self):
+        for change in ({"docs_only": True, "security_review": True, "security_reason": "x"},
+                       {"security_review": True}, {"status": "waiting"}, {"status": "later"}, {"docs_only": "no"}):
+            with self.subTest(change=change):
+                context = self.modern_context()
+                context["phases"][0].update(change)
+                with self.assertRaisesRegex(ValueError, "Phase"):
+                    phase_plan(context, "Not ready")
+
+    def test_malformed_phase_fields_are_value_errors(self):
+        for change in ({"task_inventory": [["1"]]}, {"task_inventory": "1"}, {"phases": [["1"]]},
+                       {"phases": [{"id": 1, "title": "x", "tasks": ["1"]}]}, {"phases": "1"}):
+            with self.subTest(change=change):
+                context = self.modern_context()
+                context.update(change)
+                with self.assertRaisesRegex(ValueError, "Phase"):
+                    phase_plan(context, "Ready")
+
+    def test_new_reports_require_version_three(self):
+        context = self.modern_context()
+        context["format_version"] = 2
+        with self.assertRaisesRegex(ValueError, "format_version"):
+            render(REPORT, context)
+        context["kind"] = "saved"
+        render(REPORT, context)
 
 
 if __name__ == "__main__":

@@ -107,7 +107,10 @@ Do not start dependent implementation. Report results and any defaults chosen, t
 ```
 '''
     context = {
-        "format_version": 2,
+        "format_version": 3,
+        "task_inventory": ["1"],
+        "phases": [{"id": "1", "title": "Retry delay cap", "tasks": ["1"], "docs_only": False, "security_review": False,
+                    "status": "waiting", "waits_for": "Remediation of the missing delay cap"}],
         "title": "Retry delay: a missing boundary",
         "validation_date": datetime.now(timezone.utc).date().isoformat(),
         "kind": "new", "review_status": "not_run", "handoff_status": "current",

@@ -27,6 +27,8 @@ SOURCE_HEADINGS = (
     "Verdict", "PLAN comparison", "SPEC comparison", "Decision confidence",
     "Changes", "Open items", "Verification and checkout", "Fresh-session handoff",
 )
+# Phase IDs become file names, so they cannot contain path separators.
+PHASE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9.-]{0,15}\Z")
 
 
 def fenced_blocks(source):
@@ -318,22 +320,66 @@ def section_content(source, number):
     return markdown(summary) + '<details class="technical-details"><summary>Technical details</summary>' + markdown(detail) + '</details>'
 
 
+def phase_plan(context, verdict):
+    """Return the validated phase list: every task once, in plan order."""
+    inventory = context.get("task_inventory")
+    if (not isinstance(inventory, list) or not inventory or not all(isinstance(task, str) and task.strip() for task in inventory)
+            or len(set(inventory)) != len(inventory)):
+        raise ValueError("Phase grouping needs task_inventory: a nonempty list of unique task IDs")
+    phases = context.get("phases")
+    if not isinstance(phases, list) or not phases:
+        raise ValueError("Phase grouping needs a nonempty phases list")
+    seen, covered, waiting = set(), [], False
+    for phase in phases:
+        if not isinstance(phase, dict):
+            raise ValueError("Phase entries must be objects")
+        pid = phase.get("id")
+        if not isinstance(pid, str) or not PHASE_ID.fullmatch(pid) or pid.lower() in seen:
+            raise ValueError(f"Phase ID {pid!r} must be unique, 1-16 letters, digits, dots or hyphens, starting with a letter or digit")
+        seen.add(pid.lower())
+        if not text_fields(phase, ("title",)):
+            raise ValueError(f"Phase {pid} needs a title")
+        tasks = phase.get("tasks")
+        if not isinstance(tasks, list) or not tasks or not all(isinstance(task, str) for task in tasks):
+            raise ValueError(f"Phase {pid} needs a nonempty list of task IDs")
+        covered.extend(tasks)
+        if type(phase.get("docs_only")) is not bool or type(phase.get("security_review")) is not bool:
+            raise ValueError(f"Phase {pid} needs boolean docs_only and security_review")
+        if phase["docs_only"] and phase["security_review"]:
+            raise ValueError(f"Phase {pid} cannot be docs-only and need a security review")
+        if phase["security_review"] and not text_fields(phase, ("security_reason",)):
+            raise ValueError(f"Phase {pid} needs a security_reason")
+        status = phase.get("status")
+        if status not in ("ready", "waiting"):
+            raise ValueError(f"Phase {pid} status must be ready or waiting")
+        if status == "waiting" and not text_fields(phase, ("waits_for",)):
+            raise ValueError(f"Phase {pid} must name what it waits for")
+        if waiting and status == "ready":
+            raise ValueError(f"Phase {pid} cannot start before an earlier waiting phase")
+        waiting = waiting or status == "waiting"
+    if covered != inventory:
+        raise ValueError("Phases must cover task_inventory exactly once, in plan order")
+    if waiting and verdict.lower() == "ready":
+        raise ValueError("Phase waiting for approval contradicts a Ready verdict")
+    return phases
+
+
 def render(source, context):
     version = context.get("format_version", 1)
-    if type(version) is not int or version not in (1, 2):
-        raise ValueError("format_version must be 1 (legacy) or 2")
-    if context.get("kind") == "new" and version != 2:
-        raise ValueError("New reports require format_version 2; legacy rendering is for saved reports only")
+    if type(version) is not int or version not in (1, 2, 3):
+        raise ValueError("format_version must be 1 (legacy), 2 or 3")
+    if context.get("kind") == "new" and version != 3:
+        raise ValueError("New reports require format_version 3; legacy rendering is for saved reports only")
     source = source.replace("\r\n", "\n").replace("\r", "\n")
-    overview = feature_overview(context.get("feature")) if version == 2 else ''
-    defaults = defaulted_decisions(context.get("decisions_without_reply")) if version == 2 else ''
+    overview = feature_overview(context.get("feature")) if version >= 2 else ''
+    defaults = defaulted_decisions(context.get("decisions_without_reply")) if version >= 2 else ''
     parts = sections(source)
     if any(not content for _, content in parts):
         raise ValueError("Every report section must contain its evidence or an explicit Unknown/None")
-    if version == 2 and [plain(heading).strip().lower() for heading, _ in parts] != [heading.lower() for heading in SOURCE_HEADINGS]:
+    if version >= 2 and [plain(heading).strip().lower() for heading, _ in parts] != [heading.lower() for heading in SOURCE_HEADINGS]:
         raise ValueError("Section headings must be: " + ", ".join(SOURCE_HEADINGS))
     plan, spec = scores(parts[1][1]), scores(parts[2][1])
-    if version == 2:
+    if version >= 2:
         decisions = decision_table(visible_part(parts[3][1], 4))
     else:
         decisions = [cells(line) for line in parts[3][1].splitlines() if line.strip().startswith("|")]
@@ -343,9 +389,11 @@ def render(source, context):
     if not verdict_match:
         raise ValueError("Section 1 must begin with Ready, Ready after approvals or Not ready")
     verdict = verdict_match.group(1)
+    if version == 3:
+        phase_plan(context, verdict)
     if verdict.lower().startswith("ready") and context.get("review_status") != "complete":
         raise ValueError("A Ready report requires a completed cold read with findings dispositioned")
-    verdict_source = visible_part(parts[0][1], 1) if version == 2 else parts[0][1]
+    verdict_source = visible_part(parts[0][1], 1) if version >= 2 else parts[0][1]
     confidence_match = re.search(r"Confidence:\s*(Unknown|\d+%)", plain(verdict_source), re.I)
     if not confidence_match:
         raise ValueError("Section 1 needs Confidence: <percentage or Unknown>")
@@ -361,7 +409,7 @@ def render(source, context):
     handoff = parts[7][1][prompt_start:prompt_end].rstrip("\n")
     if not handoff.strip():
         raise ValueError("Section 8 must contain one complete fenced handoff")
-    if version == 2 and word_count(handoff) > 80:
+    if version >= 2 and word_count(handoff) > 80:
         raise ValueError("Fresh-session handoff must be at most 80 words; link to the plan, spec and report for details and wrap paths in backticks")
     # Any "implement" instruction, except a negated one such as "Do not implement".
     implement = re.search(r"(?<!not )(?<!n't )(?<!never )\bimplement\b", handoff, re.I)
@@ -389,10 +437,10 @@ def render(source, context):
     script_hash = base64.b64encode(hashlib.sha256(js.encode()).digest()).decode()
     body = []
     for index, (heading, content) in enumerate(parts, 1):
-        if version == 2:
+        if version >= 2:
             heading = READABLE_HEADINGS[index - 1]
         if index == 8:
-            if version == 2:
+            if version >= 2:
                 detail_marker(content, index)
             start, end, _, _ = prompts[0]
             intro = content[:start] + content[end:]
@@ -403,11 +451,11 @@ def render(source, context):
                 toolbar = '<p class="warning">Document identity, Git state or approvals changed or could not be checked. This is a historical prompt. Revalidate the changed scope before using it.</p>'
             content_html = markdown(intro) + '<div class="prompt-toolbar">' + toolbar + '</div><pre id="handoff" tabindex="0">' + escape(handoff) + '</pre>'
         else:
-            content_html = section_content(content, index) if version == 2 else markdown(content)
+            content_html = section_content(content, index) if version >= 2 else markdown(content)
         body.append(f'<section id="section-{index}" aria-labelledby="heading-{index}"><div class="section-heading"><span>{index:02}</span><h2 id="heading-{index}">{inline(heading)}</h2></div>' + (scope_html if index == 5 else "") + content_html + '</section>')
     title = escape(context["title"])
     note_html = ''.join('<article><h3>' + escape(note["title"]) + '</h3><p>' + inline(note["body"]) + '</p></article>' for note in context.get("notes", []))
-    if version == 2:
+    if version >= 2:
         state = "Plan and spec match the saved review." if fingerprints_match else "Plan or spec changed or could not be read."
         stale = " This handoff is historical. Recheck the saved evidence before starting."
     else:
