@@ -722,6 +722,18 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 with self.assertRaisesRegex(ValueError, "Phase 1"):
                     render(source.replace("Stop at the end of Phase 1 and", bad), context)
 
+    def test_historical_phase_table_offers_no_start(self):
+        source, context = self.two_phase()
+        context["handoff_status"] = "historical"
+        page, _, _ = render(source, context)
+        self.assertNotIn("Can start", page)
+        self.assertIn("Revalidate before starting", page)
+
+    def test_inline_code_at_line_start_is_not_a_fence(self):
+        source, context = self.two_phase()
+        source = source.replace("Implement Phase 2.", "Implement Phase 2.\n```npm test``` must pass.")
+        self.assertEqual(len(phase_handoffs(source, context)), 2)
+
 
 if __name__ == "__main__":
     unittest.main()
