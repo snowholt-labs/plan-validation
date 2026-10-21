@@ -27,6 +27,7 @@ SOURCE_HEADINGS = (
     "Verdict", "PLAN comparison", "SPEC comparison", "Decision confidence",
     "Changes", "Open items", "Verification and checkout", "Fresh-session handoff",
 )
+HISTORICAL_PREFIX = "HISTORICAL PROMPT — DO NOT EXECUTE.\nDocument identity, Git state or approvals need revalidation before implementation.\n\n"
 # Phase IDs become file names, so they cannot contain path separators.
 PHASE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9.-]{0,15}\Z")
 
@@ -364,6 +365,43 @@ def phase_plan(context, verdict):
     return phases
 
 
+def handoff_prompts(section, version, verdict, context):
+    """Return validated (start, end, text) prompt spans and their (phase_id, prompt) pairs."""
+    prompts = [(start, end, section[body_start:body_end].rstrip("\n")) for start, end, body_start, body_end in fenced_blocks(section)]
+    ready = []
+    if version == 3 and verdict.lower() != "not ready":
+        ready = [phase["id"] for phase in phase_plan(context, verdict) if phase["status"] == "ready"]
+    if ready:
+        if len(prompts) != len(ready):
+            raise ValueError("Section 8 needs one fenced prompt per ready phase, in order")
+    elif len(prompts) != 1:
+        raise ValueError("Section 8 must contain one complete fenced handoff")
+    for index, (_, _, prompt) in enumerate(prompts):
+        if not prompt.strip():
+            raise ValueError("Section 8 must contain one complete fenced handoff")
+        if version >= 2 and word_count(prompt) > 80:
+            raise ValueError("Fresh-session handoff must be at most 80 words; link to the plan, spec and report for details and wrap paths in backticks")
+        # "Phase 1.2", "Phase 1-b" and "Phase 12" are other phases; a sentence-ending period is not.
+        if ready and not re.search(rf"\bstop\s+at\s+the\s+end\s+of\s+phase\s+{re.escape(ready[index])}(?![A-Za-z0-9-]|\.[A-Za-z0-9])", prompt, re.I):
+            raise ValueError(f"Phase {ready[index]} prompt must say: Stop at the end of Phase {ready[index]}")
+    # Any "implement" instruction, except a negated one such as "Do not implement".
+    implement = re.search(r"(?<!not )(?<!n't )(?<!never )\bimplement\b", prompts[0][2], re.I)
+    # With no startable phase, a version 3 prompt is a remediation prompt even before Not ready.
+    if (verdict.lower() == "not ready" or (version == 3 and not ready)) and (implement or "do not start dependent implementation" not in prompts[0][2].lower()):
+        raise ValueError("Not ready requires a remediation prompt stating: Do not start dependent implementation")
+    return prompts, list(zip(ready, (prompt for _, _, prompt in prompts)))
+
+
+def phase_handoffs(source, context):
+    """Return (phase_id, prompt) for each ready phase of a version 3 Ready report."""
+    version = context.get("format_version", 1)
+    parts = sections(source.replace("\r\n", "\n").replace("\r", "\n"))
+    verdict_match = re.match(r"(Ready after approvals|Not ready|Ready)\b", plain(parts[0][1]), re.I)
+    if version != 3 or not verdict_match:
+        return []
+    return handoff_prompts(parts[7][1], version, verdict_match.group(1), context)[1]
+
+
 def render(source, context):
     version = context.get("format_version", 1)
     if type(version) is not int or version not in (1, 2, 3):
@@ -402,19 +440,8 @@ def render(source, context):
         confidence = "Unknown"
     if confidence != "Unknown" and (not 0 <= int(confidence[:-1]) <= 100 or int(confidence[:-1]) % 5):
         raise ValueError("Confidence must be Unknown or a percentage in steps of five")
-    prompts = fenced_blocks(parts[7][1])
-    if len(prompts) != 1:
-        raise ValueError("Section 8 must contain one complete fenced handoff")
-    _, _, prompt_start, prompt_end = prompts[0]
-    handoff = parts[7][1][prompt_start:prompt_end].rstrip("\n")
-    if not handoff.strip():
-        raise ValueError("Section 8 must contain one complete fenced handoff")
-    if version >= 2 and word_count(handoff) > 80:
-        raise ValueError("Fresh-session handoff must be at most 80 words; link to the plan, spec and report for details and wrap paths in backticks")
-    # Any "implement" instruction, except a negated one such as "Do not implement".
-    implement = re.search(r"(?<!not )(?<!n't )(?<!never )\bimplement\b", handoff, re.I)
-    if verdict.lower() == "not ready" and (implement or "do not start dependent implementation" not in handoff.lower()):
-        raise ValueError("Not ready requires a remediation prompt stating: Do not start dependent implementation")
+    prompts, pairs = handoff_prompts(parts[7][1], version, verdict, context)
+    handoff = prompts[0][2]
     if context.get("handoff_status") not in {"current", "historical"}:
         raise ValueError("Set handoff_status to current or historical after checking Git state and approvals")
     checks = document_checks(context)
@@ -442,7 +469,7 @@ def render(source, context):
         if index == 8:
             if version >= 2:
                 detail_marker(content, index)
-            start, end, _, _ = prompts[0]
+            start, end, _ = prompts[0]
             intro = content[:start] + content[end:]
             action = "Copy implementation prompt" if verdict.lower().startswith("ready") else "Copy remediation prompt"
             if current:
@@ -489,7 +516,7 @@ def render(source, context):
 {defaults}
 </main><footer>Local report · No external fonts, scripts, analytics or network requests. Scores describe document quality; they do not guarantee implementation success.</footer><script>{js}</script></body></html>'''
     if not current:
-        handoff = "HISTORICAL PROMPT — DO NOT EXECUTE.\nDocument identity, Git state or approvals need revalidation before implementation.\n\n" + handoff
+        handoff = HISTORICAL_PREFIX + handoff
     return page, handoff, current
 
 
@@ -510,9 +537,17 @@ def main():
             args.output.with_suffix(".md").write_text(source, encoding="utf-8")
         args.output.write_text(page, encoding="utf-8")
         args.output.with_name("handoff.txt").write_text(handoff + "\n", encoding="utf-8")
+        # A re-render must never leave an earlier, unmarked phase prompt behind.
+        for stale in args.output.parent.glob("handoff-phase-*.txt"):
+            stale.unlink()
+        phase_files = []
+        for phase_id, prompt in phase_handoffs(source, context):
+            path = args.output.with_name(f"handoff-phase-{phase_id}.txt")
+            path.write_text(("" if current else HISTORICAL_PREFIX) + prompt + "\n", encoding="utf-8")
+            phase_files.append(str(path.resolve()))
     except (ValueError, KeyError, OSError, ArithmeticError) as error:
         parser.exit(1, f"Report not generated: {error}\n")
-    print(json.dumps({"html": str(args.output.resolve()), "handoff": str(args.output.with_name("handoff.txt").resolve()), "handoff_current": current}))
+    print(json.dumps({"html": str(args.output.resolve()), "handoff": str(args.output.with_name("handoff.txt").resolve()), "handoff_current": current, "phase_handoffs": phase_files}))
 
 
 if __name__ == "__main__":

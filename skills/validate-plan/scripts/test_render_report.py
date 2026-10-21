@@ -3,12 +3,15 @@
 import base64
 import copy
 import hashlib
+import json
 import re
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-from render_report import ASSETS, cells, phase_plan, render
+from render_report import ASSETS, HISTORICAL_PREFIX, cells, phase_handoffs, phase_plan, render
 
 
 REPORT = """# Example validation
@@ -541,6 +544,107 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             render(REPORT, context)
         context["kind"] = "saved"
         render(REPORT, context)
+
+    def two_phase(self):
+        context = self.modern_context()
+        context["task_inventory"] = ["1", "2"]
+        context["phases"] = [dict(context["phases"][0], tasks=["1"]), dict(context["phases"][0], id="2", tasks=["2"])]
+        prompts = ("Implement Phase 1. Stop at the end of Phase 1 and print the Phase 2 prompt from the report; do not start it.",
+                   "Implement Phase 2. Stop at the end of Phase 2; it is the last phase.")
+        source = REPORT.split("## 8. Fresh-session handoff")[0] + "## 8. Fresh-session handoff\n" + "".join(
+            f"```text\n{prompt}\n```\n" for prompt in prompts)
+        return source, context
+
+    def test_each_ready_phase_gets_its_own_prompt(self):
+        source, context = self.two_phase()
+        _, prompt, _ = render(source, context)
+        self.assertTrue(prompt.startswith("Implement Phase 1."))
+        self.assertEqual([pid for pid, _ in phase_handoffs(source, context)], ["1", "2"])
+
+    def test_prompt_count_must_match_ready_phases(self):
+        source, context = self.two_phase()
+        source = source.replace("**Ready.**", "**Ready after approvals.**")
+        context["phases"][1].update(status="waiting", waits_for="D1")
+        with self.assertRaisesRegex(ValueError, "prompt"):
+            render(source, context)
+
+    def test_prompt_must_stop_at_its_own_phase(self):
+        source, context = self.two_phase()
+        for other in ("12", "1.2", "1-b", "1b"):
+            with self.subTest(other=other):
+                bad = source.replace("Stop at the end of Phase 1 and", f"Stop at the end of Phase {other} and")
+                with self.assertRaisesRegex(ValueError, "Phase 1"):
+                    render(bad, context)
+        render(source.replace("Stop at the end of Phase 2;", "Stop at the end of Phase 2."), context)
+        render(source.replace("Stop at the end of Phase 1 and", "Stop at the end of\nPhase 1 and"), context)
+
+    def test_first_phase_waiting_needs_a_non_implementation_prompt(self):
+        source, context = self.two_phase()
+        for phase in context["phases"]:
+            phase.update(status="waiting", waits_for="D1")
+        source = source.replace("**Ready.**", "**Ready after approvals.**")
+        with self.assertRaisesRegex(ValueError, "one"):
+            render(source, context)
+        waiting = source.split("## 8.")[0] + "## 8. Fresh-session handoff\n```text\nRecord D1, then re-render the report. Do not start dependent implementation.\n```\n"
+        _, prompt, _ = render(waiting, context)
+        self.assertIn("Do not start dependent implementation.", prompt)
+        self.assertEqual(phase_handoffs(waiting, context), [])
+        with self.assertRaisesRegex(ValueError, "Do not start dependent implementation"):
+            render(waiting.replace("Record D1, then", "Implement Phase 1, then"), context)
+
+    def test_every_phase_prompt_has_the_word_limit(self):
+        source, context = self.two_phase()
+        with self.assertRaisesRegex(ValueError, "80 words"):
+            render(source.replace("Implement Phase 2.", "Implement Phase 2. " + "detail " * 80), context)
+
+    def test_inner_fence_in_a_phase_prompt_counts_once(self):
+        source, context = self.two_phase()
+        source = source.replace("```text\nImplement Phase 2.", "````text\nImplement Phase 2.\n```\nexample\n```\n").replace(
+            "it is the last phase.\n```", "it is the last phase.\n````")
+        self.assertEqual(len(phase_handoffs(source, context)), 2)
+        self.assertIn("example", phase_handoffs(source, context)[1][1])
+
+    def test_not_ready_keeps_one_remediation_prompt(self):
+        source, context = self.two_phase()
+        context["phases"][0].update(status="waiting", waits_for="Blocker")
+        context["phases"][1].update(status="waiting", waits_for="Blocker")
+        source = source.replace("**Ready.**", "**Not ready.**")
+        with self.assertRaisesRegex(ValueError, "one"):
+            render(source, context)
+        remediation = REPORT.replace("**Ready.**", "**Not ready.**").replace(
+            "Implement the approved scope now.", "Resume validation. Do not start dependent implementation.")
+        self.assertEqual(phase_handoffs(remediation, context), [])
+
+    def run_renderer(self, directory, source, context):
+        (directory / "in.md").write_text(source, encoding="utf-8")
+        (directory / "in.json").write_text(json.dumps(context), encoding="utf-8")
+        script = Path(__file__).with_name("render_report.py")
+        return subprocess.run([sys.executable, str(script), "--report", str(directory / "in.md"), "--context", str(directory / "in.json"),
+                               "--output", str(directory / "report.html")], capture_output=True, text=True)
+
+    def test_main_writes_one_file_per_phase_and_marks_historical_files(self):
+        source, context = self.two_phase()
+        root = Path(self.directory.name)
+        for status in ("current", "historical"):
+            context["handoff_status"] = status
+            out = root / status
+            out.mkdir()
+            result = self.run_renderer(out, source, context)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            files = json.loads(result.stdout)["phase_handoffs"]
+            self.assertEqual(files, [str((out / f"handoff-phase-{pid}.txt").resolve()) for pid in ("1", "2")])
+            for pid, prompt in phase_handoffs(source, context):
+                text = (out / f"handoff-phase-{pid}.txt").read_text(encoding="utf-8")
+                self.assertEqual(text, (HISTORICAL_PREFIX if status == "historical" else "") + prompt + "\n")
+        out = root / "current"
+        for phase in context["phases"]:
+            phase.update(status="waiting", waits_for="Blocker")
+        context["handoff_status"] = "current"
+        remediation = source.split("## 8.")[0].replace("**Ready.**", "**Not ready.**") + (
+            "## 8. Fresh-session handoff\n```text\nResume validation. Do not start dependent implementation.\n```\n")
+        result = self.run_renderer(out, remediation, context)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(list(out.glob("handoff-phase-*.txt")), [])
 
 
 if __name__ == "__main__":
