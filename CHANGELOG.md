@@ -1,7 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 — 2026-10-20
 
+- Group a validated plan's tasks into small phases and give one launch prompt per ready phase, so each phase runs in its own fresh session and stops at the phase end. Phases keep plan order and plan phase boundaries, target 3–5 tasks, and flag docs-only phases and phases that need a security review.
+- Add report format version 3 for new reports: a validated task inventory and phase list, one prompt of at most 80 words per ready phase with a checked `Stop at the end of Phase <id>` sentence, `handoff-phase-<id>.txt` files, a phase table and one copy button per phase prompt. Not ready reports, and reports whose first phase waits for an approval, keep one remediation prompt.
+- After earlier phases merge, validate the remaining phases as a phase-only validation instead of re-rendering the old report. Historical phase tables show "Revalidate before starting".
+- Add a "Phased implementation" documentation page with the recommended per-phase workflow: one fresh session per phase after the previous phase merges, a severity-based review loop, a security review only for flagged phases, and full code and security review on the plan-to-main PR. The repository's own `AGENTS.md` adopts this workflow, and the evaluation cases cover phase grouping, waiting phases and between-phase changes.
 - Relicense the project from MIT to the Apache License 2.0 and add a NOTICE file that credits the original project and its creator. Versions up to 0.2.0 remain available under the MIT License.
 - Add plugin icons: light, dark and composer icons for Codex, and a directory icon for Anthropic's plugin directory. Generated HTML reports show an inline favicon.
 - Shorten new fresh-session handoffs to a 50–80-word target, with explicit phase/validated-plan scope and links to the complete evidence and permission record.
@@ -11,7 +15,7 @@
 - Stop asking routine questions during validation. Apply the recommended best practice and disclose it; record choices that need approval as a menu with a recommendation in the report, without pausing independent work.
 - Tell the implementing agent to continue through passing steps and reviews without asking to continue, stopping only for a required approval, an unfixable failure or the scope end.
 - Suggest a reasoning effort for the validation and next sessions; never set or require one.
-- Add report format version 2 while retaining legacy rendering. Existing reports and planning documents are not migrated.
+- Report format version 2 (the "Feature at a glance" diagram and "Decisions made without your reply") was added during this release's development and is superseded by version 3, which keeps both. The renderer still reads saved version 1 and 2 reports. Existing reports and planning documents are not migrated.
 
 ## 0.2.0 — 2026-10-14
 

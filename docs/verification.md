@@ -1,13 +1,29 @@
 # Release verification
 
-## Unreleased report readability changes
+## 0.3.0 release checks
 
-These checks cover the local source update; they are not publication or live-plugin acceptance results.
+Checked on 20 October 2026 on Linux, using Python 3.14.4 and Claude Code 2.1.305. These are package checks on the release branch; they are not publication or live-plugin acceptance results.
+
+| Check | Observed result | Evidence and limit |
+| --- | --- | --- |
+| Renderer regression suite | 71 tests passed | Includes the format version 3 phase checks: task coverage and order, phase IDs, waiting phases, per-phase prompt length and stop sentence, inner fences, `handoff-phase-<id>.txt` files and historical phase tables; rendering tests do not establish model behavior |
+| Package and local documentation links | Passed | Three skills, 4 SVG icons and 44 Markdown files checked; plugin, marketplace and Codex manifests agree at 0.3.0 |
+| Strict Claude validation | Passed with one warning | Both `claude plugin validate` commands pass; the warning is that the repository's root `CLAUDE.md` is not loaded as plugin context, which is expected because it is contributor guidance |
+| Retry demonstration | Three tests with one expected failure; corrected control has three passing tests | Existing authored fixture and renderer executed; not an effectiveness benchmark |
+| Documentation site | 47 tests passed; 14 pages built | The built header shows version 0.3.0 and the changelog page shows the 0.3.0 entry |
+
+Fresh-session model behavior for phase grouping and per-phase prompts has not been measured in a live Claude Code or Codex session. The cost effect of phased sessions has not been measured.
+
+GitHub release publication, a directory security scan, reviewer approval and a live listing remain distinct states. No directory scan of 0.3.0 is recorded here; a scan of an earlier version is not a scan of 0.3.0.
+
+### Report readability checks
+
+These checks cover the report readability changes made during 0.3.0 development; they are not publication or live-plugin acceptance results.
 
 | Check | Observed result | Evidence and limit |
 | --- | --- | --- |
 | Renderer regression suite | 42 tests passed | New tests first failed for missing diagram, disclosure, defaults and prompt-length behavior; the later independent-block tests also failed before their fix. Code-review fixes added regressions for Not ready instructions, path word counts, legacy-format fallback, section headings, hidden confidence, line endings and long flows; each failed before its fix. Legacy rendering, arithmetic, injection and readiness checks still pass. |
-| Package and CLI validation | Passed | Local links/manifests, both Claude validation commands, revised prompt skill validation and JavaScript syntax check. No dependency installation or release version change. |
+| Package and CLI validation | Passed | Local links/manifests, both Claude validation commands, revised prompt skill validation and JavaScript syntax check. No dependency installation; the version was bumped later, in the release commit. |
 | Retry demonstration | Expected original failure; corrected control passes all three checks | The new report renders a 56-word remediation prompt. Rendered prompt text exactly matches handoff.txt. No original fixture documents are modified. |
 | Browser layout and evidence controls | Passed on the synthetic demo | Desktop and a requested 390-pixel viewport: diagram remains readable with no horizontal page overflow; both score tables retain five dimensions plus average; technical evidence expands and keyboard activation collapses it. |
 | Browser clipboard | Limited | The button reports success, but the browser automation's virtual clipboard returned no text and could not paste. Actual clipboard paste remains unverified; exported-text equality passed separately. |
