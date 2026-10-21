@@ -11,7 +11,7 @@ description: Install the Plan Validation skills in Claude Code or Codex, and upd
 - Project dependencies already available for any rehearsal commands.
 - A fresh independent reviewer for a Ready verdict. Without one, the report records the missing review and remains Not ready.
 
-The initial release is verified on Linux. The manual shell commands below target Linux/macOS shells; native Windows installation has not been verified. The renderer has no third-party Python dependencies, API keys or account of its own. Your agent host may incur normal model charges.
+This release is verified on Linux. The manual shell commands below target Linux/macOS shells; native Windows installation has not been verified. The renderer has no third-party Python dependencies, API keys or account of its own. Your agent host may incur normal model charges.
 
 ## Claude Code plugin
 
@@ -118,4 +118,4 @@ To remove the manual symlink installation, first verify that each path is a syml
 
 ## Plugin package for Codex
 
-The repository includes `.codex-plugin/plugin.json`, referencing the same `skills/` directory. It is a compatibility package for hosts that support that layout. The first-release quick start uses standalone skills; live Codex plugin installation and public directory acceptance are not claimed. See [OpenAI plugin packaging](https://developers.openai.com/plugins/build/plugins) for current host-specific authoring and submission routes.
+The repository includes `.codex-plugin/plugin.json`, referencing the same `skills/` directory. It is a compatibility package for hosts that support that layout. The quick start uses standalone skills; live Codex plugin installation and public directory acceptance are not claimed. See [OpenAI plugin packaging](https://developers.openai.com/plugins/build/plugins) for current host-specific authoring and submission routes.
