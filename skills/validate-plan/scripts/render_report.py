@@ -365,12 +365,14 @@ def phase_plan(context, verdict):
     return phases
 
 
-def phase_table(phases, verdict):
+def phase_table(phases, verdict, current):
     def status(phase):
         if phase["status"] == "waiting":
             return "Waits for " + inline(phase["waits_for"])
-        # A remediation-only report never shows a phase as startable.
-        return "Waits for remediation" if verdict.lower() == "not ready" else "Can start"
+        # A remediation-only or historical report never shows a phase as startable.
+        if verdict.lower() == "not ready":
+            return "Waits for remediation"
+        return "Can start" if current else "Revalidate before starting"
     rows = ''.join('<tr>' + ''.join(f'<td>{cell}</td>' for cell in (
         escape(phase["id"]) + ': ' + inline(phase["title"]), escape(", ".join(phase["tasks"])),
         "Docs only" if phase["docs_only"] else "Code",
@@ -396,8 +398,11 @@ def handoff_prompts(section, version, verdict, context):
             raise ValueError("Section 8 must contain one complete fenced handoff")
         if version >= 2 and word_count(prompt) > 80:
             raise ValueError("Fresh-session handoff must be at most 80 words; link to the plan, spec and report for details and wrap paths in backticks")
-        if version == 3 and len(re.findall(r"^ {0,3}`{3,}", prompt, re.M)) % 2:
-            raise ValueError("A phase prompt has an unbalanced inner code fence; use a longer outer fence")
+        if version == 3:
+            try:
+                fenced_blocks(prompt)
+            except ValueError:
+                raise ValueError("A phase prompt has an unclosed inner code fence; use a longer outer fence") from None
         if ready:
             # Every stop sentence names this phase, unnegated. "Phase 1.2", "Phase 1-b" and
             # "Phase 12" are other phases; a sentence-ending period is not.
@@ -497,7 +502,7 @@ def render(source, context):
             warning = '<p class="warning">Document identity, Git state or approvals changed or could not be checked. This is a historical prompt. Revalidate the changed scope before using it.</p>'
             content_html = markdown(intro)
             if version == 3:
-                content_html += phase_table(context["phases"], verdict)
+                content_html += phase_table(context["phases"], verdict, current)
             if pairs:
                 titles = {phase["id"]: phase["title"] for phase in context["phases"]}
                 for phase_id, prompt in pairs:
