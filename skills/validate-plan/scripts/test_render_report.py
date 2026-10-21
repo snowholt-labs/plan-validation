@@ -729,6 +729,20 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         self.assertNotIn("Can start", page)
         self.assertIn("Revalidate before starting", page)
 
+    def test_unclosed_inner_fence_with_even_fence_lines_is_rejected(self):
+        source, context = self.two_phase()
+        for opener, closer in (("````bash", "```"), ("```bash", "```bash")):
+            with self.subTest(opener=opener):
+                bad = source.replace("```text\nImplement Phase 2.", f"`````text\nImplement Phase 2.\n{opener}\nnpm test\n{closer}").replace(
+                    "it is the last phase.\n```", "it is the last phase.\n`````")
+                with self.assertRaisesRegex(ValueError, "fence"):
+                    render(bad, context)
+
+    def test_changed_plan_phase_table_offers_no_start(self):
+        source, context = self.two_phase()
+        Path(context["documents"][0]["path"]).write_text("Changed")
+        self.assertNotIn("Can start", render(source, context)[0])
+
     def test_inline_code_at_line_start_is_not_a_fence(self):
         source, context = self.two_phase()
         source = source.replace("Implement Phase 2.", "Implement Phase 2.\n```npm test``` must pass.")

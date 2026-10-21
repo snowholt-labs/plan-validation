@@ -398,8 +398,11 @@ def handoff_prompts(section, version, verdict, context):
             raise ValueError("Section 8 must contain one complete fenced handoff")
         if version >= 2 and word_count(prompt) > 80:
             raise ValueError("Fresh-session handoff must be at most 80 words; link to the plan, spec and report for details and wrap paths in backticks")
-        if version == 3 and len(re.findall(r"^ {0,3}`{3,}[^`\n]*$", prompt, re.M)) % 2:
-            raise ValueError("A phase prompt has an unbalanced inner code fence; use a longer outer fence")
+        if version == 3:
+            try:
+                fenced_blocks(prompt)
+            except ValueError:
+                raise ValueError("A phase prompt has an unclosed inner code fence; use a longer outer fence") from None
         if ready:
             # Every stop sentence names this phase, unnegated. "Phase 1.2", "Phase 1-b" and
             # "Phase 12" are other phases; a sentence-ending period is not.
