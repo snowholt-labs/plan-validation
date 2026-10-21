@@ -13,7 +13,7 @@ The validator groups the plan's existing tasks into small phases. It does not ch
 - A phase never crosses a phase boundary the plan already defines. A large plan phase is split into consecutive sub-phases, aiming for 3–5 tasks each.
 - Section 8 of the report shows a phase table: each phase's tasks, whether it is docs-only, whether it needs a security review and why, and whether it can start or waits for an approval.
 - Each ready phase gets its own launch prompt with a copy button, saved as `handoff-phase-<id>.txt` beside the report.
-- Each prompt names one phase and ends with a stop: `Stop at the end of Phase 1 and print the Phase 2 prompt from the report; do not start it.` The last phase's prompt says it is the last phase.
+- Each prompt names one phase and includes a stop: `Stop at the end of Phase 1 and print the Phase 2 prompt from the report; do not start it.` The last phase's prompt says it is the last phase.
 
 Phases run in order. A phase that waits for an approval holds back every phase after it, and it gets a prompt only after the approval is recorded and the report is rendered again.
 
@@ -50,5 +50,6 @@ Paste this into your repository's `AGENTS.md` (or equivalent) and adjust it to y
 - Run a security review before opening the PR only when the phase is flagged security-sensitive (authentication, user input, secrets, dependencies, CI workflows).
 - Open the PR into the plan branch, wait for CI, post a short review summary as a PR comment and record action points in the progress file.
 - Stop at the end of the phase and print the next phase's prompt from the report. The maintainer merges and starts the next session.
+- Between phases, merged earlier phases and ticked task checkboxes are expected. Reconcile any other change to the plan, spec or approvals with the validation report before building.
 - Docs-only PRs need CI only. The final plan-to-main PR gets a full code review and a full security review, which also clears the saved action points.
 ```

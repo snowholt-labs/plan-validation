@@ -5,28 +5,34 @@ Write one launch prompt per ready phase, each targeting **50–80 words**, with 
 Each prompt names exactly one phase from the phase grouping in `context.json`, in plan order, and stops at the end of that phase. Never expand a phase review to the whole plan. Pasting a prompt requests only the named phase; it grants no additional external-action permissions.
 
 ```text
-Work in `[repository path]`. Implement Phase [N] (Tasks [list]) from `[PLAN path]`.
+Work in `[repository path]`. Implement Phase [N] (Tasks [first]–[last]) from `[PLAN path]`.
 
-Read `[SPEC path]`, `[report.md path]`, its context.json and repository instructions. Confirm Phase [N-1] is merged and the scope is still valid. Follow recorded decisions, permissions and reviews; preserve unrelated work.
+Read `[SPEC path]`, `[report.md path]`, its context.json and repository instructions. Confirm Phase [previous] is merged and the scope is still valid. Follow recorded decisions, permissions and reviews; preserve unrelated work.
 
-Do not ask to continue between steps. Stop only for required approvals or unfixable failures. Stop at the end of Phase [N] and print the Phase [N+1] prompt from the report; do not start it. Report results and defaults chosen.
+Do not ask to continue between steps. Pause only for required approvals or unfixable failures. Stop at the end of Phase [N] and print the Phase [next] prompt from the report; do not start it. Report results and defaults chosen.
 ```
 
-Variants:
+Use the actual phase IDs from `context.json` for `[previous]` and `[next]` (for example `2a` and `2b`), never arithmetic on the ID. Write the tasks as a range in plan order (`Tasks 4–7`, or `Task 5` for one task); listing each task pushes a 4–5-task phase past 80 words.
 
-- **First phase:** drop "Phase [N-1] is merged and", so it reads "Confirm the scope is still valid."
-- **Last phase:** end with "Stop at the end of Phase [N]; it is the last phase."
-- **Phase before a waiting phase:** end with "Stop at the end of Phase [N]. Phase [N+1] waits for [decision]; there is no prompt for it yet." Name only the decision ID (for example `D1`), because a descriptive decision pushes this variant past 80 words.
+Variants, each replacing the stop sentence or the merge check:
 
-The renderer requires each ready-phase prompt to contain `Stop at the end of Phase <id>` for its own phase. When a prompt runs long, write the task list as a range (`Tasks 4–6`) and point to Open items; keep the continuation and stop sentences.
+- **First phase of the plan:** drop "Phase [previous] is merged and", so it reads "Confirm the scope is still valid." In a phase-only validation, the first selected phase keeps the check and names the plan phase before it.
+- **Last phase of the plan:** "Stop at the end of Phase [N]; it is the last phase." In a phase-only validation whose last selected phase is not the plan's last, use "Stop at the end of Phase [N]; it is the last validated phase."
+- **Phase before a waiting phase:** "Stop at the end of Phase [N]. Phase [next] waits for [decision]; there is no prompt for it yet." Name only the decision ID (for example `D1`), because a descriptive decision pushes this variant past 80 words.
 
-The continuation sentences stop the implementing agent from pausing after each passing step or review to ask whether to continue, while keeping approval gates from repository rules and the report, such as a merge that needs the maintainer, inside the prompt itself. The stop sentence keeps the session inside its phase: the maintainer merges the phase and starts the next one in a fresh session.
+The renderer requires each ready-phase prompt to say `Stop at the end of Phase <id>` for its own phase only, never negated. Keep the continuation, pause and stop sentences when shortening; shorten the scope wording instead and point to Open items.
+
+The continuation and pause sentences stop the implementing agent from pausing after each passing step or review to ask whether to continue, while keeping approval gates from repository rules and the report, such as a merge that needs the maintainer, inside the prompt itself. The stop sentence keeps the session inside its phase: the maintainer merges the phase and starts the next one in a fresh session.
 
 The agent reads the report and context before implementation to recover document hashes, Git state, approvals, research limits, defaulted choices and required reviews. Missing or changed evidence requires reconciliation first; a short prompt is not permission to skip those checks. Use absolute paths to the saved report source and context so a fresh session can read them without a browser. Wrap each path in backticks; a backtick-quoted absolute path counts as one word, even when it contains spaces.
 
 ## Expected changes between phases
 
 After the first phase, the plan branch has moved: earlier phases are merged into it and their task checkboxes are ticked. That is expected and is not drift. To check, compare the plan and spec with `revised-plan.md` and `revised-spec.md` in the report's run directory (for example with `diff`) and treat only `- [ ]` to `- [x]` changes as expected. Any other change to the plan, spec or approvals needs reconciliation before implementation.
+
+The implementing session reads the report, not this template, so in section 8 put this one-line note before the prompts when there is more than one phase: `Between phases, earlier phases merged into the plan branch and ticked task checkboxes are expected; compare the plan and spec with revised-plan.md and revised-spec.md in this run directory and reconcile any other change first.`
+
+When an approval is recorded after earlier phases merged, the live plan no longer matches the recorded hash. During the recheck, compare it with `revised-plan.md`; if only checkboxes changed, save the current plan as `revised-plan.md` and record its hash for the re-rendered report, and say so in section 7. Any other change needs revalidation of the affected scope.
 
 ## Ready after approvals and Not ready
 
