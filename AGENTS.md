@@ -47,13 +47,16 @@ If Claude Code is installed, also run `claude plugin validate .` and `claude plu
 - Every PR into `main` is merged with a merge commit, never squash. Only phase PRs into a plan branch are squash merged.
 - Ask the maintainer before any merge. Confirm CI passed on the PR head (`gh pr checks <number>`) before asking. GitHub requires a PR and the `verify` check for `main` and `plan/**` branches; other branches are not protected.
 - "Code and security review" below means a code review and a security review of the PR diff, with findings fixed or explicitly accepted. In Claude Code, run `/code-review` and `/security-review`; in other hosts, use an equivalent independent review.
+- Docs-only PRs (Markdown, site content or plan and spec fixes, with no change to skill text, scripts, assets or CI) need CI only, with no code or security review.
 
 ### Plan work
 
 1. Create a plan branch from `main` named `plan/<topic>` (the protection rule matches only this prefix), and a GitHub milestone named after the plan.
-2. Implement each phase on its own branch from the plan branch and open a PR into the plan branch.
-3. Squash merge the phase PR after CI and code and security review pass.
-4. When all phases are merged, open a PR from the plan branch into `main`. Run code and security review on the full diff to catch cross-phase issues. After CI passes, merge with a merge commit (not squash), so each phase stays visible in history.
+2. Implement each phase in its own fresh session, on its own branch from the plan branch. Start a phase only after the previous phase is merged into the plan branch; confirm this first and stop if it is not.
+3. Review the branch before opening the PR. Run a code review and fix the findings; repeat while a round finds bugs, security issues or failing tests, and stop when only minor items remain (style, naming, nitpicks). Record those as action points in the progress file for the final review. After 5 rounds with real problems left, do not open the PR; ask the maintainer.
+4. Run a security review before opening the PR only when the validation report flags the phase as security-sensitive (authentication, user input, secrets, dependencies, CI workflows).
+5. Open the PR into the plan branch, wait for CI, and post a short review summary as a PR comment. Then stop and print the next phase's prompt from the report; the maintainer squash merges the phase PR and starts the next phase.
+6. When all phases are merged, open a PR from the plan branch into `main`. Run a full code and security review on the whole diff to catch cross-phase issues, and resolve the saved action points. After CI passes, merge with a merge commit (not squash), so each phase stays visible in history.
 
 ### Other changes
 
