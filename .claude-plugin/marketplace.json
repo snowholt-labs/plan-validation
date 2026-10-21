@@ -11,7 +11,7 @@
       "name": "plan-validation",
       "source": "./",
       "description": "Validate plans, review dependencies with recorded research, and revise prompts without execution.",
-      "version": "0.2.0"
+      "version": "0.3.0"
     }
   ]
 }
