@@ -51,7 +51,7 @@ These are the plugin changes.
 - **Progress file.** The plugin does not create or own a progress file. Superpowers' execution workflow already keeps one (for example `.superpowers/sdd/<plan>/progress.md`); a fresh session uses it when it exists. Prompts do not name it. *(Builder's call.)*
 - **Report.** The phase grouping appears as a visible table in section 8, above the prompts. Section 8 then holds one prompt per phase, in order. Each prompt follows the existing 50–80-word target and 80-word maximum and keeps the existing rules: absolute paths in backticks, reference to report and context, no added permissions.
 - **Prompt wording.** The prompt names one phase and its tasks, and replaces "the scope end" with an explicit "Stop at the end of Phase N and print the Phase N+1 prompt from the report; do not start it." The last phase's prompt says to stop at the end of the plan.
-- **Ready after approvals.** Phases that wait for an approval show what they wait for; they get a prompt only once the approval is recorded and the report is re-rendered, as today.
+- **Ready after approvals.** Phases that wait for an approval show what they wait for; they get a prompt only once the approval is recorded and the report is re-rendered, as today. If the first phase waits, no phase can start: section 8 holds one prompt that names what to resolve and says `Do not start dependent implementation.`, checked like a Not ready prompt. *(Approved by the maintainer on 2026-10-20 as validation decision VD1.)*
 - **Not ready.** Unchanged: one remediation prompt with `Do not start dependent implementation.` and no per-phase prompts. The phase grouping table is still shown.
 - **A phase-only validation** (the user validated one phase) groups only that selected scope.
 

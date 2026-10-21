@@ -32,7 +32,7 @@
 
 ## Delivery
 
-Follow `AGENTS.md` plan work. Create `plan/phased-handoff` from `main` and a milestone named "Phased handoff". The spec and this plan go in through a docs PR from `docs/phased-handoff-spec` (CI only). Phase 1 is Tasks 1–3 (renderer); Phase 2 is Tasks 4–5 (skill text and site). Each phase is one PR into the plan branch, squash merged after CI and review; then one plan-to-`main` PR with a merge commit.
+Follow `AGENTS.md` plan work. First, the spec and this plan go in through a PR from `docs/phased-handoff-spec` into `main`, reviewed and merged under the current `AGENTS.md` "Other changes" rule (the "docs-only PRs: CI only" rule is a follow-up and does not apply yet). After it merges, create `plan/phased-handoff` from `main` and a milestone named "Phased handoff". Phase 1 is Tasks 1–3 (renderer); Phase 2 is Tasks 4–5 (skill text and site). Each phase is one PR into the plan branch, squash merged after CI and review; then one plan-to-`main` PR with a merge commit.
 
 ---
 
@@ -66,10 +66,11 @@ In `test_render_report.py`, append this line inside the `REPORT` handoff fence, 
 
 ```python
 def test_phases_must_cover_the_task_inventory_once_in_order(self):
-    for tasks in ([["1"], ["3"]], [["1", "2"], ["2", "3"]], [["2", "1"], ["3"]], [["1", "2"], []]):
+    for inventory, tasks in ((["1", "2", "3"], [["1"], ["3"]]), (["1", "2", "3"], [["1", "2"], ["2", "3"]]),
+                             (["1", "2", "3"], [["2", "1"], ["3"]]), (["1", "2"], [["1", "2"], []])):
         with self.subTest(tasks=tasks):
             context = self.modern_context()
-            context["task_inventory"] = ["1", "2", "3"]
+            context["task_inventory"] = inventory
             context["phases"] = [dict(context["phases"][0], id=str(i + 1), tasks=t) for i, t in enumerate(tasks)]
             with self.assertRaisesRegex(ValueError, "Phase"):
                 phase_plan(context, "Ready")
@@ -87,6 +88,11 @@ def test_phase_ids_cannot_become_paths(self):
             context["phases"][0]["id"] = bad
             with self.assertRaisesRegex(ValueError, "Phase"):
                 phase_plan(context, "Ready")
+    context = self.modern_context()
+    context["task_inventory"] = ["1", "2"]
+    context["phases"] = [dict(context["phases"][0], id="A", tasks=["1"]), dict(context["phases"][0], id="a", tasks=["2"])]
+    with self.assertRaisesRegex(ValueError, "Phase"):
+        phase_plan(context, "Ready")
 
 def test_waiting_phase_holds_back_later_phases_and_blocks_ready(self):
     context = self.modern_context()
@@ -108,7 +114,7 @@ def test_phase_flags_must_be_consistent(self):
             context = self.modern_context()
             context["phases"][0].update(change)
             with self.assertRaisesRegex(ValueError, "Phase"):
-                phase_plan(context, "Ready")
+                phase_plan(context, "Not ready")
 
 def test_new_reports_require_version_three(self):
     context = self.modern_context()
@@ -124,11 +130,11 @@ Import `phase_plan` alongside `render`. Update `test_new_report_cannot_fall_back
 - [ ] **Step 3: Run the tests to verify they fail**
 
 Run: `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s skills/validate-plan/scripts -p 'test_*.py'`
-Expected: FAIL / ERROR on the new tests (`phase_plan` cannot be imported).
+Expected: ERROR — the test module fails to import (`phase_plan` is missing), so no test runs.
 
 - [ ] **Step 4: Implement**
 
-In `render_report.py`: accept `format_version` 1, 2 or 3; `kind: new` requires 3 (message: "New reports require format_version 3; ..."). Change every `version == 2` branch to `version >= 2`. Add `PHASE_ID` and `phase_plan()` enforcing: `task_inventory` is a nonempty list of unique nonempty strings; `phases` is a nonempty list; each `id` matches `PHASE_ID` and is unique; `title` nonempty; `tasks` a nonempty list of strings; the concatenated `tasks` equal `task_inventory`; `docs_only` and `security_review` are booleans and not both true; `security_review: true` needs a nonempty `security_reason`; `status` is `ready` or `waiting`; `waiting` needs a nonempty `waits_for`; once a phase waits, every later phase waits; verdict `Ready` allows no waiting phase. In `render()`, call `phase_plan(context, verdict)` for version 3 after the verdict is parsed.
+In `render_report.py`: accept `format_version` 1, 2 or 3; `kind: new` requires 3 (message: "New reports require format_version 3; ..."). Change every `version == 2` branch to `version >= 2`. Add `PHASE_ID` and `phase_plan()` enforcing: `task_inventory` is a nonempty list of unique nonempty strings; `phases` is a nonempty list of objects; each `id` is a string that matches `PHASE_ID` and is unique ignoring case (phase files would collide on case-insensitive file systems); `title` nonempty; `tasks` a nonempty list of strings; the concatenated `tasks` equal `task_inventory`; `docs_only` and `security_review` are booleans and not both true; `security_review: true` needs a nonempty `security_reason`; `status` is `ready` or `waiting`; `waiting` needs a nonempty `waits_for`; once a phase waits, every later phase waits; verdict `Ready` (compared case-insensitively) allows no waiting phase. Type errors must surface as `ValueError`, because `main()` catches only `ValueError`, `KeyError`, `OSError` and `ArithmeticError`. In `render()`, call `phase_plan(context, verdict)` for version 3 after the verdict is parsed.
 
 In `scripts/demo.py`, set `"format_version": 3`, `"task_inventory": ["1"]` and one phase: `{"id": "1", "title": "Retry delay cap", "tasks": ["1"], "docs_only": False, "security_review": False, "status": "waiting", "waits_for": "Remediation of the missing delay cap"}`.
 
@@ -153,8 +159,8 @@ git commit -m "Add report format version 3 with validated phase grouping"
 **Interfaces:**
 - Consumes: `phase_plan(context, verdict)` from Task 1.
 - Produces: `HISTORICAL_PREFIX: str` — the existing "HISTORICAL PROMPT — DO NOT EXECUTE..." text, moved to a constant.
-- Produces: `phase_handoffs(source: str, context: dict) -> list[tuple[str, str]]` — `(phase_id, prompt)` for each ready phase of a version-3 Ready / Ready after approvals report, in order; `[]` for Not ready and for versions 1–2.
-- Produces files from `main()`: `handoff-phase-<id>.txt` beside `report.html`, one per entry of `phase_handoffs`, prefixed with `HISTORICAL_PREFIX` when the handoff is not current. `handoff.txt` stays: the first ready phase's prompt (or the remediation prompt). The printed JSON gains `"phase_handoffs": [<absolute paths>]`.
+- Produces: `phase_handoffs(source: str, context: dict) -> list[tuple[str, str]]` — `(phase_id, prompt)` for each ready phase of a version-3 Ready / Ready after approvals report, in order; `[]` for Not ready, for a report with no ready phase and for versions 1–2.
+- Produces files from `main()`: `handoff-phase-<id>.txt` beside `report.html`, one per entry of `phase_handoffs`, prefixed with `HISTORICAL_PREFIX` when the handoff is not current. Before writing them, `main()` deletes every existing `handoff-phase-*.txt` in the output directory, so a re-render (for example after an answer turns the report Not ready) never leaves an earlier, unmarked phase prompt behind. `handoff.txt` stays: the first ready phase's prompt (or the remediation prompt). The printed JSON gains `"phase_handoffs": [<absolute paths>]`.
 - `render()` keeps returning `(page, handoff, current)`.
 
 - [ ] **Step 1: Write the failing tests**
@@ -177,9 +183,24 @@ def test_prompt_count_must_match_ready_phases(self):
 
 def test_prompt_must_stop_at_its_own_phase(self):
     source, context = self.two_phase()
-    bad = source.replace("Stop at the end of Phase 1 and", "Stop at the end of Phase 12 and")
-    with self.assertRaisesRegex(ValueError, "Phase 1"):
-        render(bad, context)
+    for other in ("12", "1.2", "1-b", "1b"):
+        with self.subTest(other=other):
+            bad = source.replace("Stop at the end of Phase 1 and", f"Stop at the end of Phase {other} and")
+            with self.assertRaisesRegex(ValueError, "Phase 1"):
+                render(bad, context)
+    render(source.replace("Stop at the end of Phase 2;", "Stop at the end of Phase 2."), context)
+
+def test_first_phase_waiting_needs_a_non_implementation_prompt(self):
+    source, context = self.two_phase()
+    for phase in context["phases"]:
+        phase.update(status="waiting", waits_for="D1")
+    source = source.replace("**Ready.**", "**Ready after approvals.**")
+    with self.assertRaisesRegex(ValueError, "one"):
+        render(source, context)
+    waiting = source.split("## 8.")[0] + "## 8. Fresh-session handoff\n```text\nRecord D1, then re-render the report. Do not start dependent implementation.\n```\n"
+    _, prompt, _ = render(waiting, context)
+    self.assertIn("Do not start dependent implementation.", prompt)
+    self.assertEqual(phase_handoffs(waiting, context), [])
 
 def test_every_phase_prompt_has_the_word_limit(self):
     source, context = self.two_phase()
@@ -199,18 +220,23 @@ def test_not_ready_keeps_one_remediation_prompt(self):
     source = source.replace("**Ready.**", "**Not ready.**")
     with self.assertRaisesRegex(ValueError, "one"):
         render(source, context)
-    self.assertEqual(phase_handoffs(REPORT.replace("**Ready.**", "**Not ready.**"), context), [])
+    remediation = REPORT.replace("**Ready.**", "**Not ready.**").replace(
+        "Implement the approved scope now.", "Resume validation. Do not start dependent implementation.")
+    self.assertEqual(phase_handoffs(remediation, context), [])
 
 def test_main_writes_one_file_per_phase_and_marks_historical_files(self):
     # Write source and context into the temporary directory, run
     # `python3 render_report.py --report ... --context ... --output <dir>/report.html` with subprocess,
-    # then assert handoff-phase-1.txt and handoff-phase-2.txt exist with the exact prompts.
+    # then assert handoff-phase-1.txt and handoff-phase-2.txt exist with the exact prompts and that the
+    # printed JSON lists both under "phase_handoffs".
     # Set context["handoff_status"] = "historical", rerun into a fresh directory, and assert
     # both phase files start with HISTORICAL_PREFIX.
+    # Finally re-render a valid Not ready remediation report into the first directory and assert
+    # no handoff-phase-*.txt file remains there.
     ...
 ```
 
-Write the last test's body as its comments describe; resolve the script path from `Path(__file__).with_name("render_report.py")`.
+Write the last test's body as its comments describe; resolve the script path from `Path(__file__).with_name("render_report.py")` and run it with `sys.executable`. Import `HISTORICAL_PREFIX` and `phase_handoffs` alongside `render`; add `json`, `subprocess` and `sys` to the test imports.
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
@@ -219,7 +245,7 @@ Expected: FAIL / ERROR (`phase_handoffs` missing; version 3 still requires exact
 
 - [ ] **Step 3: Implement**
 
-For version 3: a Not ready report needs exactly one fenced prompt (message contains "one"), checked by the existing remediation rules. Ready / Ready after approvals needs at least one ready phase and exactly as many fenced prompts as ready phases (message contains "prompt"); prompt *i* belongs to ready phase *i*. Each prompt is checked against the 80-word limit and must match `rf"\bstop at the end of phase {re.escape(phase_id)}\b"` case-insensitively; otherwise raise a `ValueError` naming `Phase <id>`. `handoff` (returned and written to `handoff.txt`) is the first prompt. Implement `phase_handoffs()` by reusing the same section split, verdict parse and prompt extraction as `render()`; do not duplicate the validation rules. Versions 1–2 keep the existing single-fence behavior.
+For version 3: a Not ready report, and a Ready after approvals report whose first phase waits (so no phase can start; approved as VD1), needs exactly one fenced prompt (message contains "one"), checked by the existing remediation rules: it must contain `Do not start dependent implementation.` and no `Implement` instruction. Otherwise Ready / Ready after approvals needs exactly as many fenced prompts as ready phases (message contains "prompt"); prompt *i* belongs to ready phase *i*. Every prompt is checked against the 80-word limit (message contains "80 words"). Each ready-phase prompt (not a remediation prompt) must match `rf"\bstop at the end of phase {re.escape(phase_id)}(?![A-Za-z0-9-]|\.[A-Za-z0-9])"` case-insensitively, so "Phase 1.2", "Phase 1-b" and "Phase 12" do not pass for Phase 1 while a sentence-ending period does; otherwise raise a `ValueError` naming `Phase <id>`. `handoff` (returned and written to `handoff.txt`) is the first prompt. Implement `phase_handoffs()` by reusing the same section split, verdict parse and prompt extraction as `render()`; do not duplicate the validation rules. Versions 1–2 keep the existing single-fence behavior, and their remediation rule still applies only to Not ready.
 
 - [ ] **Step 4: Run all checks**
 
@@ -243,9 +269,9 @@ git commit -m "Require one stopping prompt per ready phase and save each one"
 
 **Interfaces:**
 - Consumes: `phase_plan()` (Task 1); the prompt-to-phase pairing (Task 2).
-- Produces markup (version 3): a table in `<div class="table-scroll" role="region" aria-label="Phase plan" tabindex="0">` with columns `Phase | Tasks | Kind | Security review | Status`, showing every phase (Kind: `Code` or `Docs only`; Security review: `Yes — <reason>` or `No`; Status: `Can start` or `Waits for <waits_for>`). Then, per ready phase, `<h3>Phase <id>: <title></h3>`, a toolbar with `<button class="copy-prompt" type="button" data-copy-target="handoff-<id>">Copy Phase <id> prompt</button><span class="copy-status" role="status" aria-live="polite"></span>`, and `<pre id="handoff-<id>" tabindex="0">`. A version-3 Not ready report shows the table and the existing single remediation prompt markup.
-- Version 2 markup keeps `id="copy-prompt"` and `id="handoff"` and adds `class="copy-prompt" data-copy-target="handoff"` to the button.
-- `report.js` binds every `button[data-copy-target]`; the status element is the button's next sibling.
+- Produces markup (version 3): a table in `<div class="table-scroll" role="region" aria-label="Phase plan" tabindex="0">` with columns `Phase | Tasks | Kind | Security review | Status`, showing every phase (Kind: `Code` or `Docs only`; Security review: `Yes — <reason>` or `No`; Status: `Waits for <waits_for>` for a waiting phase; otherwise `Can start`, or `Waits for remediation` in a Not ready report, so a remediation-only report never shows a phase as startable). Then, per ready phase, `<h3>Phase <id>: <title></h3>`, a toolbar with `<button class="copy-prompt" type="button" data-copy-target="handoff-<id>">Copy Phase <id> prompt</button><span class="copy-status" role="status" aria-live="polite"></span>`, and `<pre id="handoff-<id>" tabindex="0">`. A version-3 Not ready report, or one with no ready phase, shows the table and the existing single remediation prompt markup.
+- Version 1 and 2 markup (one shared code path) keeps `id="copy-prompt"` and `id="handoff"` and adds `class="copy-prompt" data-copy-target="handoff"` to the button, so saved reports keep a working copy button.
+- `report.js` binds every `button[data-copy-target]` and finds the prompt with `document.getElementById(button.dataset.copyTarget)` (not a CSS selector, because phase IDs may contain dots); the status element is the button's next sibling.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -270,8 +296,21 @@ def test_historical_phase_report_offers_no_copy_button(self):
     source, context = self.two_phase()
     context["handoff_status"] = "historical"
     page, _, _ = render(source, context)
-    self.assertNotIn("data-copy-target", page)
+    # report.js is inlined and names the attribute, so look for markup only.
+    self.assertNotIn('data-copy-target="', page)
     self.assertNotIn('href="handoff.txt"', page)
+
+def test_not_ready_phase_table_offers_no_start(self):
+    source = REPORT.replace("**Ready.**", "**Not ready.**").replace(
+        "Implement the approved scope now.", "Resume validation. Do not start dependent implementation.")
+    page, _, _ = render(source, self.modern_context())
+    self.assertIn("Waits for remediation", page)
+    self.assertNotIn("Can start", page)
+
+def test_saved_reports_keep_a_working_copy_button(self):
+    page, _, _ = render(REPORT, self.context)
+    self.assertIn('data-copy-target="handoff"', page)
+    self.assertIn('<pre id="handoff"', page)
 
 def test_phase_titles_cannot_inject_markup(self):
     source, context = self.two_phase()
@@ -315,7 +354,7 @@ git commit -m "Show the phase plan and a copy button for each phase prompt"
 
 - [ ] **Step 1: `SKILL.md`**
 
-Switch new reports to format version 3. Add the grouping rules from the spec's "Validator and report changes" section: every validated task in exactly one phase, in plan order, none split or moved; never cross a plan-defined phase or part; split a plan phase larger than about 5 tasks into consecutive sub-phases; keep small plan phases; a phase-less plan of 5 or fewer tasks is one phase; target 3–5 tasks; end where tests pass and the PR is reviewable alone; record docs-only, security review with reason, and ready/waiting with what it waits for; phases run in order and a waiting phase holds back later ones; partial approval makes the whole phase wait; a phase-only validation groups only the selected scope. State that the grouping lives only in the report and context, never in the plan file. Replace "the selected phase or whole validated scope" with one prompt per ready phase. Keep "Repository-specific workflow belongs in repository instructions" and add a pointer to the "Phased implementation" documentation page for the recommended workflow.
+Switch new reports to format version 3. Add the grouping rules from the spec's "Validator and report changes" section: every validated task in exactly one phase, in plan order, none split or moved; never cross a plan-defined phase or part; split a plan phase larger than about 5 tasks into consecutive sub-phases; keep small plan phases; a phase-less plan of 5 or fewer tasks is one phase; target 3–5 tasks; end where tests pass and the PR is reviewable alone; record docs-only, security review with reason, and ready/waiting with what it waits for; phases run in order and a waiting phase holds back later ones; partial approval makes the whole phase wait; if the first phase waits, section 8 holds one prompt that names what to resolve and says `Do not start dependent implementation.`; a phase-only validation groups only the selected scope. State that the grouping lives only in the report and context, never in the plan file. Replace "the selected phase or whole validated scope" with one prompt per ready phase. Keep "Repository-specific workflow belongs in repository instructions" and add a pointer to the "Phased implementation" documentation page for the recommended workflow, as the absolute URL `https://snowholt-labs.github.io/plan-validation/phased-implementation/` (a relative link would leave the shipped skill directory).
 
 - [ ] **Step 2: `handoff-template.md`**
 
@@ -329,20 +368,20 @@ Read `[SPEC path]`, `[report.md path]`, its context.json and repository instruct
 Do not ask to continue between steps. Stop only for required approvals or unfixable failures. Stop at the end of Phase [N] and print the Phase [N+1] prompt from the report; do not start it.
 ```
 
-Add the variants: Phase 1 drops "Phase [N-1] is merged and"; the last phase ends "Stop at the end of Phase [N]; it is the last phase."; the phase before a waiting phase ends "Stop at the end of Phase [N]. Phase [N+1] waits for [decision]; there is no prompt for it yet." Define expected changes between phases: earlier phases merged into the plan branch and ticked task checkboxes are not drift; any other plan, spec or approval change needs reconciliation first. Keep the Not ready and suggested-effort sections; one suggested-effort line covers all phases.
+Also replace the "For **Ready after approvals**" paragraph: phases run in order, so name the ready phases and the first waiting phase with its decision ID; when the first phase waits, section 8 holds one prompt with `Do not start dependent implementation.` Add the variants: Phase 1 drops "Phase [N-1] is merged and"; the last phase ends "Stop at the end of Phase [N]; it is the last phase."; the phase before a waiting phase ends "Stop at the end of Phase [N]. Phase [N+1] waits for [decision]; there is no prompt for it yet." Name only the decision ID there (for example `D1`), because a descriptive decision pushes this variant past 80 words. Define expected changes between phases: earlier phases merged into the plan branch and ticked task checkboxes are not drift; any other plan, spec or approval change needs reconciliation first. Tell the session how to check this: compare the plan and spec with `revised-plan.md` and `revised-spec.md` in the report's run directory (for example `diff`), and treat only `- [ ]` to `- [x]` changes as expected. Keep the Not ready and suggested-effort sections; one suggested-effort line covers all phases.
 
 - [ ] **Step 3: `report-contract.md` and `html-report.md`**
 
-Section 8 contract: the phase table (rendered from context), then one fenced prompt per ready phase in order, each within the word limit and naming its own stop; Not ready keeps one remediation prompt. In `html-report.md`: new reports use `format_version: 3`; add `task_inventory` and `phases` to the example context with the field rules from Task 1; list the new renderer checks (coverage and order, phase IDs, flag consistency, waiting order, prompt count, per-prompt stop sentence and word limit); list the `handoff-phase-<id>.txt` files. Keep the version 1 and 2 recovery text, stating that version 2 is now saved-report only.
+Section 8 contract: the phase table (rendered from context), then one fenced prompt per ready phase in order, each within the word limit and naming its own stop; Not ready keeps one remediation prompt. In `html-report.md`: new reports use `format_version: 3`; add `task_inventory` and `phases` to the example context with the field rules from Task 1; list the new renderer checks (coverage and order, phase IDs unique ignoring case, flag consistency, waiting order, prompt count, the single prompt when no phase can start, per-prompt stop sentence and word limit); list the `handoff-phase-<id>.txt` files and that a re-render replaces them. Keep the version 1 and 2 recovery text, stating that version 2 is now saved-report only.
 
 - [ ] **Step 4: `AGENTS.md`**
 
-Update the "Format versions" bullet: 1 legacy, 2 saved-report only, 3 current (adds the task inventory, phase grouping and one prompt per ready phase); new reports must use version 3.
+Update the "Report pipeline" bullet (version 3 adds the phase checks and writes `handoff-phase-<id>.txt` files beside `handoff.txt`) and the "Format versions" bullet: 1 legacy, 2 saved-report only, 3 current (adds the task inventory, phase grouping and one prompt per ready phase); new reports must use version 3.
 
 - [ ] **Step 5: Verify**
 
-Run: `python3 scripts/check_package.py && grep -rn "format version 2\|format_version: 2\|all validated phases" skills AGENTS.md`
-Expected: check passes; the grep shows only lines describing version 2 as saved-report only. Then confirm by hand that `SKILL.md` frontmatter still has `disable-model-invocation: true` and `skills/validate-plan/agents/openai.yaml` is unchanged (`git diff --stat`).
+Run: `python3 scripts/check_package.py && grep -rnE 'format version 2|format_version.{0,3}2\b|all validated phases' skills/validate-plan/SKILL.md skills/validate-plan/handoff-template.md skills/validate-plan/references AGENTS.md`
+Expected: check passes; the grep shows only lines describing version 2 as saved-report only (it covers `format_version: 2` and the JSON form `"format_version": 2`; the test file is excluded because its legacy fixtures keep version 2 on purpose). Then confirm by hand that `SKILL.md` frontmatter still has `disable-model-invocation: true` and `skills/validate-plan/agents/openai.yaml` is unchanged (`git diff --stat`). Check the changed skill text against `docs/evaluation.md` as `AGENTS.md` requires; its "Implementation handoff" case still expects a stop at "the scope end" and is updated in the spec's follow-up, so note that known gap in the PR body.
 
 - [ ] **Step 6: Commit**
 
@@ -356,7 +395,9 @@ git commit -m "Teach the validator to group tasks into phases with one prompt ea
 **Files:**
 - Create: `site/src/content/docs/phased-implementation.md`
 - Modify: `site/scripts/content-map.mjs` (`SIDEBAR`, "Learn" items)
+- Modify: `site/scripts/sync-content.test.mjs` (`the sidebar has four groups with the planned order` lists every slug)
 - Modify: `site/src/content/docs/reports-and-handoffs.md` ("What the renderer checks", "Freshness", "Starting implementation")
+- Modify: `README.md` (report item 8, which still says "naming one phase or the whole validated scope")
 
 - [ ] **Step 1: Write the page**
 
@@ -364,7 +405,7 @@ Front matter `title: Phased implementation`, `description: Run a validated plan 
 
 - [ ] **Step 2: Sidebar and cross-links**
 
-Add `{ label: 'Phased implementation', slug: 'phased-implementation' }` after "Reports and handoffs" in the "Learn" group. In `reports-and-handoffs.md`: new runs use version 3; describe the phase table, one prompt per ready phase, the stop sentence and the `handoff-phase-<id>.txt` files; link to the new page from "Starting implementation".
+Add `{ label: 'Phased implementation', slug: 'phased-implementation' }` after "Reports and handoffs" in the "Learn" group, and add `'phased-implementation'` after `'reports-and-handoffs'` in the expected slug list of `sync-content.test.mjs` (without it, `npm test` fails). In `reports-and-handoffs.md`: new runs use version 3; describe the phase table, one prompt per ready phase, the stop sentence and the `handoff-phase-<id>.txt` files; link to the new page from "Starting implementation". In `README.md`, change report item 8 to one prompt per ready phase that stops at the phase end.
 
 - [ ] **Step 3: Verify**
 
@@ -374,6 +415,6 @@ Expected: all pass; the built site includes `phased-implementation/`.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add site/src/content/docs/phased-implementation.md site/scripts/content-map.mjs site/src/content/docs/reports-and-handoffs.md
+git add site/src/content/docs/phased-implementation.md site/scripts/content-map.mjs site/scripts/sync-content.test.mjs site/src/content/docs/reports-and-handoffs.md README.md
 git commit -m "Document the phased implementation workflow"
 ```
