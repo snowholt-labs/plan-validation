@@ -396,9 +396,16 @@ def handoff_prompts(section, version, verdict, context):
             raise ValueError("Section 8 must contain one complete fenced handoff")
         if version >= 2 and word_count(prompt) > 80:
             raise ValueError("Fresh-session handoff must be at most 80 words; link to the plan, spec and report for details and wrap paths in backticks")
-        # "Phase 1.2", "Phase 1-b" and "Phase 12" are other phases; a sentence-ending period is not.
-        if ready and not re.search(rf"\bstop\s+at\s+the\s+end\s+of\s+phase\s+{re.escape(ready[index])}(?![A-Za-z0-9-]|\.[A-Za-z0-9])", prompt, re.I):
-            raise ValueError(f"Phase {ready[index]} prompt must say: Stop at the end of Phase {ready[index]}")
+        if version == 3 and len(re.findall(r"^ {0,3}`{3,}", prompt, re.M)) % 2:
+            raise ValueError("A phase prompt has an unbalanced inner code fence; use a longer outer fence")
+        if ready:
+            # Every stop sentence names this phase, unnegated. "Phase 1.2", "Phase 1-b" and
+            # "Phase 12" are other phases; a sentence-ending period is not.
+            own = re.compile(rf"{re.escape(ready[index])}(?![A-Za-z0-9-]|\.[A-Za-z0-9])", re.I)
+            stops = list(re.finditer(r"\bstop\s+at\s+the\s+end\s+of\s+phase\s+", prompt, re.I))
+            if not stops or any(not own.match(prompt, stop.end()) or re.search(r"(?:\bnot|n't|\bnever)\s+$", prompt[:stop.start()], re.I)
+                                for stop in stops):
+                raise ValueError(f"Phase {ready[index]} prompt must say: Stop at the end of Phase {ready[index]}")
     # Any "implement" instruction, except a negated one such as "Do not implement".
     implement = re.search(r"(?<!not )(?<!n't )(?<!never )\bimplement\b", prompts[0][2], re.I)
     # With no startable phase, a version 3 prompt is a remediation prompt even before Not ready.
@@ -500,7 +507,8 @@ def render(source, context):
                     content_html += (f'<h3>Phase {escape(phase_id)}: {inline(titles[phase_id])}</h3><div class="prompt-toolbar">' + toolbar
                                      + f'</div><pre id="{target}" tabindex="0">' + escape(prompt) + '</pre>')
             else:
-                action = "Copy implementation prompt" if verdict.lower().startswith("ready") else "Copy remediation prompt"
+                # In version 3 a single prompt is always a remediation prompt.
+                action = "Copy implementation prompt" if verdict.lower().startswith("ready") and version < 3 else "Copy remediation prompt"
                 toolbar = (f'<button id="copy-prompt" class="copy-prompt" type="button" data-copy-target="handoff">{action}</button>'
                            '<span id="copy-status" class="copy-status" role="status" aria-live="polite"></span>') if current else warning
                 content_html += '<div class="prompt-toolbar">' + toolbar + '</div><pre id="handoff" tabindex="0">' + escape(handoff) + '</pre>'

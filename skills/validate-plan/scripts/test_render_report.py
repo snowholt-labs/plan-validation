@@ -699,6 +699,29 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         self.assertNotIn("<script>alert", page)
         self.assertIn("&lt;img src=x", page)
 
+    def test_first_phase_waiting_offers_a_remediation_copy_button(self):
+        source, context = self.two_phase()
+        for phase in context["phases"]:
+            phase.update(status="waiting", waits_for="D1")
+        source = source.split("## 8.")[0].replace("**Ready.**", "**Ready after approvals.**") + (
+            "## 8. Fresh-session handoff\n```text\nRecord D1, then re-render the report. Do not start dependent implementation.\n```\n")
+        page, _, _ = render(source, context)
+        self.assertIn("Copy remediation prompt", page)
+        self.assertNotIn("Copy implementation prompt", page)
+
+    def test_mismatched_inner_fence_cannot_split_phase_prompts(self):
+        source, context = self.two_phase()
+        source = source.replace("do not start it.\n```", "do not start it.\n```bash\nnpm test\n```\nThen report results.\n```")
+        with self.assertRaisesRegex(ValueError, "fence"):
+            render(source, context)
+
+    def test_prompt_cannot_negate_or_move_its_stop(self):
+        source, context = self.two_phase()
+        for bad in ("Do not stop at the end of Phase 1 and", "Stop at the end of Phase 2. Stop at the end of Phase 1 and"):
+            with self.subTest(bad=bad):
+                with self.assertRaisesRegex(ValueError, "Phase 1"):
+                    render(source.replace("Stop at the end of Phase 1 and", bad), context)
+
 
 if __name__ == "__main__":
     unittest.main()
