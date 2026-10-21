@@ -365,6 +365,21 @@ def phase_plan(context, verdict):
     return phases
 
 
+def phase_table(phases, verdict):
+    def status(phase):
+        if phase["status"] == "waiting":
+            return "Waits for " + inline(phase["waits_for"])
+        # A remediation-only report never shows a phase as startable.
+        return "Waits for remediation" if verdict.lower() == "not ready" else "Can start"
+    rows = ''.join('<tr>' + ''.join(f'<td>{cell}</td>' for cell in (
+        escape(phase["id"]) + ': ' + inline(phase["title"]), escape(", ".join(phase["tasks"])),
+        "Docs only" if phase["docs_only"] else "Code",
+        "Yes — " + inline(phase["security_reason"]) if phase["security_review"] else "No",
+        status(phase))) + '</tr>' for phase in phases)
+    head = ''.join(f'<th scope="col">{title}</th>' for title in ("Phase", "Tasks", "Kind", "Security review", "Status"))
+    return f'<div class="table-scroll" role="region" aria-label="Phase plan" tabindex="0"><table><thead><tr>{head}</tr></thead><tbody>{rows}</tbody></table></div>'
+
+
 def handoff_prompts(section, version, verdict, context):
     """Return validated (start, end, text) prompt spans and their (phase_id, prompt) pairs."""
     prompts = [(start, end, section[body_start:body_end].rstrip("\n")) for start, end, body_start, body_end in fenced_blocks(section)]
@@ -469,14 +484,26 @@ def render(source, context):
         if index == 8:
             if version >= 2:
                 detail_marker(content, index)
-            start, end, _ = prompts[0]
-            intro = content[:start] + content[end:]
-            action = "Copy implementation prompt" if verdict.lower().startswith("ready") else "Copy remediation prompt"
-            if current:
-                toolbar = f'<button id="copy-prompt" type="button">{action}</button><span id="copy-status" role="status" aria-live="polite"></span>'
+            intro = content
+            for start, end, _ in reversed(prompts):
+                intro = intro[:start] + intro[end:]
+            warning = '<p class="warning">Document identity, Git state or approvals changed or could not be checked. This is a historical prompt. Revalidate the changed scope before using it.</p>'
+            content_html = markdown(intro)
+            if version == 3:
+                content_html += phase_table(context["phases"], verdict)
+            if pairs:
+                titles = {phase["id"]: phase["title"] for phase in context["phases"]}
+                for phase_id, prompt in pairs:
+                    target = escape("handoff-" + phase_id)
+                    toolbar = (f'<button class="copy-prompt" type="button" data-copy-target="{target}">Copy Phase {escape(phase_id)} prompt</button>'
+                               '<span class="copy-status" role="status" aria-live="polite"></span>') if current else warning
+                    content_html += (f'<h3>Phase {escape(phase_id)}: {inline(titles[phase_id])}</h3><div class="prompt-toolbar">' + toolbar
+                                     + f'</div><pre id="{target}" tabindex="0">' + escape(prompt) + '</pre>')
             else:
-                toolbar = '<p class="warning">Document identity, Git state or approvals changed or could not be checked. This is a historical prompt. Revalidate the changed scope before using it.</p>'
-            content_html = markdown(intro) + '<div class="prompt-toolbar">' + toolbar + '</div><pre id="handoff" tabindex="0">' + escape(handoff) + '</pre>'
+                action = "Copy implementation prompt" if verdict.lower().startswith("ready") else "Copy remediation prompt"
+                toolbar = (f'<button id="copy-prompt" class="copy-prompt" type="button" data-copy-target="handoff">{action}</button>'
+                           '<span id="copy-status" class="copy-status" role="status" aria-live="polite"></span>') if current else warning
+                content_html += '<div class="prompt-toolbar">' + toolbar + '</div><pre id="handoff" tabindex="0">' + escape(handoff) + '</pre>'
         else:
             content_html = section_content(content, index) if version >= 2 else markdown(content)
         body.append(f'<section id="section-{index}" aria-labelledby="heading-{index}"><div class="section-heading"><span>{index:02}</span><h2 id="heading-{index}">{inline(heading)}</h2></div>' + (scope_html if index == 5 else "") + content_html + '</section>')

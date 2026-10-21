@@ -646,6 +646,59 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(list(out.glob("handoff-phase-*.txt")), [])
 
+    def test_phase_table_lists_every_phase_with_its_flags(self):
+        source, context = self.two_phase()
+        context["phases"][1].update(docs_only=True)
+        context["phases"][0].update(security_review=True, security_reason="Renders untrusted text.")
+        page, _, _ = render(source, context)
+        start = page.index('aria-label="Phase plan"')
+        table = page[start:page.index("</table>", start)]
+        for text in ("Tasks", "Kind", "Security review", "Status", "Docs only", "Code", "Yes — Renders untrusted text.", "Can start"):
+            self.assertIn(text, table)
+        self.assertEqual(table.count("<tr>"), 3)
+
+    def test_every_copy_button_targets_an_existing_prompt(self):
+        source, context = self.two_phase()
+        page, _, _ = render(source, context)
+        targets = re.findall(r'data-copy-target="([^"]+)"', page)
+        self.assertEqual(targets, ["handoff-1", "handoff-2"])
+        for target in targets:
+            self.assertIn(f'<pre id="{target}"', page)
+        self.assertIn("Copy Phase 2 prompt", page)
+        self.assertNotIn("```text", page)
+
+    def test_historical_phase_report_offers_no_copy_button(self):
+        source, context = self.two_phase()
+        context["handoff_status"] = "historical"
+        page, _, _ = render(source, context)
+        # report.js is inlined and names the attribute, so look for markup only.
+        self.assertNotIn('data-copy-target="', page)
+        self.assertNotIn('href="handoff.txt"', page)
+        self.assertEqual(page.count("This is a historical prompt."), 2)
+
+    def test_not_ready_phase_table_offers_no_start(self):
+        source = REPORT.replace("**Ready.**", "**Not ready.**").replace(
+            "Implement the approved scope now.", "Resume validation. Do not start dependent implementation.")
+        page, _, _ = render(source, self.modern_context())
+        self.assertIn("Waits for remediation", page)
+        self.assertNotIn("Can start", page)
+        self.assertIn("Copy remediation prompt", page)
+
+    def test_saved_reports_keep_a_working_copy_button(self):
+        page, _, _ = render(REPORT, self.context)
+        self.assertIn('data-copy-target="handoff"', page)
+        self.assertIn('<pre id="handoff"', page)
+
+    def test_phase_titles_cannot_inject_markup(self):
+        source, context = self.two_phase()
+        context["phases"][0]["title"] = "<img src=x onerror=alert(1)>"
+        context["phases"][1].update(status="waiting", waits_for="<script>alert(2)</script>")
+        source = source.replace("**Ready.**", "**Ready after approvals.**").split("```text\nImplement Phase 2.")[0]
+        page, _, _ = render(source, context)
+        self.assertNotIn("<img src=x", page)
+        self.assertNotIn("<script>alert", page)
+        self.assertIn("&lt;img src=x", page)
+
 
 if __name__ == "__main__":
     unittest.main()
