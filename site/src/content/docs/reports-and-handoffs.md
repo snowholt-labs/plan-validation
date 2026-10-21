@@ -18,7 +18,7 @@ New reports begin with **Feature at a glance**: 3–7 plain-language blocks show
 | Changes | Phase/task/dependency counts, mappings, reasons, dependency/alternative comparisons and approval basis |
 | Open items | Decision IDs/answers, blockers, pending approvals, accepted limits and separate follow-ups |
 | Verification and checkout | Actual commands/results, tested revision and worktree cleanup |
-| Fresh-session handoff | A 50–80-word launch prompt referencing the complete saved evidence |
+| Fresh-session handoff | A phase table, then one 50–80-word launch prompt per ready phase referencing the complete saved evidence |
 
 Short summaries explain what changed and why it matters. Both full score tables, blockers, pending approvals and important limits stay visible. Supporting commands, hashes and detailed reasoning can sit under **Technical details**. Print/PDF includes the expanded evidence.
 
@@ -34,7 +34,7 @@ Existing readiness confidence estimates, when used, are subjective and supported
 
 ## What the renderer checks
 
-The renderer rejects missing sections, malformed score tables, incorrect averages, a Ready report without completed-review metadata, missing scope records and invalid remediation prompts. New format-version-2 reports also require the feature overview, a default-decision record and a handoff of at most 80 words. It compares the recorded SHA-256 values with both document files at render time.
+The renderer rejects missing sections, malformed score tables, incorrect averages, a Ready report without completed-review metadata, missing scope records and invalid remediation prompts. New reports use format version 3. They also require the feature overview, a default-decision record, and a phase grouping that covers every validated task once, in plan order. Section 8 needs one prompt of at most 80 words per ready phase, and each prompt must say `Stop at the end of Phase <id>` for its own phase. It compares the recorded SHA-256 values with both document files at render time.
 
 These checks validate the report contract. They do not verify the truth of an agent's recorded review, reconstruct Git approvals or rerun tests. A JSON field saying the review is complete is an assertion that must be backed by saved evidence.
 
@@ -44,11 +44,11 @@ Changed or unavailable documents disable the current prompt controls. The agent 
 
 On resumption, the skill rechecks the saved report, current paths, hashes, branch/base and approvals. It can regenerate missing HTML from saved evidence, clearly labeling this as recovery rather than a new validation.
 
-Older contexts without a format version still render through the legacy format. Updating the plugin does not rewrite existing reports, plans or specs. New runs use version 2.
+Older contexts without a format version still render through the legacy format. Updating the plugin does not rewrite existing reports, plans or specs. New runs use version 3; version 2 still renders saved reports.
 
 ## Starting implementation
 
-The launch prompt names your selected phase/tasks or the whole validated scope, with absolute plan/spec/report paths. The next agent reads the report and context.json to recover detailed evidence, decisions and permissions before starting. A phase review never authorizes other phases. The prompt tells the agent to continue through passing steps and reviews without asking, and to stop only for a required approval, a failure it cannot fix or the end of the scope. A line above the prompt suggests a reasoning effort with a reason; you choose the actual level in your host. Not ready reports supply a short blocker-resolution prompt instead.
+The report groups the validated tasks into small phases and shows them in a table: tasks, whether the phase is docs-only, whether it needs a security review, and whether it can start or waits for an approval. Each ready phase gets its own prompt with a copy button, naming that phase and its tasks with absolute plan/spec/report paths. The next agent reads the report and context.json to recover detailed evidence, decisions and permissions before starting. A phase review never authorizes other phases. The prompt tells the agent to continue through passing steps and reviews without asking, to stop only for a required approval or a failure it cannot fix, and to stop at the end of its phase and print the next phase's prompt without starting it. See [Phased implementation](/plan-validation/phased-implementation/) for the recommended workflow. A line above the prompt suggests a reasoning effort with a reason; you choose the actual level in your host. Not ready reports, and reports whose first phase waits for an approval, supply one short prompt that resolves the blocker instead.
 
 ## Rendering manually
 
@@ -61,4 +61,4 @@ python3 /path/to/validate-plan/scripts/render_report.py \
   --output /path/to/run/report.html
 ```
 
-Substitute real absolute paths. Use a dedicated private run directory. The helper writes `report.html`, its Markdown source and `handoff.txt`. No hosting or network service is needed. Do not publish a report merely because the renderer accepted it.
+Substitute real absolute paths. Use a dedicated private run directory. The helper writes `report.html`, its Markdown source, `handoff.txt` (the first prompt) and a `handoff-phase-<id>.txt` for each ready phase. A re-render deletes earlier phase files first. No hosting or network service is needed. Do not publish a report merely because the renderer accepted it.

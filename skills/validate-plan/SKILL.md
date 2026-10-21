@@ -44,13 +44,24 @@ Review the plan against the approved specification and current repository, rehea
 
 Read [references/report-contract.md](references/report-contract.md) for the rubric and eight required sections. Deliver both five-dimension comparison tables and their calculated averages, decision confidence with evidence, scope comparison, actual checks and limits, and the complete handoff. Include applicable dependency/alternative comparisons inside this report. Dependency decisions use High/Medium/Low with reasons and unknowns, never numeric trust scores. Existing document scores and subjective readiness estimates are not security guarantees or calibrated probabilities.
 
-For new reports, use format version 2: a “Feature at a glance” diagram with 3–7 plain-language blocks above the eight evidence sections, concise summaries with expandable technical details, and “Decisions made without your reply” at the end. Keep blockers, pending approvals and both full score tables visible. Target a 50–80-word launch prompt referencing the plan, spec and saved report; do not duplicate the evidence in it. Existing reports and plans are not migrated or reformatted merely because the plugin changed.
+For new reports, use format version 3: a “Feature at a glance” diagram with 3–7 plain-language blocks above the eight evidence sections, concise summaries with expandable technical details, “Decisions made without your reply” at the end, and the phase grouping below. Keep blockers, pending approvals and both full score tables visible. Target 50–80 words per launch prompt, referencing the plan, spec and saved report; do not duplicate the evidence in it. Existing reports and plans are not migrated or reformatted merely because the plugin changed.
 
 - **Ready:** no material blocker or unresolved approval for the named implementation scope, with the independent review completed.
 - **Ready after approvals:** only identified non-blocking approvals remain; dependent work waits.
 - **Not ready:** a blocker remains or required independent review/evidence is missing. Include a remediation prompt stating `Do not start dependent implementation.`
 
-Suggest, never set, a reasoning effort for the next session, as described in the template. Instantiate [handoff-template.md](handoff-template.md) with verified paths and the selected phase or whole validated scope. Keep revisions, checks, decisions and permissions in the referenced report/context. Never add commit, PR, comment, merge, deployment, dependency or service permissions. Repository-specific workflow belongs in repository instructions, not in the universal launch prompt.
+### Phase grouping
+
+Group the validated tasks into implementation phases so that each phase runs in its own fresh session. The grouping lives only in the report and `context.json` (`task_inventory` and `phases`); never add, rename or reorder phase headings or tasks in the plan file for it.
+
+- Put every validated task in exactly one phase, in plan order. Never split or move a task.
+- Never cross a phase or part the plan already defines, because a plan phase is also a PR boundary. Split a plan phase larger than about 5 tasks into consecutive sub-phases; keep small plan phases as they are, even with one task. A plan with no phases of its own and 5 or fewer tasks is one phase.
+- Target 3–5 tasks per phase. End each phase where the tests pass and its PR can be reviewed on its own.
+- Record for each phase whether it is docs-only, whether it needs a security review and why (auth, user input, secrets, dependencies, CI workflows), and whether it is ready or waits, naming what it waits for.
+- Phases run in order, so a waiting phase holds back every later phase. A phase whose tasks are only partly approved waits as a whole. If the first phase waits, no phase can start: section 8 holds one prompt that names what to resolve and says `Do not start dependent implementation.`
+- A phase-only validation groups only the selected scope.
+
+Suggest, never set, a reasoning effort for the next session, as described in the template. Instantiate [handoff-template.md](handoff-template.md) with verified paths: one prompt per ready phase, each naming its phase and tasks and stopping at that phase's end. Keep revisions, checks, decisions and permissions in the referenced report/context. Never add commit, PR, comment, merge, deployment, dependency or service permissions. Repository-specific workflow belongs in repository instructions, not in the universal launch prompt. The recommended per-phase workflow for repositories is published at https://snowholt-labs.github.io/plan-validation/phased-implementation/.
 
 Use `scripts/render_report.py` with the files described in [references/html-report.md](references/html-report.md). Inspect the output and exact `handoff.txt`. The renderer checks structure, arithmetic and document fingerprints; it does not prove that an agent review or command actually occurred.
 

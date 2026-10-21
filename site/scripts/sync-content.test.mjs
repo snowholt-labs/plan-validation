@@ -97,7 +97,7 @@ test('a relative link outside the repository fails', () => {
 test('the sidebar has four groups with the planned order', () => {
   assert.deepEqual(SIDEBAR.map((g) => g.label), ['Start', 'Learn', 'Trust', 'Project']);
   assert.deepEqual(SIDEBAR.flatMap((g) => g.items.map((i) => i.slug)), [
-    'index', 'get-started', 'first-run', 'features', 'examples', 'reports-and-handoffs',
+    'index', 'get-started', 'first-run', 'features', 'examples', 'reports-and-handoffs', 'phased-implementation',
     'security', 'safety-and-limitations', 'troubleshooting', 'changelog', 'contributing',
   ]);
 });
