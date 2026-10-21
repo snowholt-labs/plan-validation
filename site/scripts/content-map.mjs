@@ -67,6 +67,7 @@ export const SIDEBAR = [
       { label: 'Features', slug: 'features' },
       { label: 'Examples', slug: 'examples' },
       { label: 'Reports and handoffs', slug: 'reports-and-handoffs' },
+      { label: 'Phased implementation', slug: 'phased-implementation' },
     ],
   },
   {

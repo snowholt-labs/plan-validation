@@ -108,7 +108,7 @@ A self-contained HTML report, with no external scripts, fonts or analytics. A **
 5. Scope comparison, explained document changes and applicable dependency/alternative comparisons.
 6. Blockers, decisions, pending approvals and accepted limitations.
 7. Checks actually run, results, revisions and cleanup status.
-8. A short implementation or remediation prompt: target 50–80 words, naming one phase or the whole validated scope and referring to the plan, spec and saved evidence.
+8. A phase table and one short prompt per ready phase (or one remediation prompt): each targets 50–80 words, names one phase, stops at the end of that phase and refers to the plan, spec and saved evidence.
 
 Plain summaries keep the report easy to scan. Both complete score tables, blockers and important limits stay visible; detailed commands and supporting evidence can be expanded. **Decisions made without your reply** appears at the end with each routine default and its reason. Existing reports and planning documents are not reformatted by updating the plugin.
 
