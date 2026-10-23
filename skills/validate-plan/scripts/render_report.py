@@ -11,7 +11,10 @@ import base64
 import hashlib
 import html
 import json
+import os
 import re
+import sys
+import webbrowser
 from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
@@ -560,11 +563,48 @@ def render(source, context):
     return page, handoff, current
 
 
+def foreground(browser):
+    """Console browsers and unknown $BROWSER commands would run in the caller's terminal."""
+    if isinstance(browser, webbrowser.GenericBrowser):
+        return not isinstance(browser, webbrowser.BackgroundBrowser)
+    return isinstance(browser, webbrowser.UnixBrowser) and not browser.background
+
+
+def open_report(path):
+    """Start the default graphical browser on path without waiting; return (opened, reason)."""
+    if sys.platform not in ("darwin", "win32") and not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
+        return False, "no display"
+    try:
+        browser = webbrowser.get()
+        if foreground(browser):
+            return False, "no graphical browser"
+        uri = path.as_uri()
+        # A launched browser must not inherit our output, or a caller reading it waits for the browser to exit.
+        sys.stdout.flush()
+        sys.stderr.flush()
+        null = os.open(os.devnull, os.O_RDWR)
+        saved = []
+        try:
+            for fd in (0, 1, 2):
+                saved.append((fd, os.dup(fd)))
+                os.dup2(null, fd)
+            result = browser.open(uri, new=2)
+        finally:
+            for fd, copy in saved:
+                os.dup2(copy, fd)
+                os.close(copy)
+            os.close(null)
+    except Exception as error:  # Opening is best effort and must never fail a written report.
+        return False, str(error) or type(error).__name__
+    return bool(result), "" if result else "browser did not start"
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--report", required=True, type=Path)
     parser.add_argument("--context", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--open", action="store_true", help="open report.html in the default graphical browser")
     args = parser.parse_args()
     if args.output.name != "report.html":
         parser.error("Use a dedicated run directory with output named report.html")
@@ -587,7 +627,12 @@ def main():
             phase_files.append(str(path.resolve()))
     except (ValueError, KeyError, OSError, ArithmeticError) as error:
         parser.exit(1, f"Report not generated: {error}\n")
-    print(json.dumps({"html": str(args.output.resolve()), "handoff": str(args.output.with_name("handoff.txt").resolve()), "handoff_current": current, "phase_handoffs": phase_files}))
+    result = {"html": str(args.output.resolve()), "handoff": str(args.output.with_name("handoff.txt").resolve()), "handoff_current": current, "phase_handoffs": phase_files}
+    if args.open:
+        result["opened"], reason = open_report(args.output.resolve())
+        if not result["opened"]:
+            print(f"Browser not opened: {reason}", file=sys.stderr)
+    print(json.dumps(result))
 
 
 if __name__ == "__main__":
