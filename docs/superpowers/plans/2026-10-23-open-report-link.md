@@ -14,8 +14,9 @@
 
 - No new dependency. Use Python's standard `webbrowser` module only.
 - `--open` never makes rendering fail: files written, JSON printed, exit code 0.
-- Never launch a terminal browser (such as `lynx` or `w3m`) and never block waiting for a browser.
+- Never launch a terminal browser (such as `lynx` or `w3m`) on any platform, and never block waiting for a browser. A launched browser never inherits the renderer's stdin, stdout or stderr.
 - On non-macOS, non-Windows systems, skip opening when neither `DISPLAY` nor `WAYLAND_DISPLAY` is set.
+- Any exception while choosing or starting the browser (including `IndexError` or `ValueError` from `webbrowser.get()` for a malformed `$BROWSER`) becomes `opened: false`.
 - `opened` is `true` or `false` with `--open`, and absent without it. `true` means a launch was started, not that a window appeared.
 - CI, tests and `scripts/demo.py` never open a browser. No test launches a real browser.
 - No `CHANGELOG.md` entry in this PR.
@@ -23,7 +24,9 @@
 
 ## Review Focus
 
-- `$BROWSER` set to a console browser (for example `BROWSER=lynx`) on a desktop: expect no launch and `opened: false`, not a hijacked terminal. Test in Task 1.
+- `$BROWSER` set to a console browser (for example `BROWSER=lynx`) on a desktop, on Linux, macOS or Windows: expect no launch and `opened: false`, not a hijacked terminal. Test in Task 1.
+- Malformed `$BROWSER` (for example `BROWSER=" "` or `BROWSER='x "%s'`, which make `webbrowser.get()` raise `IndexError` or `ValueError`): expect a normal render, `opened: false` and one stderr line. Test in Task 1.
+- A background launcher (`xdg-open`, `gio`, `x-www-browser`) whose browser keeps running: a caller that captures the renderer's output through pipes must not wait for it. Test in Task 1.
 - Run directory path with spaces: expect a percent-encoded `file://` URI that opens the right file. Test in Task 1.
 - Opener raises (for example `webbrowser.Error` or `OSError`): expect a normal render, `opened: false` and one stderr line. Test in Task 1.
 - Rejected report with `--open`: expect exit 1 and no browser call. Test in Task 1.
@@ -36,7 +39,7 @@
 **Files:**
 - Modify: `skills/validate-plan/scripts/render_report.py` (imports at the top; new helper above `main()`; `main()` around lines 563–590)
 - Test: `skills/validate-plan/scripts/test_render_report.py`
-- Also commit: `docs/superpowers/specs/2026-10-23-open-report-link-design.md`, `docs/superpowers/plans/2026-10-23-open-report-link.md`
+- Also commit: the validated revisions of `docs/superpowers/specs/2026-10-23-open-report-link-design.md` and `docs/superpowers/plans/2026-10-23-open-report-link.md` (first committed in 5825ae3; validation left them modified)
 
 **Interfaces:**
 - Produces: `open_report(path: Path) -> tuple[bool, str]` in `render_report.py`. Returns `(True, "")` when a launch was started, otherwise `(False, reason)` with a short reason such as `"no display"`, `"no graphical browser"` or the exception text.
@@ -44,7 +47,7 @@
 
 - [ ] **Step 1: Write the failing tests**
 
-Add `import contextlib`, `import io`, `import os` and `from unittest import mock` to the test file, and import `open_report` and `render_report` itself (`import render_report`). Add a helper that runs `render_report.main()` in-process so the opener can be replaced:
+Add `import contextlib`, `import io`, `import os`, `import urllib.request`, `import webbrowser` and `from unittest import mock` to the test file, and import `open_report` and `render_report` itself (`import render_report`). `urllib.request` is imported up front because on Python 3.14 `Path.as_uri()` imports it lazily, and that import fails while a test patches `sys.platform` to `"darwin"` (`No module named '_scproxy'`). Add a helper that runs `render_report.main()` in-process so the opener can be replaced:
 
 ```python
 def run_main(self, directory, source, context, *extra):
@@ -79,8 +82,10 @@ def test_open_launches_browser_after_report_is_written(self):
     self.assertIs(json.loads(stdout)["opened"], True)
 
 def test_open_failure_still_renders(self):
-    # opener reports failure -> exit 0, opened False, one stderr line containing "Browser not opened"
-    ...
+    # two cases, each in its own run directory, with sys.platform "linux" and os.environ {"DISPLAY": ":0"}:
+    # (a) open_report patched to return (False, "no display");
+    # (b) the real open_report with webbrowser.get patched to raise IndexError("list index out of range")
+    # -> both: exit 0, opened False, exactly one stderr line containing "Browser not opened"
 
 def test_without_open_flag_no_browser_and_no_opened_key(self):
     # open_report patched with a mock -> mock not called; "opened" not in the JSON
@@ -99,15 +104,30 @@ def test_open_report_skips_without_display(self):
     get.assert_not_called()
 
 def test_open_report_refuses_console_browser(self):
-    # linux, DISPLAY=":0"; webbrowser.get returns webbrowser.GenericBrowser("lynx"), then webbrowser.Elinks("elinks")
-    # -> (False, ...) for both, and neither browser's open() is called (patch open() on each instance)
+    # for sys.platform in "linux", "darwin", "win32", with DISPLAY=":0":
+    # webbrowser.get returns webbrowser.GenericBrowser("lynx"), then webbrowser.Elinks("elinks")
+    # -> (False, "no graphical browser") every time, and no browser's open() is called (patch open() on each instance)
 
 def test_open_report_uses_percent_encoded_file_uri(self):
-    # linux, DISPLAY=":0"; webbrowser.get returns a mock that is a webbrowser.BackgroundBrowser instance
-    # path Path("/tmp/run dir/report.html") -> browser.open called once with "file:///tmp/run%20dir/report.html"; result (True, "")
+    # linux, DISPLAY=":0"; webbrowser.get returns mock.Mock(spec=webbrowser.BackgroundBrowser) whose open returns True
+    # path Path("/tmp/run dir/report.html") -> browser.open called once with ("file:///tmp/run%20dir/report.html", new=2); result (True, "")
 
 def test_open_report_returns_false_when_browser_raises(self):
-    # browser.open raises webbrowser.Error("boom") -> (False, reason) with "boom" in reason; no exception escapes
+    # three cases: browser.open raises webbrowser.Error("boom"); webbrowser.get raises ValueError("No closing quotation");
+    # webbrowser.get raises IndexError("list index out of range") -> (False, nonempty reason) each time; no exception escapes
+
+def test_open_report_hides_output_from_the_browser(self):
+    # linux, DISPLAY=":0"; the fake BackgroundBrowser's open records
+    # [os.path.samestat(os.fstat(fd), os.stat(os.devnull)) for fd in (0, 1, 2)] and returns True
+    # -> recorded [[True, True, True]]; result (True, ""); afterwards fd 1 is the same file as before the call
+
+@unittest.skipIf(sys.platform == "win32", "uses a POSIX shell as the stand-in browser")
+def test_open_does_not_keep_a_capturing_caller_waiting(self):
+    # write in.md/in.json from self.two_phase(); run, with subprocess.run(..., capture_output=True, timeout=5,
+    # env=dict(os.environ, DISPLAY=":0")), a child `sys.executable -c` that inserts this test's directory in sys.path,
+    # imports render_report, sets webbrowser.get = lambda: webbrowser.BackgroundBrowser(["sh", "-c", "sleep 10", "%s"])
+    # and calls render_report.main() with --report/--context/--output/--open
+    # -> returns before the timeout with exit 0 and opened True. No real browser: webbrowser.get is replaced in the child.
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -117,7 +137,14 @@ Expected: ERROR, `ImportError: cannot import name 'open_report'`.
 
 - [ ] **Step 3: Implement `open_report(path: Path) -> tuple[bool, str]` and the `--open` flag in `render_report.py`**
 
-- `open_report`: on `sys.platform` other than `darwin` and `win32`, return `(False, "no display")` when neither `DISPLAY` nor `WAYLAND_DISPLAY` is set. Get the browser with `webbrowser.get()`. On those same systems, accept the browser only when `isinstance(browser, webbrowser.BackgroundBrowser) or getattr(browser, "background", False)`; otherwise return `(False, "no graphical browser")`. Plain `GenericBrowser` (console browsers such as `lynx` and unknown `$BROWSER` commands) and `Elinks` run in the foreground and block, while `xdg-open` is a `BackgroundBrowser` and Chrome or Firefox set `background = True`. On macOS and Windows, use the browser as returned. Otherwise call `browser.open(path.as_uri(), new=2)` and return `(bool(result), "" if result else "browser did not start")`. Catch `webbrowser.Error` and `OSError` and return `(False, str(error))`.
+- `open_report`: on `sys.platform` other than `darwin` and `win32`, return `(False, "no display")` when neither `DISPLAY` nor `WAYLAND_DISPLAY` is set. Everything after that runs inside one `try`:
+  - Get the browser with `webbrowser.get()`.
+  - On every platform, refuse a foreground browser with `(False, "no graphical browser")`: a `webbrowser.GenericBrowser` that is not a `webbrowser.BackgroundBrowser`, or a `webbrowser.UnixBrowser` whose `background` is false. Plain `GenericBrowser` (console browsers such as `lynx`, unknown `$BROWSER` commands) and `Elinks` run in the caller's terminal and block. `xdg-open`, `gio` and `x-www-browser` are `BackgroundBrowser`; Chrome, Firefox and the other graphical `UnixBrowser` classes set `background = True`; the macOS, Windows and Konqueror defaults are none of these classes and are accepted. These class relations are the same on Python 3.10 through 3.14.
+  - Compute `path.as_uri()` only after the browser is accepted.
+  - Flush `sys.stdout` and `sys.stderr`, point fds 0, 1 and 2 at `os.devnull` opened with `os.O_RDWR` (`os.dup` to save, `os.dup2` to swap), call `browser.open(uri, new=2)`, and restore the three fds and close the copies in `finally`. Swapping fd 0 keeps a console program started as a background command (for example `BROWSER="lynx %s &"`, which `webbrowser.get()` returns as a `BackgroundBrowser`) from reading the agent's terminal. `BackgroundBrowser` does not redirect its child's output, so without this a browser started by `xdg-open` keeps the renderer's stdout and stderr open, and a caller that captures them (`$(...)`, a pipe, `subprocess.run(capture_output=True)`) waits until that browser exits.
+  - Return `(bool(result), "" if result else "browser did not start")`.
+  - Catch `Exception` and return `(False, str(error) or type(error).__name__)`. `webbrowser.get()` raises `IndexError` for `BROWSER=" "` and `ValueError` for `BROWSER='x "%s'`, not only `webbrowser.Error`.
+  - Known bound, not a defect: for Chrome, Firefox and similar classes, `webbrowser` waits up to 5 seconds for the remote-control call when no instance is running. Their output already goes to `/dev/null`.
 - `main()`: add `parser.add_argument("--open", action="store_true", help="open report.html in the default graphical browser")`. After the `try` block succeeds, build the existing JSON dict; when `args.open`, call `open_report(args.output.resolve())`, set `"opened"`, and when not opened print `Browser not opened: <reason>` to `sys.stderr`. Call `open_report` through the module name lookup (a plain call inside `main()` does this), so the test patch takes effect.
 
 - [ ] **Step 4: Run the full suite and the package checks**
@@ -152,7 +179,7 @@ git commit -m "Add an opt-in --open flag that opens the rendered report in the b
 
 - [ ] **Step 1: Update the render command and Delivery text in `html-report.md`**
 
-Append `--open` to the command on line 49. In Delivery, add: new reports are rendered with `--open`; keep the clickable absolute link to `report.html`; when the renderer prints `"opened": false`, do not say the report was opened.
+Append `--open` to the command on line 49, and add one sentence under the command block: leave out `--open` when re-rendering a saved report unless the user asked to see it again. In Delivery, add: new reports are rendered with `--open`; keep the clickable absolute link to `report.html`; when the renderer prints `"opened": false`, do not say the report was opened.
 
 - [ ] **Step 2: Update `SKILL.md`**
 
@@ -160,7 +187,7 @@ In the Return paragraph, after the link requirement, add one sentence: render ne
 
 - [ ] **Step 3: Update `reports-and-handoffs.md`**
 
-Add `  --output /path/to/run/report.html \` then `  --open` to the example command. After "No hosting or network service is needed.", add: "With `--open`, the helper also opens the report in your default browser when a desktop is available; otherwise use the `report.html` link."
+In the example command, replace the last line `  --output /path/to/run/report.html` with `  --output /path/to/run/report.html \` and add a final line `  --open`. After "No hosting or network service is needed.", add: "With `--open`, the helper also opens the report in your default browser when a desktop is available; otherwise use the `report.html` link."
 
 - [ ] **Step 4: Add the evaluation case to `docs/evaluation.md`**
 
@@ -190,4 +217,4 @@ git commit -m "Render new reports with --open and document browser opening"
 
 ## After the tasks
 
-Run `/code-review` and `/security-review` on `main..feature/open-report-link`, fix confirmed findings, then open one PR into `main` (label `enhancement`, template sections, no milestone). Wait for the `verify` check, post one review-summary comment, and ask the maintainer before merging with a merge commit. After merge, the maintainer runs one validation in Claude Code and confirms the report opens in Chrome.
+Run `git fetch origin`, then `/code-review` and `/security-review` on `origin/main..feature/open-report-link` (local `main` may lag `origin/main`; on 2026-10-23 it was at 619ddbd, behind `origin/main` 77520ab), fix confirmed findings, then open one PR into `main` (label `enhancement`, template sections, no milestone). Wait for the `verify` check, post one review-summary comment, and ask the maintainer before merging with a merge commit. After merge, the maintainer runs one validation in Claude Code and confirms the report opens in Chrome.

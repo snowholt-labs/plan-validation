@@ -43,8 +43,9 @@ These would make the change a failure even if a browser opens:
 - `--open`:
   - Runs only after a successful render. A rejected report opens nothing.
   - Opens the `file://` URI of the absolute `report.html` path (`Path.as_uri()`, which percent-encodes spaces).
-  - Uses a graphical browser only. On Linux and other non-macOS, non-Windows systems, skip opening when neither `DISPLAY` nor `WAYLAND_DISPLAY` is set (for example over SSH or in a sandbox), and never fall back to a console browser. How to enforce this inside `webbrowser` is left to the builder.
-  - Does not wait for the browser.
+  - Uses a graphical browser only, and never falls back to a console browser on any platform (a `$BROWSER` such as `lynx` is refused on macOS and Windows too). On Linux and other non-macOS, non-Windows systems, also skip opening when neither `DISPLAY` nor `WAYLAND_DISPLAY` is set (for example over SSH or in a sandbox). How to enforce this inside `webbrowser` is left to the builder.
+  - Does not wait for the browser to exit. The launched browser does not inherit the renderer's stdin, stdout or stderr, so a caller that captures the output never waits for the browser and the JSON output stays clean. (`webbrowser` itself may wait up to 5 seconds for a Chrome or Firefox remote-control call.)
+  - Any error while choosing or starting the browser, including an invalid `$BROWSER` value, counts as not opened.
   - Adds `"opened": true` or `"opened": false` to the JSON output. `true` means a browser launch was started; `webbrowser` cannot confirm that a window appeared. Without `--open`, `opened` is absent.
   - If opening is skipped or fails, prints one short note to stderr (for example `Browser not opened: no display`) and still exits 0.
 
@@ -64,8 +65,10 @@ These would make the change a failure even if a browser opens:
 In `skills/validate-plan/scripts/test_render_report.py`. Each test replaces the browser opener; none launches a real browser.
 
 - With `--open`, the opener is called once with the `file://` URI of `report.html`, and only after `report.html` exists; `opened` is true. Use a run directory name with a space.
-- With `--open` and an opener that returns false or raises, the render still succeeds, `opened` is false and the note goes to stderr.
+- With `--open` and an opener that returns false or raises (including `webbrowser.get()` raising for a malformed `$BROWSER`), the render still succeeds, `opened` is false and the note goes to stderr.
 - With `--open` on Linux and no display variables, the opener is not called and `opened` is false.
+- A console browser (`lynx` as a plain command, or `Elinks`) is refused on Linux, macOS and Windows without being called.
+- A background launcher that keeps running does not hold the renderer's stdout or stderr: a caller capturing the output through pipes returns promptly. Use a stand-in process such as `sleep`, never a real browser.
 - Without `--open`, the opener is not called and `opened` is absent.
 - A rejected report with `--open` calls no opener.
 
@@ -84,6 +87,6 @@ CI (`unittest`, `check_package.py`, `demo.py`) keeps passing without opening any
 
 ## Left to the builder
 
-- How to restrict `webbrowser` to graphical browsers and keep it non-blocking.
+- How to code the graphical-browser and non-blocking rules in Behavior above (which classes are refused and which fds are redirected are fixed there and in the plan).
 - The exact wording of the stderr note and the skill sentences, within the rules above.
 - Test structure and helper names, following the existing test file.

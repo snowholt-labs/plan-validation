@@ -1,17 +1,24 @@
 """Contract, arithmetic, provenance and injection regressions for HTML delivery."""
 
 import base64
+import contextlib
 import copy
 import hashlib
+import io
 import json
+import os
 import re
 import subprocess
 import sys
 import tempfile
 import unittest
+import urllib.request  # noqa: F401  Path.as_uri imports it lazily; keep platform patches from breaking that import.
+import webbrowser
 from pathlib import Path
+from unittest import mock
 
-from render_report import ASSETS, HISTORICAL_PREFIX, cells, phase_handoffs, phase_plan, render
+import render_report
+from render_report import ASSETS, HISTORICAL_PREFIX, cells, open_report, phase_handoffs, phase_plan, render
 
 
 REPORT = """# Example validation
@@ -747,6 +754,123 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         source, context = self.two_phase()
         source = source.replace("Implement Phase 2.", "Implement Phase 2.\n```npm test``` must pass.")
         self.assertEqual(len(phase_handoffs(source, context)), 2)
+
+    def run_main(self, directory, source, context, *extra):
+        (directory / "in.md").write_text(source, encoding="utf-8")
+        (directory / "in.json").write_text(json.dumps(context), encoding="utf-8")
+        argv = ["render_report.py", "--report", str(directory / "in.md"), "--context", str(directory / "in.json"),
+                "--output", str(directory / "report.html"), *extra]
+        out, err, code = io.StringIO(), io.StringIO(), 0
+        with mock.patch.object(sys, "argv", argv), contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            try:
+                render_report.main()
+            except SystemExit as exit_:
+                code = exit_.code or 0
+        return code, out.getvalue(), err.getvalue()
+
+    def test_open_launches_browser_after_report_is_written(self):
+        out = Path(self.directory.name) / "run dir"
+        out.mkdir()
+        calls = []
+        def fake_open(path):
+            calls.append(path)
+            self.assertTrue((out / "report.html").is_file())
+            return True, ""
+        with mock.patch.object(render_report, "open_report", fake_open):
+            code, stdout, _ = self.run_main(out, *self.two_phase(), "--open")
+        self.assertEqual(code, 0)
+        self.assertEqual(calls, [(out / "report.html").resolve()])
+        self.assertIs(json.loads(stdout)["opened"], True)
+
+    def test_open_failure_still_renders(self):
+        for outcome in ((False, "no display"), IndexError("list index out of range")):
+            out = Path(self.directory.name) / type(outcome).__name__
+            out.mkdir()
+            if isinstance(outcome, tuple):
+                patch = mock.patch.object(render_report, "open_report", return_value=outcome)
+            else:  # webbrowser.get() itself raises for a malformed $BROWSER
+                patch = mock.patch("webbrowser.get", side_effect=outcome)
+            with patch, mock.patch.object(sys, "platform", "linux"), mock.patch.dict(os.environ, {"DISPLAY": ":0"}, clear=True):
+                code, stdout, stderr = self.run_main(out, *self.two_phase(), "--open")
+            self.assertEqual(code, 0)
+            self.assertIs(json.loads(stdout)["opened"], False)
+            self.assertEqual(len(stderr.strip().splitlines()), 1)
+            self.assertIn("Browser not opened", stderr)
+
+    def test_without_open_flag_no_browser_and_no_opened_key(self):
+        with mock.patch.object(render_report, "open_report") as opener:
+            code, stdout, _ = self.run_main(Path(self.directory.name), *self.two_phase())
+        self.assertEqual(code, 0)
+        opener.assert_not_called()
+        self.assertNotIn("opened", json.loads(stdout))
+
+    def test_rejected_report_with_open_calls_no_browser(self):
+        source, context = self.two_phase()
+        with mock.patch.object(render_report, "open_report") as opener:
+            code, _, _ = self.run_main(Path(self.directory.name), source.replace("**Ready.**", "**Maybe.**"), context, "--open")
+        self.assertEqual(code, 1)
+        opener.assert_not_called()
+
+    def test_open_report_skips_without_display(self):
+        with mock.patch.object(sys, "platform", "linux"), mock.patch.dict(os.environ, {}, clear=True), \
+             mock.patch("webbrowser.get") as get:
+            self.assertEqual(open_report(Path("/tmp/x/report.html"))[0], False)
+        get.assert_not_called()
+
+    def test_open_report_refuses_console_browser(self):
+        for platform in ("linux", "darwin", "win32"):
+            for browser in (webbrowser.GenericBrowser("lynx"), webbrowser.Elinks("elinks")):
+                with mock.patch.object(sys, "platform", platform), mock.patch.dict(os.environ, {"DISPLAY": ":0"}, clear=True), \
+                     mock.patch("webbrowser.get", return_value=browser), mock.patch.object(browser, "open") as launch:
+                    self.assertEqual(open_report(Path("/tmp/x/report.html")), (False, "no graphical browser"))
+                launch.assert_not_called()
+
+    def test_open_report_uses_percent_encoded_file_uri(self):
+        browser = mock.Mock(spec=webbrowser.BackgroundBrowser)
+        browser.open.return_value = True
+        with mock.patch.object(sys, "platform", "linux"), mock.patch.dict(os.environ, {"DISPLAY": ":0"}, clear=True), \
+             mock.patch("webbrowser.get", return_value=browser):
+            self.assertEqual(open_report(Path("/tmp/run dir/report.html")), (True, ""))
+        browser.open.assert_called_once_with("file:///tmp/run%20dir/report.html", new=2)
+
+    def test_open_report_returns_false_when_browser_raises(self):
+        browser = mock.Mock(spec=webbrowser.BackgroundBrowser)
+        browser.open.side_effect = webbrowser.Error("boom")
+        for get in (mock.patch("webbrowser.get", return_value=browser), mock.patch("webbrowser.get", side_effect=ValueError("No closing quotation")),
+                    mock.patch("webbrowser.get", side_effect=IndexError("list index out of range"))):
+            with mock.patch.object(sys, "platform", "linux"), mock.patch.dict(os.environ, {"DISPLAY": ":0"}, clear=True), get:
+                opened, reason = open_report(Path("/tmp/x/report.html"))
+            self.assertIs(opened, False)
+            self.assertTrue(reason)
+
+    def test_open_report_hides_output_from_the_browser(self):
+        devnull = os.stat(os.devnull)
+        before = os.fstat(1)
+        seen = []
+        browser = mock.Mock(spec=webbrowser.BackgroundBrowser)
+        browser.open.side_effect = lambda *args, **kwargs: seen.append([os.path.samestat(os.fstat(fd), devnull) for fd in (0, 1, 2)]) or True
+        with mock.patch.object(sys, "platform", "linux"), mock.patch.dict(os.environ, {"DISPLAY": ":0"}, clear=True), \
+             mock.patch("webbrowser.get", return_value=browser):
+            self.assertEqual(open_report(Path("/tmp/x/report.html")), (True, ""))
+        self.assertEqual(seen, [[True, True, True]])
+        self.assertTrue(os.path.samestat(os.fstat(1), before))
+
+    @unittest.skipIf(sys.platform == "win32", "uses a POSIX shell as the stand-in browser")
+    def test_open_does_not_keep_a_capturing_caller_waiting(self):
+        # A background "browser" that outlives the renderer must not hold its output pipes open.
+        directory = Path(self.directory.name)
+        source, context = self.two_phase()
+        (directory / "in.md").write_text(source, encoding="utf-8")
+        (directory / "in.json").write_text(json.dumps(context), encoding="utf-8")
+        # The stand-in replaces webbrowser.get() inside the child, so no real browser can start.
+        child = (f"import sys, webbrowser; sys.path.insert(0, {str(Path(__file__).parent)!r}); import render_report; "
+                 "webbrowser.get = lambda: webbrowser.BackgroundBrowser(['sh', '-c', 'sleep 10', '%s']); "
+                 "render_report.main()")
+        argv = ["--report", str(directory / "in.md"), "--context", str(directory / "in.json"), "--output", str(directory / "report.html"), "--open"]
+        result = subprocess.run([sys.executable, "-c", child, *argv], capture_output=True, text=True,
+                                env=dict(os.environ, DISPLAY=":0"), timeout=5)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIs(json.loads(result.stdout)["opened"], True)
 
 
 if __name__ == "__main__":
