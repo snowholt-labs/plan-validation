@@ -46,8 +46,10 @@ After validation, save:
 Run the helper from **this skill's** directory (substitute absolute paths):
 
 ```bash
-python3 <skill-directory>/scripts/render_report.py --report <run-directory>/report.md --context <run-directory>/context.json --output <run-directory>/report.html
+python3 <skill-directory>/scripts/render_report.py --report <run-directory>/report.md --context <run-directory>/context.json --output <run-directory>/report.html --open
 ```
+
+Leave out `--open` when re-rendering a saved report unless the user asked to see it again.
 
 The helper uses only Python's standard library. Versions 2 and 3 add a local HTML/CSS
 block diagram above the eight evidence sections, optional expandable technical
@@ -173,7 +175,9 @@ the report, and that the copied prompt references their complete saved record.
 Check that each copied prompt matches `handoff.txt` or its `handoff-phase-<id>.txt`. Provide a clickable absolute link
 to `report.html`; a short local preview URL may accompany it. If serving locally,
 bind to `127.0.0.1`, serve only this report directory, and keep that preview alive.
-No dependency install or external hosting is needed.
+No dependency install or external hosting is needed. Render new reports with `--open`;
+keep the clickable absolute link to `report.html` either way, and when the renderer
+prints `"opened": false`, do not say the report was opened.
 
 The final response and any later completed-run reminder must contain the actual
 report link. A path to a Markdown scratchpad or "see my earlier prompt" is not
