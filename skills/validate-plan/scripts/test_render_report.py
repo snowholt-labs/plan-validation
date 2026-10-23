@@ -828,10 +828,13 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
     def test_open_report_uses_percent_encoded_file_uri(self):
         browser = mock.Mock(spec=webbrowser.BackgroundBrowser)
         browser.open.return_value = True
+        path = Path(self.directory.name).resolve() / "run dir" / "report.html"
         with mock.patch.object(sys, "platform", "linux"), mock.patch.dict(os.environ, {"DISPLAY": ":0"}, clear=True), \
              mock.patch("webbrowser.get", return_value=browser):
-            self.assertEqual(open_report(Path("/tmp/run dir/report.html")), (True, ""))
-        browser.open.assert_called_once_with("file:///tmp/run%20dir/report.html", new=2)
+            self.assertEqual(open_report(path), (True, ""))
+        browser.open.assert_called_once_with(path.as_uri(), new=2)
+        self.assertTrue(path.as_uri().startswith("file:///"))
+        self.assertTrue(path.as_uri().endswith("/run%20dir/report.html"))
 
     def test_open_report_returns_false_when_browser_raises(self):
         browser = mock.Mock(spec=webbrowser.BackgroundBrowser)
@@ -839,9 +842,10 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         for get in (mock.patch("webbrowser.get", return_value=browser), mock.patch("webbrowser.get", side_effect=ValueError("No closing quotation")),
                     mock.patch("webbrowser.get", side_effect=IndexError("list index out of range"))):
             with mock.patch.object(sys, "platform", "linux"), mock.patch.dict(os.environ, {"DISPLAY": ":0"}, clear=True), get:
-                opened, reason = open_report(Path("/tmp/x/report.html"))
+                opened, reason = open_report(Path(self.directory.name).resolve() / "report.html")
             self.assertIs(opened, False)
             self.assertTrue(reason)
+        self.assertEqual(browser.open.call_count, 1)
 
     def test_open_report_hides_output_from_the_browser(self):
         devnull = os.stat(os.devnull)
@@ -851,7 +855,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         browser.open.side_effect = lambda *args, **kwargs: seen.append([os.path.samestat(os.fstat(fd), devnull) for fd in (0, 1, 2)]) or True
         with mock.patch.object(sys, "platform", "linux"), mock.patch.dict(os.environ, {"DISPLAY": ":0"}, clear=True), \
              mock.patch("webbrowser.get", return_value=browser):
-            self.assertEqual(open_report(Path("/tmp/x/report.html")), (True, ""))
+            self.assertEqual(open_report(Path(self.directory.name).resolve() / "report.html"), (True, ""))
         self.assertEqual(seen, [[True, True, True]])
         self.assertTrue(os.path.samestat(os.fstat(1), before))
 
