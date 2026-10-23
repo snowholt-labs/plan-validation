@@ -39,33 +39,36 @@ If Claude Code is installed, also run `claude plugin validate .` and `claude plu
 - Skill text is behavioral contract: changes to permissions, research approval, evidence labels or report semantics affect agent behavior. Check them against `docs/evaluation.md`. Renderer tests do not validate agent behavior.
 - For renderer or `report.js` changes, add a regression for the observable failure. Do not test wording for its own sake.
 - Do not add runtime dependencies without maintainer agreement.
-- User documentation lives in `site/src/content/docs/` and is published as the documentation site. `docs/` still holds `evaluation.md` and `verification.md`. Root files (`CHANGELOG.md`, `SECURITY.md`, `CONTRIBUTING.md`, `examples/README.md`, `examples/safety-cases.md`) are synced into the site at build time; edit them at the root, not in the synced copies. `dist/`, `publication-notes/`, `superpowers-comparison/` and `2026-10-14-superpowers-validate-plan-research/` are gitignored local material, not part of the package.
+- User documentation lives in `site/src/content/docs/` and is published as the documentation site. `docs/` still holds `evaluation.md` and `verification.md`. Root files (`CHANGELOG.md`, `SECURITY.md`, `CONTRIBUTING.md`, `examples/README.md`, `examples/safety-cases.md`) are synced into the site at build time; edit them at the root, not in the synced copies. `dist/` and other gitignored folders are local material, not part of the package.
 
 ## Git workflow
 
-- Never push directly to `main`. Every change goes through a branch and a pull request.
+These rules override an agent's own or global instructions for this repo: use this repo's template, labels and merge methods, and add no extra PR sections, labels or tracking issues.
+
+- `main` and `plan/**` require a PR and the `verify` check. Other branches are not protected.
 - Every PR into `main` is merged with a merge commit, never squash. Only phase PRs into a plan branch are squash merged.
-- Ask the maintainer before any merge. Confirm CI passed on the PR head (`gh pr checks <number>`) before asking. GitHub requires a PR and the `verify` check for `main` and `plan/**` branches; other branches are not protected.
-- "Code and security review" below means a code review and a security review of the PR diff, with findings fixed or explicitly accepted. In Claude Code, run `/code-review` and `/security-review`; in other hosts, use an equivalent independent review.
-- Docs-only PRs need CI but no code or security review; the maintainer still approves the merge. A PR is docs-only when it changes only `site/src/content/docs/`, `README.md`, the root files synced into the site, or plan and spec documents under `docs/superpowers/`. Changes to `AGENTS.md`, `CLAUDE.md`, `docs/evaluation.md`, `SECURITY.md`, skill text, scripts, assets, site code or dependencies, or CI are not docs-only.
+- Ask the maintainer before any merge, and confirm CI passed on the PR head (`gh pr checks <number>`) first.
+- Code and security review means a code review and a security review of the PR diff, with findings fixed or explicitly accepted (in Claude Code, `/code-review` and `/security-review`; in other hosts, an equivalent independent review).
+- Docs-only PRs need CI but no code or security review. A PR is docs-only when it changes only `site/src/content/docs/`, `README.md`, the root files synced into the site, or plan and spec documents under `docs/superpowers/`. Changes to `AGENTS.md`, `CLAUDE.md`, `docs/evaluation.md`, `SECURITY.md`, skill text, scripts, assets, site code or dependencies, or CI are not docs-only.
 
 ### Plan work
 
-1. Create a plan branch from `main` named `plan/<topic>` (the protection rule matches only this prefix), and a GitHub milestone named after the plan.
-2. Implement each phase in its own fresh session, on its own branch from the plan branch. Start a phase only after the previous phase is merged into the plan branch; confirm this first and stop if it is not. Merged earlier phases and ticked task checkboxes are expected; reconcile any other plan, spec or approval change with the validation report first. Helper agents build the tasks and run the reviews; the main session coordinates and keeps only short results.
-3. Unless the report marks the phase docs-only, review the branch before opening the PR. Run a code review and fix the findings; repeat while a round finds bugs, security issues or failing tests, and stop when only minor items remain (style, naming, nitpicks). Record those as action points for the final review, in the PR summary comment and in the progress file when one exists (for example `.superpowers/sdd/<plan>/progress.md` in the main checkout; never commit it). After 5 rounds with real problems left, do not open the PR; ask the maintainer.
-4. Run a security review before opening the PR only when the validation report flags the phase as security-sensitive (authentication, user input, secrets, dependencies, CI workflows).
-5. Open the PR into the plan branch, wait for CI to pass (fix failures before going on), and post a short review summary with the action points as a PR comment. Then stop and print the next phase's prompt from the report; the maintainer squash merges the phase PR and starts the next phase.
-6. When all phases are merged, open a PR from the plan branch into `main`. Run a full code and security review on the whole diff to catch cross-phase issues, and resolve the action points saved in the phase PR comments. After CI passes, merge with a merge commit (not squash), so each phase stays visible in history.
+This repo follows the per-phase workflow published in `site/src/content/docs/phased-implementation.md`:
+
+- A plan uses a `plan/<topic>` branch (the protection rule matches only this prefix) and a milestone named after the plan. Implement each phase in its own fresh session, on its own branch with a PR into the plan branch. Start a phase only after the previous one is merged into the plan branch; confirm this first and stop if it is not. Merged earlier phases and ticked task checkboxes are expected; reconcile any other plan, spec or approval change with the validation report first.
+- Phase review, before opening the PR (unless the report marks the phase docs-only): repeat the code review while a round finds bugs, security issues or failing tests; stop when only minor items remain and list them as action points in a PR comment. After 5 rounds with real problems left, do not open the PR; ask the maintainer.
+- Run a security review on a phase only when the validation report flags it as security-sensitive (authentication, user input, secrets, dependencies, CI workflows).
+- Open the PR, wait for CI to pass (fix failures before going on), post the review comment, then stop and print the next phase's prompt from the report. The maintainer merges and starts the next phase.
+- The plan-to-`main` PR gets a full code and security review of the whole diff, which also resolves the saved action points.
 
 ### Other changes
 
-Use a short-lived branch and a PR into `main`. Merge with a merge commit (not squash) after CI and code and security review pass (CI only for docs-only PRs).
+Use a short-lived branch and a PR into `main`. Merge with a merge commit (not squash) after CI and code and security review (CI only for docs-only PRs).
 
 ### Releases
 
 1. Open a dedicated release PR, for example from `release/vX.Y.Z`. It contains only release changes: the version bump in `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` and `.codex-plugin/plugin.json`, the `CHANGELOG.md` entry, and docs that name the release (such as the tag in `site/src/content/docs/get-started.md` and the release checks in `docs/verification.md`).
-2. Merge with a merge commit (not squash) after CI and code and security review pass.
+2. Merge it with a merge commit after CI and code and security review.
 3. Tag `vX.Y.Z` on the merged `main` commit, then publish the GitHub release.
 
 ### Pull request metadata
