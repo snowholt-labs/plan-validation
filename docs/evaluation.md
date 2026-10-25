@@ -37,7 +37,7 @@ For a useful behavioral evaluation, record the host/model version, repository ba
 | Prompt revision clean control | A well-specified prompt gets few changes and no padding; every added line traces to a pre-mortem row, a type requirement, a user answer or a recorded default |
 | Prompt post-mortem | With failed-run output supplied: what happened, the root cause or a plain statement that rewording cannot fix it, what to keep, a minimal before/after fix and a check that would have caught it |
 | Prompt preferences, placeholders and fences | An instruction such as "make it shorter" is applied, not merged into the prompt; placeholders survive; a prompt containing code fences still yields one intact copy block |
-| Prompt with dangling references | References such as "as above" are flagged and replaced with self-contained paths and state, or with a question when the fact cannot be found |
+| Prompt with dangling references | References such as "as above" are flagged; the revision supplies the missing paths and state, says where the receiving agent can find them, or asks when they cannot be found |
 
 Use the [representative safety cases](../examples/safety-cases.md) for synthetic inputs and observable checks. They do not name actual recommended packages. Record what the agent did, not just whether the skill contains the desired words.
 
