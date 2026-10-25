@@ -10,7 +10,7 @@ const site = import.meta.env.PROD && import.meta.env.SITE ? new URL(import.meta.
 ---
 
 <template id="pv-consent" data-ga-id={GA_ID} data-path={withBase('')} data-origin={site}>
-  <section class="consent" aria-labelledby="pv-consent-title" data-pagefind-ignore>
+  <section class="consent" id="pv-consent-panel" aria-labelledby="pv-consent-title">
     <p class="title" id="pv-consent-title">Analytics cookies</p>
     <p>
       May this site use Google Analytics cookies to measure visits and how its pages are used? Nothing loads unless you
@@ -37,19 +37,32 @@ const site = import.meta.env.PROD && import.meta.env.SITE ? new URL(import.meta.
   let memory: string | null = null;
   // The choice this page has applied, so applying it again sends no extra page view.
   let applied: 'granted' | 'denied' | null = null;
+  // Set while a hidden tab waits to load GA until the visitor looks at it.
+  let waiting = false;
+  // True when the browser blocks site data, so no choice can be kept.
+  let blocked = false;
 
   type Gtag = (...args: unknown[]) => void;
   const w = window as unknown as Record<string, unknown> & { dataLayer?: unknown[]; gtag?: Gtag };
 
+  const decided = (value: string | null) => value === 'granted' || value === 'denied';
+
+  function stored() {
+    try {
+      blocked = false;
+      return localStorage.getItem(KEY);
+    } catch {
+      blocked = true;
+      return null;
+    }
+  }
+
   function read() {
     // An unsaved choice from this page beats the older stored value.
     if (memory) return memory;
-    try {
-      return localStorage.getItem(KEY);
-    } catch {
-      // Blocked site data cannot keep a choice, so treat it as declined instead of asking on every page.
-      return 'denied';
-    }
+    const value = stored();
+    // Blocked site data cannot keep a choice, so treat it as declined instead of asking on every page.
+    return blocked ? 'denied' : value;
   }
 
   function write(value: string) {
@@ -93,29 +106,54 @@ const site = import.meta.env.PROD && import.meta.env.SITE ? new URL(import.meta.
     const script = document.createElement('script');
     script.async = true;
     script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(id)}`;
+    // A decline made while gtag.js was downloading: remove any cookie its queued commands set.
+    script.addEventListener('load', () => {
+      if (applied === 'denied') clearCookies();
+    });
     document.head.append(script);
+  }
+
+  // A tab in the background loads GA only once the visitor looks at it, so one Accept counts one view.
+  function loadWhenVisible() {
+    if (document.visibilityState !== 'hidden') return load();
+    if (waiting) return;
+    waiting = true;
+    document.addEventListener('visibilitychange', function onShow() {
+      if (document.visibilityState === 'hidden') return;
+      document.removeEventListener('visibilitychange', onShow);
+      waiting = false;
+      if (applied === 'granted') load();
+    });
+  }
+
+  function clearCookies() {
+    const names = document.cookie
+      .split(';')
+      .map((c) => c.split('=')[0].trim())
+      .filter((n) => n === '_ga' || n.startsWith('_ga_'));
+    // Cover the path with and without its trailing slash.
+    const paths = new Set([cookiePath, cookiePath.replace(/\/$/, '') || '/']);
+    for (const name of names) {
+      for (const path of paths) {
+        for (const domain of ['', `; domain=${location.hostname}`, `; domain=.${location.hostname}`]) {
+          document.cookie = `${name}=; max-age=0; path=${path}${domain}`;
+        }
+      }
+    }
   }
 
   // Stops GA on this page and removes this site's GA cookies; safe to run on every page that is not opted in.
   function revoke() {
     w[`ga-disable-${id}`] = true;
     w.gtag?.('consent', 'update', { analytics_storage: 'denied' });
-    const names = document.cookie
-      .split(';')
-      .map((c) => c.split('=')[0].trim())
-      .filter((n) => n === '_ga' || n.startsWith('_ga_'));
-    for (const name of names) {
-      for (const domain of ['', `; domain=${location.hostname}`, `; domain=.${location.hostname}`]) {
-        document.cookie = `${name}=; max-age=0; path=${cookiePath}${domain}`;
-      }
-    }
+    clearCookies();
   }
 
   function apply(choice: string | null) {
     const next = choice === 'granted' ? 'granted' : 'denied';
     if (next === applied) return;
     applied = next;
-    if (next === 'granted') load();
+    if (next === 'granted') loadWhenVisible();
     else revoke();
   }
 
@@ -127,6 +165,7 @@ const site = import.meta.env.PROD && import.meta.env.SITE ? new URL(import.meta.
     resize?.disconnect();
     document.body.style.paddingBottom = '';
     document.documentElement.style.scrollPaddingBottom = '';
+    for (const opener of document.querySelectorAll('[data-pv-consent-open]')) opener.setAttribute('aria-expanded', 'false');
     let target = returnFocus;
     returnFocus = null;
     if (!hadFocus) return;
@@ -166,15 +205,18 @@ const site = import.meta.env.PROD && import.meta.env.SITE ? new URL(import.meta.
       });
       // Escape closes the settings panel without changing an existing choice.
       banner.addEventListener('keydown', (event) => {
-        if (event.key !== 'Escape') return;
-        const stored = read();
-        if (stored === 'granted' || stored === 'denied') hide();
+        if (event.key === 'Escape' && decided(read())) hide();
       });
     }
-    const stored = read();
+    const choice = read();
     const status = banner.querySelector<HTMLElement>('.status')!;
-    status.hidden = stored !== 'granted' && stored !== 'denied';
-    status.textContent = stored === 'granted' ? 'Current choice: accepted.' : 'Current choice: declined.';
+    status.hidden = !decided(choice);
+    status.textContent =
+      choice === 'granted'
+        ? 'Current choice: accepted.'
+        : blocked && !memory
+          ? 'Analytics is off because this browser blocks site data.'
+          : 'Current choice: declined.';
     for (const button of banner.querySelectorAll('button')) {
       if (status.hidden) button.removeAttribute('aria-describedby');
       else button.setAttribute('aria-describedby', status.id);
@@ -183,6 +225,7 @@ const site = import.meta.env.PROD && import.meta.env.SITE ? new URL(import.meta.
     const spot = returnFocus?.closest('p');
     // Moving the panel would drop focus inside it, so move it only when it is elsewhere.
     if (spot && spot.nextElementSibling !== banner) spot.after(banner);
+    returnFocus?.setAttribute('aria-expanded', 'true');
     if (focus) banner.querySelector('button')?.focus();
   }
 
@@ -190,7 +233,7 @@ const site = import.meta.env.PROD && import.meta.env.SITE ? new URL(import.meta.
   function sync() {
     const choice = read();
     apply(choice);
-    if (choice !== 'granted' && choice !== 'denied') show(false);
+    if (!decided(choice)) show(false);
     // A panel the visitor opened through Cookie settings stays open and shows the new choice.
     else if (returnFocus) show(false);
     else hide();
@@ -215,8 +258,8 @@ const site = import.meta.env.PROD && import.meta.env.SITE ? new URL(import.meta.
     });
     window.addEventListener('pageshow', (event) => {
       if (!event.persisted) return;
-      // The stored choice may have changed while this page was cached.
-      memory = null;
+      // A choice saved by another page while this one was cached replaces the one held here.
+      if (stored() !== null) memory = null;
       sync();
     });
   }
@@ -227,8 +270,8 @@ const site = import.meta.env.PROD && import.meta.env.SITE ? new URL(import.meta.
     position: fixed;
     inset-inline: 1rem;
     bottom: 1rem;
-    /* Below Starlight's mobile menu (5), so an open menu covers the banner instead of the reverse. */
-    z-index: 4;
+    /* Below Starlight's page-contents dropdown (4) and mobile menu (5), so an open one covers the banner. */
+    z-index: 3;
     max-width: 34rem;
     /* At high zoom the banner scrolls inside half the viewport, so the page stays readable. */
     max-height: 50dvh;
