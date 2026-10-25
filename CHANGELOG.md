@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- The documentation website asks for consent before it loads Google Analytics. Nothing third-party loads until a visitor accepts. Declining, or changing the choice later through **Cookie settings** in the footer, removes the analytics cookies and reloads a page where analytics was running. The choice is asked again after a year. The plugin and its reports are unchanged and send nothing to Google.
+
 ## 0.4.0 — 2026-10-25
 
 - Add an opt-in `--open` flag to the report renderer that asks Python's `webbrowser` module to open `report.html` in a graphical browser. New reports are rendered with it; a re-render opens the browser only when the user asked to see the report again. Opening is best effort and never stops the report from being written; the agent's reply always keeps the `report.html` link.
