@@ -5,13 +5,15 @@ import { withBase } from './icons';
 
 const GA_ID = 'G-7435SD5GB9';
 const privacy = withBase('safety-and-limitations/#website-analytics');
+// Only the published site measures; dev, preview and forks keep the banner and loader switched off.
+const site = import.meta.env.PROD ? new URL(import.meta.env.SITE ?? '').origin : '';
 ---
 
-<template id="pv-consent" data-ga-id={GA_ID} data-path={withBase('')}>
+<template id="pv-consent" data-ga-id={GA_ID} data-path={withBase('')} data-origin={site}>
   <section class="consent" aria-labelledby="pv-consent-title" data-pagefind-ignore>
     <p class="title" id="pv-consent-title">Analytics cookies</p>
     <p>
-      May this site use Google Analytics cookies to count visits and see which pages help? Nothing loads unless you
+      May this site use Google Analytics cookies to measure visits and how its pages are used? Nothing loads unless you
       accept. <a href={privacy}>Privacy details</a>
     </p>
     <p class="status" id="pv-consent-status" hidden></p>
@@ -38,6 +40,8 @@ const privacy = withBase('safety-and-limitations/#website-analytics');
   const w = window as unknown as Record<string, unknown> & { dataLayer?: unknown[]; gtag?: Gtag };
 
   function read() {
+    // A choice made on this page wins, even if storage could not save it.
+    if (memory) return memory;
     try {
       return localStorage.getItem(KEY);
     } catch {
@@ -180,7 +184,7 @@ const privacy = withBase('safety-and-limitations/#website-analytics');
     else hide();
   }
 
-  if (id) {
+  if (id && template?.dataset.origin === location.origin) {
     sync();
     for (const opener of document.querySelectorAll<HTMLElement>('[data-pv-consent-open]')) opener.hidden = false;
 
@@ -192,7 +196,10 @@ const privacy = withBase('safety-and-limitations/#website-analytics');
     });
     // A choice made in another tab, or a page restored from the back-forward cache, follows the stored choice.
     window.addEventListener('storage', (event) => {
-      if (event.key === KEY || event.key === null) sync();
+      if (event.key !== KEY && event.key !== null) return;
+      // Another tab saved a newer choice, so the one held for this page no longer applies.
+      memory = null;
+      sync();
     });
     window.addEventListener('pageshow', (event) => {
       if (event.persisted) sync();
@@ -208,7 +215,8 @@ const privacy = withBase('safety-and-limitations/#website-analytics');
     /* Below Starlight's mobile menu (5), so an open menu covers the banner instead of the reverse. */
     z-index: 4;
     max-width: 34rem;
-    max-height: calc(100dvh - 2rem);
+    /* At high zoom the banner scrolls inside half the viewport, so the page stays readable. */
+    max-height: 50dvh;
     overflow-y: auto;
     margin-inline: auto;
     padding: 1rem 1.25rem;
