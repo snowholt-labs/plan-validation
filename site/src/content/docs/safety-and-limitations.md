@@ -9,7 +9,7 @@ Plan Validation is an agent workflow. Its instructions do not replace the host's
 
 Validation edits only the named planning documents in the source repository and keeps those edits uncommitted. It can create local evidence and a disposable rehearsal worktree. It does not authorize dependency installation, credential access, commits, remote pushes, PRs, comments, merges or deployment.
 
-The handoff must preserve actual permissions. A repository can opt into its own branch/review process through its instructions; this package does not impose automatic merges or a fixed `main`/plan-branch strategy. When a plan puts several phases into one PR, validation follows repository or user instructions, or lists the change as an approval before later phases start.
+The handoff must preserve actual permissions. A repository can opt into its own branch/review process through its instructions; this package does not impose automatic merges or a fixed `main`/plan-branch strategy.
 
 ## A worktree is not a sandbox
 

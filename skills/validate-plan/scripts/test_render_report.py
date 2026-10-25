@@ -557,7 +557,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         context["task_inventory"] = ["1", "2"]
         context["phases"] = [dict(context["phases"][0], tasks=["1"]), dict(context["phases"][0], id="2", tasks=["2"])]
         prompts = ("Implement Phase 1. Stop at the end of Phase 1 and print the Phase 2 prompt from the report; do not start it.",
-                   "Implement Phase 2. Stop at the end of Phase 2; it is the last phase.")
+                   "Implement Phase 2. Confirm Phase 1 is merged. Stop at the end of Phase 2; it is the last phase.")
         source = REPORT.split("## 8. Fresh-session handoff")[0] + "## 8. Fresh-session handoff\n" + "".join(
             f"```text\n{prompt}\n```\n" for prompt in prompts)
         return source, context
@@ -584,6 +584,15 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                     render(bad, context)
         render(source.replace("Stop at the end of Phase 2;", "Stop at the end of Phase 2."), context)
         render(source.replace("Stop at the end of Phase 1 and", "Stop at the end of\nPhase 1 and"), context)
+
+    def test_later_prompt_must_confirm_the_previous_phase_is_merged(self):
+        source, context = self.two_phase()
+        for bad in ("Confirm Phase 1 is committed.", "Confirm Phase 12 is merged.", ""):
+            with self.subTest(bad=bad):
+                with self.assertRaisesRegex(ValueError, "Confirm Phase 1 is merged"):
+                    render(source.replace("Confirm Phase 1 is merged.", bad), context)
+        context["kind"] = "saved"
+        render(source.replace("Confirm Phase 1 is merged.", "Confirm Phase 1 is committed."), context)
 
     def test_first_phase_waiting_needs_a_non_implementation_prompt(self):
         source, context = self.two_phase()

@@ -414,6 +414,11 @@ def handoff_prompts(section, version, verdict, context):
             if not stops or any(not own.match(prompt, stop.end()) or re.search(r"(?:\bnot|n't|\bnever)\s+$", prompt[:stop.start()], re.I)
                                 for stop in stops):
                 raise ValueError(f"Phase {ready[index]} prompt must say: Stop at the end of Phase {ready[index]}")
+            # A later phase starts only once the previous one is merged; saved prompts stay as written.
+            if index and context.get("kind") == "new":
+                previous = re.escape(ready[index - 1])
+                if not re.search(rf"\bconfirm\s+phase\s+{previous}(?![A-Za-z0-9-]|\.[A-Za-z0-9])\s+is\s+merged\b", prompt, re.I):
+                    raise ValueError(f"Phase {ready[index]} prompt must say: Confirm Phase {ready[index - 1]} is merged")
     # Any "implement" instruction, except a negated one such as "Do not implement".
     implement = re.search(r"(?<!not )(?<!n't )(?<!never )\bimplement\b", prompts[0][2], re.I)
     # With no startable phase, a version 3 prompt is a remediation prompt even before Not ready.
