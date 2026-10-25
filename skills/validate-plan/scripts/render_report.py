@@ -410,10 +410,15 @@ def handoff_prompts(section, version, verdict, context):
             # Every stop sentence names this phase, unnegated. "Phase 1.2", "Phase 1-b" and
             # "Phase 12" are other phases; a sentence-ending period is not.
             own = re.compile(rf"{re.escape(ready[index])}(?![A-Za-z0-9-]|\.[A-Za-z0-9])", re.I)
+            negated = re.compile(r"(?:\bnot|n't|\bnever)\s+$", re.I)
             stops = list(re.finditer(r"\bstop\s+at\s+the\s+end\s+of\s+phase\s+", prompt, re.I))
-            if not stops or any(not own.match(prompt, stop.end()) or re.search(r"(?:\bnot|n't|\bnever)\s+$", prompt[:stop.start()], re.I)
-                                for stop in stops):
+            if not stops or any(not own.match(prompt, stop.end()) or negated.search(prompt[:stop.start()]) for stop in stops):
                 raise ValueError(f"Phase {ready[index]} prompt must say: Stop at the end of Phase {ready[index]}")
+            # A later phase starts only once the previous one is merged; saved prompts stay as written.
+            if index and context.get("kind") == "new":
+                checks = list(re.finditer(rf"\bconfirm\s+phase\s+{re.escape(ready[index - 1])}\s+is\s+merged\b", prompt, re.I))
+                if all(negated.search(prompt[:check.start()]) for check in checks):
+                    raise ValueError(f"Phase {ready[index]} prompt must say: Confirm Phase {ready[index - 1]} is merged")
     # Any "implement" instruction, except a negated one such as "Do not implement".
     implement = re.search(r"(?<!not )(?<!n't )(?<!never )\bimplement\b", prompts[0][2], re.I)
     # With no startable phase, a version 3 prompt is a remediation prompt even before Not ready.

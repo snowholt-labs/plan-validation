@@ -82,6 +82,8 @@ Version 3 adds the phase grouping. The renderer also checks that:
 - once a phase waits, every later phase waits, and a `Ready` verdict has no waiting phase;
 - section 8 has one fenced prompt per ready phase, in order, each within 80 words and
   saying `Stop at the end of Phase <id>` for its own phase only, never negated;
+- in a new report, each ready prompt after the first says `Confirm Phase <previous> is merged`
+  for the ready phase before it, never negated;
 - a Not ready report, or one whose first phase waits, has exactly one prompt that
   says `Do not start dependent implementation.` and has no `Implement` instruction.
 
