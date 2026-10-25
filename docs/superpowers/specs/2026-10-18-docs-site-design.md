@@ -25,7 +25,7 @@ The site becomes the single home for user documentation, so the docs cannot drif
 
 - A custom domain. The `github.io` address is enough for now.
 - Versioned docs (one version per release).
-- Analytics, cookies, comments, newsletter sign-up or any tracking.
+- Analytics, cookies, comments, newsletter sign-up or any tracking. *(Superseded on 2026-10-25 by the maintainer: the site may load Google Analytics, only after a visitor accepts it in a consent banner.)*
 - Rewriting the documentation content beyond what moving it requires (link fixes, front matter, splitting the new pages out of existing text).
 - Translations.
 
@@ -34,7 +34,7 @@ The site becomes the single home for user documentation, so the docs cannot drif
 The site fails, even if it builds, if it:
 
 - Makes claims the project does not support. The pilot-release notice, the "not a benchmark" wording on the example, and the "not affiliated with Anthropic, OpenAI or Superpowers" statement must stay visible where they appear today. *(Superseded on 2026-10-18 by the maintainer: the "not affiliated" line was removed from the site.)*
-- Contacts third parties at runtime: no externally hosted fonts, scripts or images. This matches the self-contained, no-analytics stance of the generated reports.
+- Contacts third parties at runtime: no externally hosted fonts, scripts or images. This matches the self-contained, no-analytics stance of the generated reports. *(Superseded on 2026-10-25 by the maintainer: Google Analytics may load after a visitor's consent; the static HTML still loads no third-party asset.)*
 - Leaves two editable copies of the same content (for example `CHANGELOG.md` and a hand-copied changelog page).
 - Affects the shipped plugin's behavior: no change to the skills, manifests or the `verify` check's runtime, and no build output or `node_modules` committed. (The marketplace installs the repository root, `"source": "./"`, so the site's source files will be present in installs, just as `docs/` and `examples/` are today. Builder's-call note: this is accepted; moving the plugin into a subfolder is out of scope.)
 - Looks like a stock Starlight theme with a color swap. The approved custom layout is the point.
