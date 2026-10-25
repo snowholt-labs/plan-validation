@@ -1,17 +1,20 @@
 ---
 // Google Analytics loads only after a visitor accepts. The banner lives in a <template> so the
 // head override can carry it to every page; the static HTML never loads a third-party script.
+import { withBase } from './icons';
+
 const GA_ID = 'G-7435SD5GB9';
-const privacy = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/safety-and-limitations/#website-analytics`;
+const privacy = withBase('safety-and-limitations/#website-analytics');
 ---
 
-<template id="pv-consent" data-ga-id={GA_ID}>
+<template id="pv-consent" data-ga-id={GA_ID} data-path={withBase('')}>
   <section class="consent" aria-labelledby="pv-consent-title" data-pagefind-ignore>
     <p class="title" id="pv-consent-title">Analytics cookies</p>
     <p>
       May this site use Google Analytics cookies to count visits and see which pages help? Nothing loads unless you
       accept. <a href={privacy}>Privacy details</a>
     </p>
+    <p class="status" hidden></p>
     <div class="actions">
       <button type="button" data-choice="granted">Accept</button>
       <button type="button" data-choice="denied">Decline</button>
@@ -23,8 +26,11 @@ const privacy = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/safety-and-limit
   const KEY = 'pv-analytics-consent';
   const template = document.getElementById('pv-consent') as HTMLTemplateElement | null;
   const id = template?.dataset.gaId ?? '';
+  // GA cookies stay on this site's path, so other github.io project sites on the origin are untouched.
+  const cookiePath = template?.dataset.path ?? '/';
   let banner: HTMLElement | null = null;
   let returnFocus: HTMLElement | null = null;
+  let resize: ResizeObserver | null = null;
 
   type Gtag = (...args: unknown[]) => void;
   const w = window as unknown as Record<string, unknown> & { dataLayer?: unknown[]; gtag?: Gtag };
@@ -64,13 +70,18 @@ const privacy = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/safety-and-limit
       analytics_storage: 'granted',
     });
     w.gtag('js', new Date());
-    w.gtag('config', id, { allow_google_signals: false, allow_ad_personalization_signals: false });
+    w.gtag('config', id, {
+      cookie_path: cookiePath,
+      allow_google_signals: false,
+      allow_ad_personalization_signals: false,
+    });
     const script = document.createElement('script');
     script.async = true;
     script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(id)}`;
     document.head.append(script);
   }
 
+  // Stops GA on this page and removes this site's GA cookies; safe to run on every page that is not opted in.
   function revoke() {
     w[`ga-disable-${id}`] = true;
     w.gtag?.('consent', 'update', { analytics_storage: 'denied' });
@@ -80,43 +91,83 @@ const privacy = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/safety-and-limit
       .filter((n) => n === '_ga' || n.startsWith('_ga_'));
     for (const name of names) {
       for (const domain of ['', `; domain=${location.hostname}`, `; domain=.${location.hostname}`]) {
-        document.cookie = `${name}=; max-age=0; path=/${domain}`;
+        document.cookie = `${name}=; max-age=0; path=${cookiePath}${domain}`;
       }
     }
   }
 
+  function apply(choice: string | null) {
+    if (choice === 'granted') load();
+    else revoke();
+  }
+
   function hide() {
-    banner?.remove();
+    if (!banner) return;
+    banner.remove();
     banner = null;
-    returnFocus?.focus();
+    resize?.disconnect();
+    document.body.style.paddingBottom = '';
+    let target = returnFocus;
+    if (!target) {
+      // The removed banner held focus; continue from the start of the main content.
+      target = document.querySelector('main');
+      target?.setAttribute('tabindex', '-1');
+    }
+    target?.focus({ preventScroll: true });
     returnFocus = null;
   }
 
   function show(focus: boolean) {
-    if (!template || banner) return;
-    document.body.append(template.content.cloneNode(true));
-    banner = document.body.lastElementChild as HTMLElement;
-    banner.addEventListener('click', (event) => {
-      const choice = (event.target as HTMLElement).closest('button')?.dataset.choice;
-      if (!choice) return;
-      write(choice);
-      hide();
-      if (choice === 'granted') load();
-      else revoke();
-    });
+    if (!template) return;
+    if (!banner) {
+      banner = (template.content.cloneNode(true) as DocumentFragment).firstElementChild as HTMLElement;
+      // Early in the reading and tab order, right after the skip link.
+      const skip = document.querySelector('.sl-skip-link');
+      if (skip) skip.after(banner);
+      else document.body.prepend(banner);
+      // Keep the end of the page reachable above the fixed banner.
+      resize = new ResizeObserver(() => {
+        if (banner) document.body.style.paddingBottom = `${banner.offsetHeight + 32}px`;
+      });
+      resize.observe(banner);
+      banner.addEventListener('click', (event) => {
+        const choice = (event.target as HTMLElement).closest('button')?.dataset.choice;
+        if (!choice) return;
+        write(choice);
+        hide();
+        apply(choice);
+      });
+    }
+    const stored = read();
+    const status = banner.querySelector<HTMLElement>('.status')!;
+    status.hidden = stored !== 'granted' && stored !== 'denied';
+    status.textContent = stored === 'granted' ? 'Current choice: accepted.' : 'Current choice: declined.';
+    for (const button of banner.querySelectorAll<HTMLElement>('button')) {
+      button.setAttribute('aria-pressed', String(button.dataset.choice === stored));
+    }
     if (focus) banner.querySelector('button')?.focus();
   }
 
   if (id) {
     const stored = read();
-    if (stored === 'granted') load();
-    else if (stored !== 'denied') show(false);
+    apply(stored);
+    if (stored !== 'granted' && stored !== 'denied') show(false);
 
     document.addEventListener('click', (event) => {
       const opener = (event.target as HTMLElement).closest<HTMLElement>('[data-pv-consent-open]');
       if (!opener) return;
       returnFocus = opener;
       show(true);
+    });
+    // A choice made in another tab, or a page restored from the back-forward cache, follows the stored choice.
+    window.addEventListener('storage', (event) => {
+      if (event.key !== KEY && event.key !== null) return;
+      const choice = read();
+      apply(choice);
+      if (choice === 'granted' || choice === 'denied') hide();
+    });
+    window.addEventListener('pageshow', (event) => {
+      if (event.persisted) apply(read());
     });
   }
 </script>
@@ -143,6 +194,9 @@ const privacy = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/safety-and-limit
   .consent .title {
     margin-bottom: 0.25rem;
     font: 700 1rem var(--pv-font-display);
+  }
+  .consent .status {
+    color: var(--pv-muted);
   }
   .consent a {
     color: var(--pv-plum);

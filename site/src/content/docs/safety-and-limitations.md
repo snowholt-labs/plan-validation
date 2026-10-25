@@ -27,7 +27,7 @@ The default report location is documented in Unix form. Users on other platforms
 
 ## Website analytics
 
-This documentation website asks before it uses Google Analytics. Until you accept, no Google script loads and no analytics cookie is set. If you accept, Google Analytics sets the `_ga` and `_ga_<id>` cookies to count visits and pages; Google signals and ad personalization are turned off. Your choice is stored in your browser. Use **Cookie settings** in the page footer to change it; declining removes the analytics cookies. The plugin and its reports send nothing to Google.
+This documentation website asks before it uses Google Analytics. Until you accept, no Google script loads and this site sets no analytics cookie. If you accept, Google Analytics sets the `_ga` and `_ga_<id>` cookies, limited to this site's path, to count visits and pages; Google signals and ad personalization are turned off. Your choice is stored in your browser. Use **Cookie settings** in the page footer to change it; declining removes the analytics cookies. The plugin and its reports send nothing to Google.
 
 ## Dependencies and prompt revision
 
