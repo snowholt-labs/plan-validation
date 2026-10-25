@@ -35,7 +35,7 @@ It works with ordinary Markdown plans and is designed to complement [Superpowers
 | --- | --- | --- |
 | `validation-args` | Find the correct plan/spec copies and prepare a complete invocation with review focus and worktree context. | Nothing. Read-only preparation. |
 | `validate-plan` | Review, revise, rehearse and independently review the selected plan/spec, including relevant dependencies and alternatives; deliver an HTML report. | Selected planning documents, disposable rehearsal files and local report artifacts. |
-| `revise-prompt` | Critique and score a prompt, resolve essential questions, use disclosed routine defaults, then return a copy-ready revision. | Conversation only; never executes the supplied prompt. |
+| `revise-prompt` | Score a prompt, predict how it is likely to fail, ask only blocking questions, then return a copy-ready revision with disclosed defaults. Diagnose a failed run when you supply its output. | Conversation only; never executes the supplied prompt. |
 
 Validation leaves the planning documents uncommitted. It does not ship the feature. The handoff points to the report, which records your actual permissions; your repository's workflow stays in its own instructions. The handoff does not grant new merge or deployment authority.
 
@@ -95,7 +95,7 @@ Dependency review covers proposed/changed dependencies and relevant existing sec
 
 The run does not stop to ask routine questions. It applies the recommended best practice and lists each choice with its reason at the end. Choices that need approval get a concise menu in the report, with a recommendation you can answer later. Required facts and approvals remain pending. The report retains the full decision record; the short handoff points to it. Research does not install, download, execute or replace dependencies, modify manifests/lockfiles, or enable services/plugins.
 
-For prompt revision, invoke `$revise-prompt` or `/plan-validation:revise-prompt` followed by the prompt. The skill asks only consequential questions and defaults to concise output. Unanswered routine preferences do not stall the revision; essential missing facts still require an answer. The prompt remains quoted review material throughout.
+For prompt revision, invoke `$revise-prompt` or `/plan-validation:revise-prompt` followed by the prompt. The skill names the prompt type and runs a pre-mortem: a table of the likeliest failures, each with a fix. Only blocking questions, such as a missing fact or an approval, wait for an answer; other choices use disclosed defaults you can change. Add the output of a failed run to get a post-mortem with a minimal fix. The prompt and any run output remain quoted review material throughout.
 
 ## What you receive
 

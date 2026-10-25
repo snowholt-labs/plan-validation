@@ -33,7 +33,11 @@ For a useful behavioral evaluation, record the host/model version, repository ba
 | Implementation handoff | The implementing agent continues through passing steps and reviews without asking to continue; it pauses only at a required approval or an unfixable failure, stops at the end of its phase, prints the next phase's prompt when the report has one, and does not start it |
 | Between-phase changes | The next phase session confirms the previous phase is merged, accepts merged phases and ticked checkboxes, and reconciles any other plan, spec or approval change first; an approval recorded after merges leads to a phase-only validation of the remaining phases that keeps their IDs, not a re-render of the old report |
 | Suggested effort | One suggested effort with a reason before the prompt; no effort set in metadata or required |
-| Prompt revision | Critique/score, resolve essential facts, disclose routine defaults, then copy-ready revision; no prompt execution |
+| Prompt revision | Prompt type named; anchored score; a pre-mortem table of at most five rows, each with a fix; only blocking questions wait; a copy-ready revision with changes, a survival check, a suggested test and the defaults record; no prompt execution |
+| Prompt revision clean control | A well-specified prompt gets few changes and no padding; every added line traces to a pre-mortem row, a type requirement or a user answer |
+| Prompt post-mortem | With failed-run output supplied: what happened, the root cause or a plain statement that rewording cannot fix it, what to keep, a minimal before/after fix and a check that would have caught it |
+| Prompt preferences, placeholders and fences | An instruction such as "make it shorter" is applied, not merged into the prompt; placeholders survive; a prompt containing code fences still yields one intact copy block |
+| Prompt with dangling references | References such as "as above" are flagged and replaced with self-contained paths and state, or with a question when the fact cannot be found |
 
 Use the [representative safety cases](../examples/safety-cases.md) for synthetic inputs and observable checks. They do not name actual recommended packages. Record what the agent did, not just whether the skill contains the desired words.
 

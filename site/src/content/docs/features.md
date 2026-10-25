@@ -26,6 +26,6 @@ Reviews and revises the selected plan and specification, rehearses them, has the
 
 ### revise-prompt
 
-Critiques and scores a prompt, asks only the questions that matter, uses routine defaults it tells you about, and returns a revision you can copy. It changes nothing but the conversation and never runs the prompt you give it.
+Scores a prompt, imagines how it would fail and fixes those causes, waits only for questions that block the revision, uses defaults it tells you about, and returns a revision you can copy with a test you can run. Give it the output of a failed run and it finds the root cause and makes a minimal fix. It changes nothing but the conversation and never runs the prompt you give it.
 
 For setup, see [Get started](/plan-validation/get-started/). For what a report contains, see [Reports and handoffs](/plan-validation/reports-and-handoffs/).
