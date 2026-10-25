@@ -6,7 +6,7 @@ Checked on 25 October 2026 on Linux, using Python 3.14.4 and Claude Code 2.1.310
 
 | Check | Observed result | Evidence and limit |
 | --- | --- | --- |
-| Renderer regression suite | 83 tests passed | Includes mocked `--open` checks: no display and a terminal browser are refused, and a browser that fails or raises leaves the written report intact and the rule that a later phase prompt confirms the previous phase is merged; rendering tests do not establish model behavior |
+| Renderer regression suite | 83 tests passed | Includes mocked `--open` checks (no display and a terminal browser are refused; a browser that fails or raises leaves the written report intact) and the rule that a later phase prompt confirms the previous phase is merged; rendering tests do not establish model behavior |
 | Package and local documentation links | Passed | Three skills, 4 SVG icons and 47 Markdown files checked; plugin, marketplace and Codex manifests agree at 0.4.0 |
 | Claude plugin validation | Passed with one warning | Both `claude plugin validate` commands pass without `--strict`; the warning is that the repository's root `CLAUDE.md` is not loaded as plugin context, which is expected because it is contributor guidance, and makes `--strict` fail |
 | Retry demonstration | Three tests with one expected failure; corrected control has three passing tests | Existing authored fixture and renderer executed; not an effectiveness benchmark |
