@@ -14,7 +14,7 @@ const privacy = withBase('safety-and-limitations/#website-analytics');
       May this site use Google Analytics cookies to count visits and see which pages help? Nothing loads unless you
       accept. <a href={privacy}>Privacy details</a>
     </p>
-    <p class="status" hidden></p>
+    <p class="status" id="pv-consent-status" hidden></p>
     <div class="actions">
       <button type="button" data-choice="granted">Accept</button>
       <button type="button" data-choice="denied">Decline</button>
@@ -31,6 +31,8 @@ const privacy = withBase('safety-and-limitations/#website-analytics');
   let banner: HTMLElement | null = null;
   let returnFocus: HTMLElement | null = null;
   let resize: ResizeObserver | null = null;
+  // The choice made on this page, used when the browser blocks storage.
+  let memory: string | null = null;
 
   type Gtag = (...args: unknown[]) => void;
   const w = window as unknown as Record<string, unknown> & { dataLayer?: unknown[]; gtag?: Gtag };
@@ -40,11 +42,12 @@ const privacy = withBase('safety-and-limitations/#website-analytics');
       return localStorage.getItem(KEY);
     } catch {
       // Blocked site data cannot keep a choice, so treat it as declined instead of asking on every page.
-      return 'denied';
+      return memory ?? 'denied';
     }
   }
 
   function write(value: string) {
+    memory = value;
     try {
       localStorage.setItem(KEY, value);
     } catch {
@@ -108,6 +111,7 @@ const privacy = withBase('safety-and-limitations/#website-analytics');
     banner = null;
     resize?.disconnect();
     document.body.style.paddingBottom = '';
+    document.documentElement.style.scrollPaddingBottom = '';
     let target = returnFocus;
     returnFocus = null;
     if (!hadFocus) return;
@@ -130,17 +134,22 @@ const privacy = withBase('safety-and-limitations/#website-analytics');
       const skip = document.querySelector('.sl-skip-link');
       if (skip) skip.after(banner);
       else document.body.prepend(banner);
-      // Keep the end of the page reachable above the fixed banner.
+      // Keep the end of the page, and anything scrolled into view, clear of the fixed banner.
       resize = new ResizeObserver(() => {
-        if (banner) document.body.style.paddingBottom = `${banner.offsetHeight + 32}px`;
+        if (!banner) return;
+        const space = `${banner.offsetHeight + 32}px`;
+        document.body.style.paddingBottom = space;
+        document.documentElement.style.scrollPaddingBottom = space;
       });
       resize.observe(banner);
       banner.addEventListener('click', (event) => {
         const choice = (event.target as HTMLElement).closest('button')?.dataset.choice;
         if (!choice) return;
+        const previous = read();
         write(choice);
         hide();
-        apply(choice);
+        // Choosing the current option again changes nothing and must not count another page view.
+        if (choice !== previous) apply(choice);
       });
       // Escape closes the settings panel without changing an existing choice.
       banner.addEventListener('keydown', (event) => {
@@ -152,6 +161,12 @@ const privacy = withBase('safety-and-limitations/#website-analytics');
     const status = banner.querySelector<HTMLElement>('.status')!;
     status.hidden = stored !== 'granted' && stored !== 'denied';
     status.textContent = stored === 'granted' ? 'Current choice: accepted.' : 'Current choice: declined.';
+    for (const button of banner.querySelectorAll('button')) {
+      if (status.hidden) button.removeAttribute('aria-describedby');
+      else button.setAttribute('aria-describedby', status.id);
+    }
+    // Opened from Cookie settings: keep the panel next to its opener in the keyboard order.
+    if (returnFocus) returnFocus.closest('p')?.after(banner);
     if (focus) banner.querySelector('button')?.focus();
   }
 
@@ -193,6 +208,8 @@ const privacy = withBase('safety-and-limitations/#website-analytics');
     /* Below Starlight's mobile menu (5), so an open menu covers the banner instead of the reverse. */
     z-index: 4;
     max-width: 34rem;
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
     margin-inline: auto;
     padding: 1rem 1.25rem;
     border: 1px solid var(--pv-border);
