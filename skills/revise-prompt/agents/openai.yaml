@@ -1,6 +1,6 @@
 interface:
   display_name: "Revise Prompt"
   short_description: "Critique and revise a prompt without executing it"
-  default_prompt: "Use $revise-prompt to critique this prompt, ask essential questions, and prepare a copy-ready revision without executing it."
+  default_prompt: "Use $revise-prompt to critique this prompt with a pre-mortem, ask only blocking questions, and prepare a copy-ready revision without executing it."
 policy:
   allow_implicit_invocation: true
