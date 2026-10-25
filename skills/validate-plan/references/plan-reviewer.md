@@ -23,6 +23,7 @@ Check:
 - Tasks identify the actual files, exact interfaces/signatures, fixed values and dependencies needed by an implementer. Flag undefined symbols, inconsistent types, placeholders and material decisions that remain implicit.
 - Commands, expected outcomes, sequencing, rollout and rollback are practical for the stated base and repository rules.
 - Compare the original and revised delivery phases, implementation tasks, supporting tasks and dependencies. Flag unnecessary phases, abstractions or optional work. Require a requirement/evidence mapping for added work and a precise approval basis for material expansion; favor the smallest useful fix within existing tasks.
+- With more than one delivery phase or session, each phase can merge on its own; flag a plan that delivers several phases in one PR or on one branch.
 - The spec's claims agree with the code and the proposed implementation; flag spec defects as well as plan defects.
 - Security/privacy boundaries, failure paths and relevant performance constraints are covered where the scope requires them.
 - Proposed/changed dependencies and relevant existing security-critical dependencies have a proportionate identity, provenance, maintenance, advisory, license, compatibility, script/permission, privacy and cost review. Avoid an indiscriminate tree audit. Stable software is not abandoned solely because releases are infrequent.

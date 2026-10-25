@@ -7,10 +7,11 @@ A validated plan can be built in one long session, but long sessions are expensi
 
 ## How the report helps
 
-The validator groups the plan's existing tasks into small phases. It does not change the plan: the grouping lives only in the report and its `context.json`.
+The validator groups the plan's existing tasks into small phases. It does not change the plan's phases or tasks: the grouping lives only in the report and its `context.json`.
 
 - Every validated task is in exactly one phase, in plan order. No task is split or moved.
 - A phase never crosses a phase boundary the plan already defines. A large plan phase is split into consecutive sub-phases, aiming for 3–5 tasks each.
+- Each phase merges on its own. If the plan delivers several phases in one PR, the validator fixes the delivery text when your repository or agent instructions define a per-phase workflow, and otherwise asks you first.
 - Section 8 of the report shows a phase table: each phase's tasks, whether it is docs-only, whether it needs a security review and why, and whether it can start or waits for an approval.
 - Each ready phase gets its own launch prompt with a copy button, saved as `handoff-phase-<id>.txt` beside the report.
 - Each prompt names one phase and includes a stop: `Stop at the end of Phase 1 and print the Phase 2 prompt from the report; do not start it.` The last phase's prompt says it is the last phase.
