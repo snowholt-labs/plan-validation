@@ -417,7 +417,7 @@ def handoff_prompts(section, version, verdict, context):
             # A later phase starts only once the previous one is merged; saved prompts stay as written.
             if index and context.get("kind") == "new":
                 checks = list(re.finditer(rf"\bconfirm\s+phase\s+{re.escape(ready[index - 1])}\s+is\s+merged\b", prompt, re.I))
-                if not checks or any(negated.search(prompt[:check.start()]) for check in checks):
+                if all(negated.search(prompt[:check.start()]) for check in checks):
                     raise ValueError(f"Phase {ready[index]} prompt must say: Confirm Phase {ready[index - 1]} is merged")
     # Any "implement" instruction, except a negated one such as "Do not implement".
     implement = re.search(r"(?<!not )(?<!n't )(?<!never )\bimplement\b", prompts[0][2], re.I)
