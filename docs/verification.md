@@ -1,5 +1,21 @@
 # Release verification
 
+## 0.4.0 release checks
+
+Checked on 25 October 2026 on Linux, using Python 3.14.4 and Claude Code 2.1.310. These are package checks on the release branch; they are not publication or live-plugin acceptance results.
+
+| Check | Observed result | Evidence and limit |
+| --- | --- | --- |
+| Renderer regression suite | 83 tests passed | Includes mocked `--open` checks (no display and a terminal browser are refused; a browser that fails or raises leaves the written report intact) and the rule that a later phase prompt confirms the previous phase is merged; rendering tests do not establish model behavior |
+| Package and local documentation links | Passed | Three skills, 4 SVG icons and 47 Markdown files checked; plugin, marketplace and Codex manifests agree at 0.4.0 |
+| Claude plugin validation | Passed with one warning | Both `claude plugin validate` commands pass without `--strict`; the warning is that the repository's root `CLAUDE.md` is not loaded as plugin context, which is expected because it is contributor guidance, and makes `--strict` fail |
+| Retry demonstration | Three tests with one expected failure; corrected control has three passing tests | Existing authored fixture and renderer executed; not an effectiveness benchmark |
+| Documentation site | 47 tests passed; 14 pages built | The built header shows version 0.4.0 and the changelog page shows the 0.4.0 entry |
+
+Opening a report in a real desktop browser, the `revise-prompt` pre-mortem and post-mortem, and per-phase merge checks have not been measured in a live Claude Code or Codex session.
+
+GitHub release publication, a directory security scan, reviewer approval and a live listing remain distinct states. No directory scan of 0.4.0 is recorded here; a scan of an earlier version is not a scan of 0.4.0.
+
 ## 0.3.0 release checks
 
 Checked on 20 October 2026 on Linux, using Python 3.14.4 and Claude Code 2.1.305. These are package checks on the release branch; they are not publication or live-plugin acceptance results.
