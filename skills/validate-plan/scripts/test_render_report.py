@@ -592,8 +592,20 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             with self.subTest(bad=bad):
                 with self.assertRaisesRegex(ValueError, "Confirm Phase 1 is merged"):
                     render(source.replace("Confirm Phase 1 is merged.", bad), context)
+        render(source.replace("Confirm Phase 1 is merged.", "Confirm Phase 1 is merged; stop if you can't confirm Phase 1 is merged."), context)
         context["kind"] = "saved"
         render(source.replace("Confirm Phase 1 is merged.", "Confirm Phase 1 is committed."), context)
+
+    def test_merge_check_names_the_ready_phase_just_before(self):
+        source, context = self.two_phase()
+        context["task_inventory"] = ["1", "2", "3"]
+        context["phases"].append(dict(context["phases"][1], id="3", tasks=["3"]))
+        source = source.replace("Stop at the end of Phase 2; it is the last phase.",
+                                "Stop at the end of Phase 2 and print the Phase 3 prompt from the report; do not start it.")
+        source += "```text\nImplement Phase 3. {} Stop at the end of Phase 3; it is the last phase.\n```\n"
+        render(source.format("Confirm Phase 2 is merged."), context)
+        with self.assertRaisesRegex(ValueError, "Confirm Phase 2 is merged"):
+            render(source.format("Confirm Phase 1 is merged."), context)
 
     def test_first_phase_waiting_needs_a_non_implementation_prompt(self):
         source, context = self.two_phase()
