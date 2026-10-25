@@ -29,6 +29,7 @@ import { CREATOR, REPO_URL } from '../../scripts/content-map.mjs';
       Licensed under the <a href={`${REPO_URL}/blob/main/LICENSE`}>Apache License 2.0</a>.{' '}
       Keep the <a href={`${REPO_URL}/blob/main/NOTICE`}>NOTICE</a> credit when you share a copy or a changed version.
     </p>
+    <p><button type="button" class="consent-link" data-pv-consent-open>Cookie settings</button></p>
   </div>
 </footer>
 
@@ -72,7 +73,20 @@ import { CREATOR, REPO_URL } from '../../scripts/content-map.mjs';
   .credits p {
     margin: 0;
   }
-  .credits a {
+  .credits a,
+  .consent-link {
     color: var(--pv-plum);
+  }
+  .consent-link {
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  .consent-link:focus-visible {
+    outline: 3px solid var(--pv-plum);
+    outline-offset: 2px;
   }
 </style>

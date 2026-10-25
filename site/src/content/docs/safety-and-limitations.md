@@ -19,11 +19,15 @@ Remove only the exact temporary worktree created for the current rehearsal after
 
 ## Data handling
 
-The package has no telemetry, analytics, account service or model API client. The renderer uses local files and bundled assets. Your chosen agent host can still process repository content under its own settings and policies. Public lookups run by default, without the skill asking before each one; your host's permission settings still apply. This includes web search, page opens, registry/advisory requests and Context7 queries. The report lists each provider, query and date. No private code, plans, paths, personal data or secrets may be sent. You can decline research for a run; a declined or unavailable lookup is recorded locally while independent checks continue. Research providers process queries under their own policies.
+The package has no telemetry, analytics, account service or model API client. The documentation website is separate; see [Website analytics](#website-analytics). The renderer uses local files and bundled assets. Your chosen agent host can still process repository content under its own settings and policies. Public lookups run by default, without the skill asking before each one; your host's permission settings still apply. This includes web search, page opens, registry/advisory requests and Context7 queries. The report lists each provider, query and date. No private code, plans, paths, personal data or secrets may be sent. You can decline research for a run; a declined or unavailable lookup is recorded locally while independent checks continue. Research providers process queries under their own policies.
 
 Reports, snapshots, command output and handoffs can contain private source details and absolute paths. Keep the run directory private. Redact and review content before sharing. Do not read `.env` files or credentials as part of validation.
 
 The default report location is documented in Unix form. Users on other platforms should select an equivalent private persistent directory and verify the workflow there.
+
+## Website analytics
+
+This documentation website asks before it uses Google Analytics. Until you accept, no Google script loads and no analytics cookie is set. If you accept, Google Analytics sets the `_ga` and `_ga_<id>` cookies to count visits and pages; Google signals and ad personalization are turned off. Your choice is stored in your browser. Use **Cookie settings** in the page footer to change it; declining removes the analytics cookies. The plugin and its reports send nothing to Google.
 
 ## Dependencies and prompt revision
 
