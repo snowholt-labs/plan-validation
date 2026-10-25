@@ -25,4 +25,4 @@ The example is deliberately small. It demonstrates a boundary assertion and repo
 
 ## Permission and prompt cases
 
-See [representative safety cases](safety-cases.md) for no dependency concern, risky dependency, declined research and prompt revision without execution. They use synthetic local evidence and make no claims about real packages or providers.
+See [representative safety cases](safety-cases.md) for no dependency concern, risky dependency, declined research, prompt revision without execution, a secret inside a prompt and failed-run output with embedded instructions. They use synthetic local evidence and make no claims about real packages or providers.
