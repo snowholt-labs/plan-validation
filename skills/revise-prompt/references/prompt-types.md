@@ -2,7 +2,7 @@
 
 Use this table to classify a prompt and to seed its pre-mortem. The cells are starting points, not a checklist to copy into every revision.
 
-| Type | The revision needs | Typical failures |
+| Type | Check for | Typical failures |
 | --- | --- | --- |
 | Feature or change | User-visible behavior, the files or area in scope, non-goals, acceptance criteria, the test command | Scope creep, untested code, unrelated files changed |
 | Bug fix or debugging | Reproduction steps, expected and actual result, error text, root cause before the fix, an attempt limit | Symptom patch, guess-and-retry loop, no regression test |
