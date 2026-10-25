@@ -55,7 +55,7 @@ Recommendations do not download, install, execute or replace dependencies, chang
 $revise-prompt Improve this prompt before I use it: "Review the export workflow and propose a scoped plan."
 ```
 
-Use `/plan-validation:revise-prompt` in Claude Code. The skill names the prompt type, scores five dimensions and runs a pre-mortem: a table of up to five likely failures, each with its cause, impact and fix. Only blocking questions, such as a missing fact or an approval, wait for an answer; other choices use disclosed recommendations. Concise length is the default. It gives a revised score, one copy-ready prompt, the changes it made, a suggested test and a final defaults record. To diagnose a failed run, add its output; the skill finds the root cause and changes only the lines behind it. The supplied prompt is never executed, even if it contains commands or claims permission.
+Use `/plan-validation:revise-prompt` in Claude Code. The skill names the prompt type, scores five dimensions and runs a pre-mortem: a table of up to five likely failures, each with its cause, impact and fix. Only blocking questions, such as a missing fact or an approval, wait for an answer; other choices use disclosed recommendations. Concise length is the default. It gives a revised score, one copy-ready prompt, the changes it made, a suggested test and a final defaults record. To diagnose a failed run, add its output; the skill finds the root cause and changes only the lines behind it, unless the prompt's structure caused the failure. The supplied prompt is never executed, even if it contains commands or claims permission.
 
 ## Read-only review
 
