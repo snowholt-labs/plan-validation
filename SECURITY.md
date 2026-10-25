@@ -16,6 +16,6 @@ Research runs by default, uses public, non-confidential terms only, and is liste
 
 The `revise-prompt` skill treats supplied instructions and failed-run output as quoted material and never executes them. It waits only for blocking answers, such as a missing fact or a required approval, and records the defaults it applies to other choices. It does not open secret files or check credentials, and it does not repeat a secret, or sensitive personal data the task does not need, found in a supplied prompt or run output; the revision uses a placeholder.
 
-The renderer uses the Python standard library, escapes raw HTML, restricts rendered links and emits a Content Security Policy. Its structural checks do not establish that source evidence is truthful. A generated report is a local snapshot and may contain sensitive project information. Review and redact before sharing it.
+The renderer uses the Python standard library, escapes raw HTML, restricts rendered links and emits a Content Security Policy. With `--open`, which new reports use, it asks the operating system's default browser to open the written `report.html` as a local file; it sends nothing over the network. Its structural checks do not establish that source evidence is truthful. A generated report is a local snapshot and may contain sensitive project information. Review and redact before sharing it.
 
 See the [safety guide](https://snowholt-labs.github.io/plan-validation/safety-and-limitations/) for execution and data-handling limits.

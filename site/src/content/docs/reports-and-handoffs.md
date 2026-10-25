@@ -62,4 +62,4 @@ python3 /path/to/validate-plan/scripts/render_report.py \
   --open
 ```
 
-Substitute real absolute paths. Use a dedicated private run directory. The helper writes `report.html`, its Markdown source, `handoff.txt` (the first prompt) and a `handoff-phase-<id>.txt` for each ready phase. A re-render deletes earlier phase files first. No hosting or network service is needed. With `--open`, the helper also opens the report in your default browser when a desktop is available; otherwise use the `report.html` link. Do not publish a report merely because the renderer accepted it.
+Substitute real absolute paths. Use a dedicated private run directory. The helper writes `report.html`, its Markdown source, `handoff.txt` (the first prompt) and a `handoff-phase-<id>.txt` for each ready phase. A re-render deletes earlier phase files first. No hosting or network service is needed. With `--open`, the helper also opens the report in your default browser when a display and a graphical browser are available; otherwise use the `report.html` link. Do not publish a report merely because the renderer accepted it.
