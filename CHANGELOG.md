@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Reject a new report whose later phase prompt does not say `Confirm Phase <previous> is merged`, and stop treating a split plan phase as one PR, so a plan run in several sessions cannot end each session without a merge. The skill follows repository branch conventions first, then the user's, and raises a one-PR delivery across phases as an approval when neither defines per-phase delivery.
+
 ## 0.3.0 — 2026-10-20
 
 - Group a validated plan's tasks into small phases and give one launch prompt per ready phase, so each phase runs in its own fresh session and stops at the phase end. Phases keep plan order and plan phase boundaries, target 3–5 tasks, and flag docs-only phases and phases that need a security review.

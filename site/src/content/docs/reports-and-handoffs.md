@@ -34,7 +34,7 @@ Existing readiness confidence estimates, when used, are subjective and supported
 
 ## What the renderer checks
 
-The renderer rejects missing sections, malformed score tables, incorrect averages, a Ready report without completed-review metadata, missing scope records and invalid remediation prompts. New reports use format version 3. They also require the feature overview, a default-decision record, and a phase grouping that covers every validated task once, in plan order. Section 8 needs one prompt of at most 80 words per ready phase, and each prompt must say `Stop at the end of Phase <id>` for its own phase. It compares the recorded SHA-256 values with both document files at render time.
+The renderer rejects missing sections, malformed score tables, incorrect averages, a Ready report without completed-review metadata, missing scope records and invalid remediation prompts. New reports use format version 3. They also require the feature overview, a default-decision record, and a phase grouping that covers every validated task once, in plan order. Section 8 needs one prompt of at most 80 words per ready phase, and each prompt must say `Stop at the end of Phase <id>` for its own phase. Each prompt after the first must also say `Confirm Phase <previous> is merged`. It compares the recorded SHA-256 values with both document files at render time.
 
 These checks validate the report contract. They do not verify the truth of an agent's recorded review, reconstruct Git approvals or rerun tests. A JSON field saying the review is complete is an assertion that must be backed by saved evidence.
 
