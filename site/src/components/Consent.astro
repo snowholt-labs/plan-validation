@@ -39,7 +39,8 @@ const privacy = withBase('safety-and-limitations/#website-analytics');
     try {
       return localStorage.getItem(KEY);
     } catch {
-      return null;
+      // Blocked site data cannot keep a choice, so treat it as declined instead of asking on every page.
+      return 'denied';
     }
   }
 
@@ -53,8 +54,11 @@ const privacy = withBase('safety-and-limitations/#website-analytics');
 
   function load() {
     w[`ga-disable-${id}`] = false;
+    const config = { cookie_path: cookiePath, allow_google_signals: false, allow_ad_personalization_signals: false };
     if (w.gtag) {
+      // Accepting again on a page where GA was revoked; config sends this page view again.
       w.gtag('consent', 'update', { analytics_storage: 'granted' });
+      w.gtag('config', id, config);
       return;
     }
     w.dataLayer = w.dataLayer || [];
@@ -70,11 +74,7 @@ const privacy = withBase('safety-and-limitations/#website-analytics');
       analytics_storage: 'granted',
     });
     w.gtag('js', new Date());
-    w.gtag('config', id, {
-      cookie_path: cookiePath,
-      allow_google_signals: false,
-      allow_ad_personalization_signals: false,
-    });
+    w.gtag('config', id, config);
     const script = document.createElement('script');
     script.async = true;
     script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(id)}`;
@@ -159,8 +159,10 @@ const privacy = withBase('safety-and-limitations/#website-analytics');
   function sync() {
     const choice = read();
     apply(choice);
-    if (choice === 'granted' || choice === 'denied') hide();
-    else show(false);
+    if (choice !== 'granted' && choice !== 'denied') show(false);
+    // A panel the visitor opened through Cookie settings stays open and shows the new choice.
+    else if (returnFocus) show(false);
+    else hide();
   }
 
   if (id) {
@@ -204,6 +206,23 @@ const privacy = withBase('safety-and-limitations/#website-analytics');
   @media (min-width: 50rem) {
     :global([data-has-sidebar]) .consent {
       inset-inline-start: calc(var(--sl-sidebar-width) + 1rem);
+    }
+  }
+  /* Clear of the right-hand page rail where Starlight shows it. */
+  @media (min-width: 72rem) {
+    :global([data-has-toc]) .consent {
+      inset-inline-end: calc(
+        max(var(--sl-sidebar-width), var(--sl-sidebar-width) + (100vw - 2 * var(--sl-sidebar-width) - var(--sl-content-width)) / 2) +
+          1rem
+      );
+    }
+  }
+  @media print {
+    .consent {
+      display: none;
+    }
+    :global(body) {
+      padding-bottom: 0 !important;
     }
   }
   .consent p {
