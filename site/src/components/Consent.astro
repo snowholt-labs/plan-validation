@@ -33,28 +33,29 @@ const site = import.meta.env.PROD ? new URL(import.meta.env.SITE ?? '').origin :
   let banner: HTMLElement | null = null;
   let returnFocus: HTMLElement | null = null;
   let resize: ResizeObserver | null = null;
-  // The choice made on this page, used when the browser blocks storage.
+  // The choice made on this page when storage could not save it.
   let memory: string | null = null;
 
   type Gtag = (...args: unknown[]) => void;
   const w = window as unknown as Record<string, unknown> & { dataLayer?: unknown[]; gtag?: Gtag };
 
   function read() {
-    // A choice made on this page wins, even if storage could not save it.
+    // An unsaved choice from this page beats the older stored value.
     if (memory) return memory;
     try {
       return localStorage.getItem(KEY);
     } catch {
       // Blocked site data cannot keep a choice, so treat it as declined instead of asking on every page.
-      return memory ?? 'denied';
+      return 'denied';
     }
   }
 
   function write(value: string) {
-    memory = value;
+    memory = null;
     try {
       localStorage.setItem(KEY, value);
     } catch {
+      memory = value;
       // Without storage the choice lasts for this page only.
     }
   }
@@ -202,7 +203,10 @@ const site = import.meta.env.PROD ? new URL(import.meta.env.SITE ?? '').origin :
       sync();
     });
     window.addEventListener('pageshow', (event) => {
-      if (event.persisted) sync();
+      if (!event.persisted) return;
+      // The stored choice may have changed while this page was cached.
+      memory = null;
+      sync();
     });
   }
 </script>
