@@ -56,7 +56,12 @@ const site = import.meta.env.PROD ? new URL(import.meta.env.SITE ?? '').origin :
       localStorage.setItem(KEY, value);
     } catch {
       memory = value;
-      // Without storage the choice lasts for this page only.
+      // Without storage the choice lasts for this page only; drop an older saved choice so it cannot return.
+      try {
+        localStorage.removeItem(KEY);
+      } catch {
+        // Storage is blocked entirely, and read() already treats that as declined.
+      }
     }
   }
 
@@ -135,9 +140,9 @@ const site = import.meta.env.PROD ? new URL(import.meta.env.SITE ?? '').origin :
     if (!template) return;
     if (!banner) {
       banner = (template.content.cloneNode(true) as DocumentFragment).firstElementChild as HTMLElement;
-      // Early in the reading and tab order, right after the skip link.
-      const skip = document.querySelector('.sl-skip-link');
-      if (skip) skip.after(banner);
+      // Early in the reading and tab order, inside the frame Starlight makes inert while its mobile menu is open.
+      const frame = document.querySelector('.main-frame');
+      if (frame) frame.prepend(banner);
       else document.body.prepend(banner);
       // Keep the end of the page, and anything scrolled into view, clear of the fixed banner.
       resize = new ResizeObserver(() => {
@@ -171,7 +176,9 @@ const site = import.meta.env.PROD ? new URL(import.meta.env.SITE ?? '').origin :
       else button.setAttribute('aria-describedby', status.id);
     }
     // Opened from Cookie settings: keep the panel next to its opener in the keyboard order.
-    if (returnFocus) returnFocus.closest('p')?.after(banner);
+    const spot = returnFocus?.closest('p');
+    // Moving the panel would drop focus inside it, so move it only when it is elsewhere.
+    if (spot && spot.nextElementSibling !== banner) spot.after(banner);
     if (focus) banner.querySelector('button')?.focus();
   }
 
