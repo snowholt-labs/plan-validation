@@ -1,6 +1,6 @@
 # Prompt types
 
-Use this table to classify a prompt and to seed its pre-mortem. When a prompt matches two types, use the riskier type's failures. The cells are starting points, not a checklist to copy into every revision.
+Use this table to classify a prompt and to seed its pre-mortem. The cells are starting points, not a checklist to copy into every revision.
 
 | Type | The revision needs | Typical failures |
 | --- | --- | --- |
