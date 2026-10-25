@@ -4,9 +4,10 @@
 import { withBase } from './icons';
 
 const GA_ID = 'G-7435SD5GB9';
+// The only origin this property measures; dev, preview and forks keep the banner and loader switched off.
+const GA_ORIGIN = 'https://snowholt-labs.github.io';
 const privacy = withBase('safety-and-limitations/#website-analytics');
-// Only the published site measures; dev, preview and forks keep the banner and loader switched off.
-const site = import.meta.env.PROD && import.meta.env.SITE ? new URL(import.meta.env.SITE).origin : '';
+const site = import.meta.env.PROD ? GA_ORIGIN : '';
 ---
 
 <template id="pv-consent" data-ga-id={GA_ID} data-path={withBase('')} data-origin={site}>
@@ -32,6 +33,8 @@ const site = import.meta.env.PROD && import.meta.env.SITE ? new URL(import.meta.
 
 <script>
   const KEY = 'pv-analytics-consent';
+  // A saved choice is asked again after a year.
+  const MAX_AGE = 365 * 24 * 60 * 60 * 1000;
   const template = document.getElementById('pv-consent') as HTMLTemplateElement | null;
   const id = template?.dataset.gaId ?? '';
   // GA cookies stay on this site's path, so other github.io project sites on the origin are untouched.
@@ -53,12 +56,20 @@ const site = import.meta.env.PROD && import.meta.env.SITE ? new URL(import.meta.
 
   const decided = (value: string | null) => value === 'granted' || value === 'denied';
 
+  // The saved choice, or null when there is none, it is unreadable or it has expired.
   function stored() {
+    let raw: string | null;
     try {
       blocked = false;
-      return localStorage.getItem(KEY);
+      raw = localStorage.getItem(KEY);
     } catch {
       blocked = true;
+      return null;
+    }
+    try {
+      const { choice, at } = JSON.parse(raw ?? 'null') ?? {};
+      return decided(choice) && Date.now() - at < MAX_AGE ? (choice as string) : null;
+    } catch {
       return null;
     }
   }
@@ -74,7 +85,7 @@ const site = import.meta.env.PROD && import.meta.env.SITE ? new URL(import.meta.
   function write(value: string) {
     memory = null;
     try {
-      localStorage.setItem(KEY, value);
+      localStorage.setItem(KEY, JSON.stringify({ choice: value, at: Date.now() }));
     } catch {
       memory = value;
       // Without storage the choice lasts for this page only; drop an older saved choice so it cannot return.
@@ -142,10 +153,19 @@ const site = import.meta.env.PROD && import.meta.env.SITE ? new URL(import.meta.
   function revoke() {
     // GA already running on this page cannot be fully stopped, so reload it without GA; that load clears the cookies.
     if (w.gtag) {
-      location.reload();
+      // Stop further hits now, including the one sent as the page unloads.
+      w[`ga-disable-${id}`] = true;
+      w.gtag('consent', 'update', { analytics_storage: 'denied' });
+      reloadWhenVisible();
       return;
     }
     clearCookies();
+  }
+
+  // Another tab's decline reloads a background tab only when the visitor returns to it.
+  function reloadWhenVisible() {
+    if (document.visibilityState !== 'hidden') return location.reload();
+    document.addEventListener('visibilitychange', () => location.reload(), { once: true });
   }
 
   function apply(choice: string | null) {
@@ -164,7 +184,10 @@ const site = import.meta.env.PROD && import.meta.env.SITE ? new URL(import.meta.
     resize?.disconnect();
     document.body.style.paddingBottom = '';
     document.documentElement.style.scrollPaddingBottom = '';
-    for (const opener of document.querySelectorAll('[data-pv-consent-open]')) opener.setAttribute('aria-expanded', 'false');
+    for (const opener of document.querySelectorAll('[data-pv-consent-open]')) {
+      opener.setAttribute('aria-expanded', 'false');
+      opener.removeAttribute('aria-controls');
+    }
     let target = returnFocus;
     returnFocus = null;
     if (!hadFocus) return;
@@ -193,6 +216,8 @@ const site = import.meta.env.PROD && import.meta.env.SITE ? new URL(import.meta.
         const space = `${banner.offsetHeight + 32}px`;
         document.body.style.paddingBottom = space;
         document.documentElement.style.scrollPaddingBottom = space;
+        // Keep Cookie settings visible above the panel it opened.
+        returnFocus?.scrollIntoView({ block: 'nearest' });
       });
       resize.observe(banner);
       banner.addEventListener('click', (event) => {
@@ -228,7 +253,10 @@ const site = import.meta.env.PROD && import.meta.env.SITE ? new URL(import.meta.
     const spot = returnFocus?.closest('p');
     // Moving the panel would drop focus inside it, so move it only when it is elsewhere.
     if (spot && spot.nextElementSibling !== banner) spot.after(banner);
-    for (const opener of document.querySelectorAll('[data-pv-consent-open]')) opener.setAttribute('aria-expanded', 'true');
+    for (const opener of document.querySelectorAll('[data-pv-consent-open]')) {
+      opener.setAttribute('aria-expanded', 'true');
+      opener.setAttribute('aria-controls', banner.id);
+    }
     if (focus) banner.querySelector('button')?.focus();
   }
 
