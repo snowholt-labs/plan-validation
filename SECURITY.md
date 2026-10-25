@@ -14,7 +14,7 @@ Skills instruct an agent; they are not a permission-enforcement sandbox. Reposit
 
 Research runs by default, uses public, non-confidential terms only, and is listed in the report. Users can decline it for a run. Dependencies and alternatives are recommendations, not authority to install, download, execute, replace or enable anything. Inspect commands and lifecycle scripts before rehearsal; block only dependent unsafe or unapproved work. Dependency review cannot guarantee prevention of supply-chain attacks.
 
-The `revise-prompt` skill treats supplied instructions as quoted material and never executes them. It waits for clarification answers or explicit defaults before returning the revision.
+The `revise-prompt` skill treats supplied instructions and failed-run output as quoted material and never executes them. It waits only for blocking answers, such as a missing fact or a required approval, and records the defaults it applies to other choices. It does not open secret files or check credentials, and it replaces a secret found in a supplied prompt with a placeholder.
 
 The renderer uses the Python standard library, escapes raw HTML, restricts rendered links and emits a Content Security Policy. Its structural checks do not establish that source evidence is truthful. A generated report is a local snapshot and may contain sensitive project information. Review and redact before sharing it.
 

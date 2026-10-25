@@ -31,7 +31,7 @@ Review only dependencies proposed/changed by the plan and existing security-crit
 
 Research never authorizes package downloads, dependency execution/replacement, manifest/lockfile changes or service/plugin enablement. Decisions and separate execution gates remain in the report, which the short handoff requires the next agent to read. Routine defaults never replace required approvals.
 
-`revise-prompt` treats supplied text as data. It critiques, scores, clarifies essential missing facts, and uses disclosed recommendations for unanswered routine preferences. It does not execute the prompt or infer permission from silence. Your host still processes that conversation under its own policies.
+`revise-prompt` treats supplied text, including the output of a failed run, as data. It critiques, scores, waits only for blocking questions, and uses disclosed recommendations for the rest. It does not execute the prompt, open secret files, check whether a credential exists, or infer permission from silence. A secret or personal data in a supplied prompt is replaced with a placeholder in the revision. Your host still processes that conversation under its own policies.
 
 ## Verification limits
 
