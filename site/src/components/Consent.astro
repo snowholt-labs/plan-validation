@@ -103,18 +103,23 @@ const privacy = withBase('safety-and-limitations/#website-analytics');
 
   function hide() {
     if (!banner) return;
+    const hadFocus = banner.contains(document.activeElement);
     banner.remove();
     banner = null;
     resize?.disconnect();
     document.body.style.paddingBottom = '';
     let target = returnFocus;
+    returnFocus = null;
+    if (!hadFocus) return;
     if (!target) {
       // The removed banner held focus; continue from the start of the main content.
       target = document.querySelector('main');
-      target?.setAttribute('tabindex', '-1');
+      if (target && !target.hasAttribute('tabindex')) {
+        target.setAttribute('tabindex', '-1');
+        target.addEventListener('blur', () => target!.removeAttribute('tabindex'), { once: true });
+      }
     }
     target?.focus({ preventScroll: true });
-    returnFocus = null;
   }
 
   function show(focus: boolean) {
@@ -137,21 +142,30 @@ const privacy = withBase('safety-and-limitations/#website-analytics');
         hide();
         apply(choice);
       });
+      // Escape closes the settings panel without changing an existing choice.
+      banner.addEventListener('keydown', (event) => {
+        const stored = read();
+        if (event.key === 'Escape' && (stored === 'granted' || stored === 'denied')) hide();
+      });
     }
     const stored = read();
     const status = banner.querySelector<HTMLElement>('.status')!;
     status.hidden = stored !== 'granted' && stored !== 'denied';
     status.textContent = stored === 'granted' ? 'Current choice: accepted.' : 'Current choice: declined.';
-    for (const button of banner.querySelectorAll<HTMLElement>('button')) {
-      button.setAttribute('aria-pressed', String(button.dataset.choice === stored));
-    }
     if (focus) banner.querySelector('button')?.focus();
   }
 
+  // Applies the stored choice and shows the banner only while no choice is recorded.
+  function sync() {
+    const choice = read();
+    apply(choice);
+    if (choice === 'granted' || choice === 'denied') hide();
+    else show(false);
+  }
+
   if (id) {
-    const stored = read();
-    apply(stored);
-    if (stored !== 'granted' && stored !== 'denied') show(false);
+    sync();
+    for (const opener of document.querySelectorAll<HTMLElement>('[data-pv-consent-open]')) opener.hidden = false;
 
     document.addEventListener('click', (event) => {
       const opener = (event.target as HTMLElement).closest<HTMLElement>('[data-pv-consent-open]');
@@ -161,13 +175,10 @@ const privacy = withBase('safety-and-limitations/#website-analytics');
     });
     // A choice made in another tab, or a page restored from the back-forward cache, follows the stored choice.
     window.addEventListener('storage', (event) => {
-      if (event.key !== KEY && event.key !== null) return;
-      const choice = read();
-      apply(choice);
-      if (choice === 'granted' || choice === 'denied') hide();
+      if (event.key === KEY || event.key === null) sync();
     });
     window.addEventListener('pageshow', (event) => {
-      if (event.persisted) apply(read());
+      if (event.persisted) sync();
     });
   }
 </script>
@@ -177,7 +188,8 @@ const privacy = withBase('safety-and-limitations/#website-analytics');
     position: fixed;
     inset-inline: 1rem;
     bottom: 1rem;
-    z-index: 30;
+    /* Below Starlight's mobile menu (5), so an open menu covers the banner instead of the reverse. */
+    z-index: 4;
     max-width: 34rem;
     margin-inline: auto;
     padding: 1rem 1.25rem;
@@ -187,6 +199,12 @@ const privacy = withBase('safety-and-limitations/#website-analytics');
     box-shadow: 0 0.75rem 2rem rgb(0 0 0 / 0.28);
     color: var(--pv-ink);
     font-size: var(--sl-text-sm);
+  }
+  /* Beside the fixed left sidebar on wide pages, never over it. */
+  @media (min-width: 50rem) {
+    :global([data-has-sidebar]) .consent {
+      inset-inline-start: calc(var(--sl-sidebar-width) + 1rem);
+    }
   }
   .consent p {
     margin: 0 0 0.75rem;
