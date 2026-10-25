@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- The documentation website asks for consent before it loads Google Analytics. Nothing third-party loads until a visitor accepts; declining, or changing the choice later through **Cookie settings** in the footer, removes the analytics cookies. The plugin and its reports are unchanged and send nothing to Google.
+- The documentation website asks for consent before it loads Google Analytics. Nothing third-party loads until a visitor accepts. Declining, or changing the choice later through **Cookie settings** in the footer, removes the analytics cookies and reloads a page where analytics was running. The choice is asked again after a year. The plugin and its reports are unchanged and send nothing to Google.
 
 ## 0.4.0 — 2026-10-25
 
