@@ -6,7 +6,7 @@ import { withBase } from './icons';
 const GA_ID = 'G-7435SD5GB9';
 const privacy = withBase('safety-and-limitations/#website-analytics');
 // Only the published site measures; dev, preview and forks keep the banner and loader switched off.
-const site = import.meta.env.PROD ? new URL(import.meta.env.SITE ?? '').origin : '';
+const site = import.meta.env.PROD && import.meta.env.SITE ? new URL(import.meta.env.SITE).origin : '';
 ---
 
 <template id="pv-consent" data-ga-id={GA_ID} data-path={withBase('')} data-origin={site}>
@@ -35,6 +35,8 @@ const site = import.meta.env.PROD ? new URL(import.meta.env.SITE ?? '').origin :
   let resize: ResizeObserver | null = null;
   // The choice made on this page when storage could not save it.
   let memory: string | null = null;
+  // The choice this page has applied, so applying it again sends no extra page view.
+  let applied: 'granted' | 'denied' | null = null;
 
   type Gtag = (...args: unknown[]) => void;
   const w = window as unknown as Record<string, unknown> & { dataLayer?: unknown[]; gtag?: Gtag };
@@ -69,7 +71,7 @@ const site = import.meta.env.PROD ? new URL(import.meta.env.SITE ?? '').origin :
     w[`ga-disable-${id}`] = false;
     const config = { cookie_path: cookiePath, allow_google_signals: false, allow_ad_personalization_signals: false };
     if (w.gtag) {
-      // Accepting again on a page where GA was revoked; config sends this page view again.
+      // Accepting again on a page where GA was revoked; config sends this page view once more.
       w.gtag('consent', 'update', { analytics_storage: 'granted' });
       w.gtag('config', id, config);
       return;
@@ -110,7 +112,10 @@ const site = import.meta.env.PROD ? new URL(import.meta.env.SITE ?? '').origin :
   }
 
   function apply(choice: string | null) {
-    if (choice === 'granted') load();
+    const next = choice === 'granted' ? 'granted' : 'denied';
+    if (next === applied) return;
+    applied = next;
+    if (next === 'granted') load();
     else revoke();
   }
 
@@ -155,16 +160,15 @@ const site = import.meta.env.PROD ? new URL(import.meta.env.SITE ?? '').origin :
       banner.addEventListener('click', (event) => {
         const choice = (event.target as HTMLElement).closest('button')?.dataset.choice;
         if (!choice) return;
-        const previous = read();
         write(choice);
         hide();
-        // Choosing the current option again changes nothing and must not count another page view.
-        if (choice !== previous) apply(choice);
+        apply(choice);
       });
       // Escape closes the settings panel without changing an existing choice.
       banner.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape') return;
         const stored = read();
-        if (event.key === 'Escape' && (stored === 'granted' || stored === 'denied')) hide();
+        if (stored === 'granted' || stored === 'denied') hide();
       });
     }
     const stored = read();
