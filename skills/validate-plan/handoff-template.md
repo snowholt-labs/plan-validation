@@ -20,7 +20,7 @@ Variants, each replacing the stop sentence or the merge check:
 - **Last phase of the plan:** "Stop at the end of Phase [N]; it is the last phase." In a phase-only validation whose last selected phase is not the plan's last, use "Stop at the end of Phase [N]; it is the last validated phase."
 - **Phase before a waiting phase:** "Stop at the end of Phase [N]. Phase [next] waits for [decision]; there is no prompt for it yet." Name only the decision ID (for example `D1`), because a descriptive decision pushes this variant past 80 words.
 
-The renderer requires each ready-phase prompt to say `Stop at the end of Phase <id>` for its own phase only, never negated. Keep the continuation, pause and stop sentences when shortening; shorten the scope wording instead and point to Open items.
+The renderer requires each ready-phase prompt to say `Stop at the end of Phase <id>` for its own phase only, never negated. In a new report, each ready-phase prompt after the first must also say `Confirm Phase <previous> is merged` for the ready phase before it, never negated. Keep the continuation, pause, merge-check and stop sentences when shortening; shorten the scope wording instead and point to Open items.
 
 The continuation and pause sentences stop the implementing agent from pausing after each passing step or review to ask whether to continue, while keeping approval gates from repository rules and the report, such as a merge that needs the maintainer, inside the prompt itself. The stop sentence keeps the session inside its phase: the maintainer merges the phase and starts the next one in a fresh session.
 

@@ -56,7 +56,7 @@ Group the validated tasks into implementation phases so that each phase runs in 
 
 - Put every validated task in exactly one phase, in plan order. Never split or move a task.
 - Never cross a phase or part the plan already defines. Split a plan phase larger than about 5 tasks into consecutive sub-phases; keep small plan phases as they are, even with one task. A plan with no phases of its own and 5 or fewer tasks is one phase.
-- Each later phase's prompt confirms the previous phase is merged; never weaken that check. A delivery that cannot merge each phase on its own is a plan defect, handled under steps 4 and 7.
+- Each later phase's prompt confirms the previous phase is merged; never weaken that check. A delivery that cannot merge each phase on its own is a plan defect: apply per-phase delivery from repository or user instructions, otherwise raise it as an approval in section 6.
 - Target 3–5 tasks per phase. End each phase where the tests pass and its PR can be reviewed on its own.
 - Record for each phase whether it is docs-only, whether it needs a security review and why (auth, user input, secrets, dependencies, CI workflows), and whether it is ready or waits, naming what it waits for.
 - Phases run in order, so a waiting phase holds back every later phase. A phase whose tasks are only partly approved waits as a whole. If the first phase waits, no phase can start: section 8 holds one prompt that names what to resolve and says `Do not start dependent implementation.`

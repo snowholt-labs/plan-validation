@@ -587,7 +587,8 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
 
     def test_later_prompt_must_confirm_the_previous_phase_is_merged(self):
         source, context = self.two_phase()
-        for bad in ("Confirm Phase 1 is committed.", "Confirm Phase 12 is merged.", ""):
+        for bad in ("Confirm Phase 1 is committed.", "Confirm Phase 12 is merged.", "Confirm Phase 1.2 is merged.",
+                    "Confirm Phase 1-b is merged.", "Do not confirm Phase 1 is merged.", "Never confirm Phase 1 is merged.", ""):
             with self.subTest(bad=bad):
                 with self.assertRaisesRegex(ValueError, "Confirm Phase 1 is merged"):
                     render(source.replace("Confirm Phase 1 is merged.", bad), context)
