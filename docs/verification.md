@@ -8,7 +8,7 @@ Checked on 25 October 2026 on Linux, using Python 3.14.4 and Claude Code 2.1.310
 | --- | --- | --- |
 | Renderer regression suite | 83 tests passed | Includes the `--open` checks (no display, a terminal browser and a launch failure leave the written report intact) and the rule that a later phase prompt confirms the previous phase is merged; rendering tests do not establish model behavior |
 | Package and local documentation links | Passed | Three skills, 4 SVG icons and 47 Markdown files checked; plugin, marketplace and Codex manifests agree at 0.4.0 |
-| Strict Claude validation | Passed with one warning | Both `claude plugin validate` commands pass; the warning is that the repository's root `CLAUDE.md` is not loaded as plugin context, which is expected because it is contributor guidance |
+| Claude plugin validation | Passed with one warning | Both `claude plugin validate` commands pass without `--strict`; the warning is that the repository's root `CLAUDE.md` is not loaded as plugin context, which is expected because it is contributor guidance, and makes `--strict` fail |
 | Retry demonstration | Three tests with one expected failure; corrected control has three passing tests | Existing authored fixture and renderer executed; not an effectiveness benchmark |
 | Documentation site | 47 tests passed; 14 pages built | The built header shows version 0.4.0 and the changelog page shows the 0.4.0 entry |
 
