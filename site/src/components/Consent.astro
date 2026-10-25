@@ -10,13 +10,19 @@ const site = import.meta.env.PROD && import.meta.env.SITE ? new URL(import.meta.
 ---
 
 <template id="pv-consent" data-ga-id={GA_ID} data-path={withBase('')} data-origin={site}>
-  <section class="consent" id="pv-consent-panel" aria-labelledby="pv-consent-title">
+  <section
+    class="consent"
+    id="pv-consent-panel"
+    role="dialog"
+    aria-labelledby="pv-consent-title"
+    aria-describedby="pv-consent-text"
+  >
     <p class="title" id="pv-consent-title">Analytics cookies</p>
-    <p>
+    <p id="pv-consent-text">
       May this site use Google Analytics cookies to measure visits and how its pages are used? Nothing loads unless you
       accept. <a href={privacy}>Privacy details</a>
     </p>
-    <p class="status" id="pv-consent-status" hidden></p>
+    <p class="status" id="pv-consent-status" aria-live="polite" hidden></p>
     <div class="actions">
       <button type="button" data-choice="granted">Accept</button>
       <button type="button" data-choice="denied">Decline</button>
@@ -82,13 +88,12 @@ const site = import.meta.env.PROD && import.meta.env.SITE ? new URL(import.meta.
 
   function load() {
     w[`ga-disable-${id}`] = false;
-    const config = { cookie_path: cookiePath, allow_google_signals: false, allow_ad_personalization_signals: false };
     if (w.gtag) {
-      // Accepting again on a page where GA was revoked; config sends this page view once more.
+      // Accepting again on a page where GA was revoked: its page view was already counted, so only resume.
       w.gtag('consent', 'update', { analytics_storage: 'granted' });
-      w.gtag('config', id, config);
       return;
     }
+    const config = { cookie_path: cookiePath, allow_google_signals: false, allow_ad_personalization_signals: false };
     w.dataLayer = w.dataLayer || [];
     w.gtag = function gtag() {
       // gtag.js expects the arguments object itself, not an array.
@@ -225,7 +230,7 @@ const site = import.meta.env.PROD && import.meta.env.SITE ? new URL(import.meta.
     const spot = returnFocus?.closest('p');
     // Moving the panel would drop focus inside it, so move it only when it is elsewhere.
     if (spot && spot.nextElementSibling !== banner) spot.after(banner);
-    returnFocus?.setAttribute('aria-expanded', 'true');
+    for (const opener of document.querySelectorAll('[data-pv-consent-open]')) opener.setAttribute('aria-expanded', 'true');
     if (focus) banner.querySelector('button')?.focus();
   }
 
@@ -246,12 +251,17 @@ const site = import.meta.env.PROD && import.meta.env.SITE ? new URL(import.meta.
     document.addEventListener('click', (event) => {
       const opener = (event.target as HTMLElement).closest<HTMLElement>('[data-pv-consent-open]');
       if (!opener) return;
+      // A second press closes a panel the visitor already answered, like any disclosure button.
+      if (banner && decided(read())) {
+        hide();
+        return;
+      }
       returnFocus = opener;
       show(true);
     });
     // A choice made in another tab, or a page restored from the back-forward cache, follows the stored choice.
     window.addEventListener('storage', (event) => {
-      if (event.key !== KEY && event.key !== null) return;
+      if (event.storageArea !== localStorage || (event.key !== KEY && event.key !== null)) return;
       // Another tab saved a newer choice, so the one held for this page no longer applies.
       memory = null;
       sync();
