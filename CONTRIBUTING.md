@@ -29,6 +29,8 @@ cd site && npm ci && npm test && npm run build
 
 If Claude Code is installed, also run `claude plugin validate .` and `claude plugin validate .claude-plugin/plugin.json`.
 
+Fill in the PR template. A maintainer runs a code review and a security review on every PR and sets the `review/code` and `review/security` statuses; a PR cannot merge before both pass.
+
 No third-party Python packages are required. Do not introduce runtime dependencies without a concrete need and maintainer agreement. Update both plugin versions and the marketplace version together for a release. User documentation lives in `site/src/content/docs/`; the changelog, security policy, contributing guide, `examples/README.md` and `examples/safety-cases.md` are synced into the site from the root files.
 
 Be specific, respectful and open to corrections. Give credit for contributed ideas and code. See [docs/evaluation.md](docs/evaluation.md) for behavior evaluation; passing renderer tests alone does not validate the agent workflow.
