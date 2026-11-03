@@ -45,25 +45,26 @@ If Claude Code is installed, also run `claude plugin validate .` and `claude plu
 
 These rules override an agent's own or global instructions for this repo: use this repo's template, labels and merge methods, and add no extra PR sections, labels or tracking issues.
 
-- `main` and `plan/**` require a PR and the `verify` check. Other branches are not protected.
+- `main` and `plan/**` require a PR, the `verify` check and the `review/code` and `review/security` commit statuses (the `Required reviews` ruleset). Other branches are not protected.
 - Every PR into `main` is merged with a merge commit, never squash. Only phase PRs into a plan branch are squash merged.
-- Ask the maintainer before any merge, and confirm CI passed on the PR head (`gh pr checks <number>`) first.
+- Ask the maintainer before any merge, and first confirm on the PR head that CI passed (`gh pr checks <number>`), that `review/code` and `review/security` are `success`, and that both comment reviews name that head.
 - Code and security review means a code review and a security review of the PR diff, with findings fixed or explicitly accepted (in Claude Code, `/code-review` and `/security-review`; in other hosts, an equivalent independent review).
-- Docs-only PRs need CI but no code or security review. A PR is docs-only when it changes only `site/src/content/docs/`, `README.md`, the root files synced into the site, or plan and spec documents under `docs/superpowers/`. Changes to `AGENTS.md`, `CLAUDE.md`, `docs/evaluation.md`, `SECURITY.md`, skill text, scripts, assets, site code or dependencies, or CI are not docs-only.
+- Every PR into `main` or `plan/**` gets both reviews, docs-only PRs included.
+- Post each review's result as its own comment review (`gh pr review <number> --comment --body-file <file>`), starting with `## Code review` or `## Security review` and the lines `Result: pass|fail`, `Head: <full sha>` and `Base: <branch> <sha>`. Then set the matching `review/code` or `review/security` commit status on the reviewed head, `success` only when every finding is fixed or explicitly accepted. A new push needs both reviews again.
 
 ### Plan work
 
-This repo follows the per-phase workflow published in `site/src/content/docs/phased-implementation.md`:
+This repo follows the per-phase workflow published in `site/src/content/docs/phased-implementation.md`, except that every phase and every docs-only PR also gets both reviews:
 
 - A plan uses a `plan/<topic>` branch (the protection rule matches only this prefix) and a milestone named after the plan. Implement each phase in its own fresh session, on its own branch with a PR into the plan branch. Start a phase only after the previous one is merged into the plan branch; confirm this first and stop if it is not. Merged earlier phases and ticked task checkboxes are expected; reconcile any other plan, spec or approval change with the validation report first.
-- Phase review, before opening the PR (unless the report marks the phase docs-only): repeat the code review while a round finds bugs, security issues or failing tests; stop when only minor items remain and list them as action points in a PR comment. After 5 rounds with real problems left, do not open the PR; ask the maintainer.
-- Run a security review on a phase only when the validation report flags it as security-sensitive (authentication, user input, secrets, dependencies, CI workflows).
-- Open the PR, wait for CI to pass (fix failures before going on), post the review comment, then stop and print the next phase's prompt from the report. The maintainer merges and starts the next phase.
+- Phase review, before opening the PR: repeat the code review while a round finds bugs, security issues or failing tests; stop when only minor items remain and list them as action points in the code comment review. After 5 rounds with real problems left, do not open the PR; ask the maintainer.
+- Run a security review on every phase, after the code review rounds, whether or not the validation report flags it as security-sensitive.
+- Open the PR, wait for CI to pass (fix failures before going on), post both comment reviews and their `review/*` statuses, then stop and print the next phase's prompt from the report. The maintainer merges and starts the next phase.
 - The plan-to-`main` PR gets a full code and security review of the whole diff, which also resolves the saved action points.
 
 ### Other changes
 
-Use a short-lived branch and a PR into `main`. Merge with a merge commit (not squash) after CI and code and security review (CI only for docs-only PRs).
+Use a short-lived branch and a PR into `main`. Merge with a merge commit (not squash) after CI and code and security review.
 
 ### Releases
 
@@ -73,6 +74,7 @@ Use a short-lived branch and a PR into `main`. Merge with a merge commit (not sq
 
 ### Pull request metadata
 
-- Write the body with the sections of `.github/PULL_REQUEST_TEMPLATE.md`: Problem and resulting behavior, Verification, Scope and permissions.
+- Write the body with the sections of `.github/PULL_REQUEST_TEMPLATE.md`: Tracking, Problem and resulting behavior, Verification, Scope and permissions, Reviews.
+- In the Tracking block, `Plan issue:` stays `none`: this repo opens no plan tracking issues.
 - Use existing labels only: `bug`, `enhancement`, `documentation`, `accessibility`.
 - Add the plan's milestone to phase PRs and the plan-to-`main` PR. Other PRs get no milestone. The repository has no GitHub project.
