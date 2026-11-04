@@ -137,6 +137,8 @@ class DiagramValidationTests(unittest.TestCase):
             descs = re.findall(r"<desc\b[^>]*>(.*?)</desc>", section, re.S)
             self.assertEqual([html.unescape(desc) for desc in descs], [diagram["description"]])
             self.assertIn(f'url(#dg-{index}-m-', section)
+        self.assertIn('<circle class="num"', sections[1])
+        self.assertIn('<text class="numt"', sections[1])
         self.assertIn('class="dg-w2"', sections[0])
         self.assertIn('class="dg-flow"', sections[1])
         for node_id in ("caller", "helper", "api"):
@@ -220,15 +222,39 @@ class DiagramValidationTests(unittest.TestCase):
                 wrong[key] = 7
                 self.rejects([wrong], key)
 
-    def test_overlapping_real_diagram_is_rejected(self):
-        # Two links from one pill into the same gap share a line and their labels collide.
-        links = [
+    def test_links_sharing_a_row_in_one_gap_are_explained(self):
+        # Both source pills sit on row 1 of the same gap, so their lines and labels would meet.
+        both_ways = [
+            {"from": "caller", "to": "api", "label": "request"},
+            {"from": "api", "to": "caller", "label": "response"},
+        ]
+        self.rejects([zones(links=both_ways)], "links[1]", "same row", "links[0]", "different rows")
+        two = copy.deepcopy(ZONES["zones"])
+        two[1]["nodes"].append(node("api2"))
+        same_pill = [
             {"from": "helper", "to": "api", "label": "request"},
             {"from": "helper", "to": "api2", "label": "again"},
         ]
-        two = copy.deepcopy(ZONES["zones"])
-        two[1]["nodes"].append(node("api2"))
-        self.rejects([zones(zones=two, links=links)], "overlaps")
+        self.rejects([zones(zones=two, links=same_pill)], "links[1]", "same row")
+
+    def test_overlapping_returns_are_explained(self):
+        steps = [{"title": f"Step {n}"} for n in range(1, 6)]
+        branches = [
+            {"from_step": 3, "title": "Retry", "tone": "retry", "returns_to": 1},
+            {"from_step": 5, "title": "Again", "tone": "retry", "returns_to": 2},
+        ]
+        self.rejects([flow(steps=steps, branches=branches)], "branches[1].returns_to", "branches[0]")
+        apart = [dict(branches[0], from_step=2), dict(branches[1], from_step=5, returns_to=3)]
+        validate_diagrams([flow(steps=steps, branches=apart)])
+
+    def test_overlap_backstop_rejects_real_diagram(self):
+        # Two elbows reach one pill from the same side; only the layout check sees it.
+        three = [
+            {"label": "Left", "nodes": [node("a1"), node("a2"), node("a3")]},
+            {"label": "Right", "nodes": [node("b1"), node("b2"), node("b3")]},
+        ]
+        links = [{"from": "a1", "to": "b3", "label": "one"}, {"from": "a2", "to": "b3", "label": "two"}]
+        self.rejects([zones(zones=three, links=links)], "overlaps")
 
 
 class DiagramRenderTests(unittest.TestCase):

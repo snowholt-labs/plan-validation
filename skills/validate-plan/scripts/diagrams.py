@@ -69,7 +69,7 @@ def sized_list(value, low, high, what, number):
 
 def check_zones(diagram, number):
     zones = sized_list(diagram.get("zones"), 1, 3, "zones", number)
-    zone_of = {}
+    zone_of, row_of = {}, {}
     for zi, zone in enumerate(zones):
         check_text(zone, "label", f"zones[{zi}].", number, "zone_label")
         if not isinstance(zone.get("chain", False), bool):
@@ -81,12 +81,13 @@ def check_zones(diagram, number):
                 raise ValueError(f"Diagram {number}: {where}id must be 1 to 24 lowercase letters, digits or hyphens, starting with a letter")
             if node_id in zone_of:
                 raise ValueError(f"Diagram {number}: {where}id {node_id!r} is used twice")
-            zone_of[node_id] = zi
+            zone_of[node_id], row_of[node_id] = zi, ni
             check_text(node, "title", where, number, "node_title")
             check_text(node, "sub", where, number, "node_sub", required=False)
     links = diagram.get("links", [])
     if not isinstance(links, list) or not all(isinstance(link, dict) for link in links):
         raise ValueError(f"Diagram {number}: links must be a list of objects")
+    starts = {}  # (gap, source row) -> first link that leaves there
     for li, link in enumerate(links):
         where = f"links[{li}]."
         for end in ("from", "to"):
@@ -99,6 +100,12 @@ def check_zones(diagram, number):
             raise ValueError(f"Diagram {number}: {where} joins zones that are not neighbours")
         check_text(link, "label", where, number, "link_label")
         check_text(link, "sub", where, number, "link_sub", required=False)
+        # A link runs along its source row, so two links leaving one row of one gap share a line.
+        start = (min(source, target), row_of[link["from"]])
+        if start in starts:
+            raise ValueError(f"Diagram {number}: links[{li}] starts on the same row as links[{starts[start]}] "
+                             "in the same gap; put the nodes on different rows")
+        starts[start] = li
 
 
 def check_flow(diagram, number):
@@ -109,7 +116,7 @@ def check_flow(diagram, number):
     branches = diagram.get("branches", [])
     if branches != []:
         sized_list(branches, 1, 2, "branches", number)
-    used = set()
+    used, returns = set(), []
     for bi, branch in enumerate(branches):
         where = f"branches[{bi}]."
         start = branch.get("from_step")
@@ -125,6 +132,12 @@ def check_flow(diagram, number):
                 raise ValueError(f"Diagram {number}: {where}returns_to is allowed only on the first branch from a step")
             if not is_int(back) or not 1 <= back < start:
                 raise ValueError(f"Diagram {number}: {where}returns_to must be an earlier step number")
+            # Every return path shares one lane, so their step ranges must not overlap.
+            for other, (other_back, other_start) in returns:
+                if back < other_start and other_back < start:
+                    raise ValueError(f"Diagram {number}: {where}returns_to overlaps the return path of "
+                                     f"branches[{other}]; let the returns cover separate steps")
+            returns.append((bi, (back, start)))
         used.add(start)
 
 
@@ -242,7 +255,7 @@ def flow_items(diagram):
         items += pill_items(step, MARGIN, y, STEP_W, "pill", PILL_RX, text_x=MARGIN + NUM_AREA + PAD)
         cx, cy = MARGIN + PAD + NUM_R, y + STEP_H / 2
         items.append({"kind": "badge", "box": (cx - NUM_R, cy - NUM_R, 2 * NUM_R, 2 * NUM_R), "cx": cx, "cy": cy})
-        items.append(text_item("text", str(si + 1), "num", "t", cx, cy + 4.5, "middle"))
+        items.append(text_item("text", str(si + 1), "numt", "t", cx, cy + 4.5, "middle"))
         if si:
             centre = MARGIN + STEP_W / 2
             items.append(arrow([(centre, y - STEP_GAP), (centre, y - HEAD)], "ar", "ar"))
