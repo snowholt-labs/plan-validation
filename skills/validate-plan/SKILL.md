@@ -15,6 +15,7 @@ Review the plan against the approved specification and current repository, rehea
 - Read arguments from the invoking message. Accept positional PLAN, SPEC, then free-text FOCUS, or labeled `PLAN:`, `SPEC:`, `FOCUS:`. Quote paths that contain spaces. This is a skill invocation, not a shell command.
 - Resolve repository-relative paths from the selected worktree root and Markdown links from their containing document. Follow the plan's `**Spec:**` link when SPEC is omitted. Preserve uncommitted worktree copies.
 - Ask for missing required paths or a genuinely ambiguous pairing. Inspect at most three plausible plan candidates; never select solely by modification time. Omitted FOCUS means derive risks from SPEC; no question is needed.
+- Publish setting: ${user_config.publish_artifact}
 - Support ordinary Markdown plans as well as Superpowers plans. Use an installed planning skill's conventions when relevant, but do not require, install, upgrade or read private internal templates from another plugin.
 
 ## Authority and boundaries

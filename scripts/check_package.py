@@ -26,6 +26,18 @@ def main():
         errors.append("Marketplace source must point to the package root")
     if (ROOT / codex["skills"]).resolve() != ROOT / "skills":
         errors.append("Codex skills path does not resolve to the bundled skills")
+    publish = claude.get("userConfig", {}).get("publish_artifact")
+    if not (
+        isinstance(publish, dict)
+        and publish.get("type") == "boolean"
+        and publish.get("default") is False
+        and isinstance(publish.get("title"), str) and publish["title"].strip()
+        and isinstance(publish.get("description"), str) and publish["description"].strip()
+        and publish.get("sensitive") is not True
+    ):
+        errors.append(
+            "userConfig.publish_artifact must be a non-sensitive boolean with default false, a title and a description"
+        )
     icons = [claude.get("icon")] + [codex.get("interface", {}).get(key) for key in ("composerIcon", "logo", "logoDark")]
     for icon in filter(None, icons):
         path = (ROOT / icon).resolve()
