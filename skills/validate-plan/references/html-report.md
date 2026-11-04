@@ -245,7 +245,8 @@ Version 4 fields:
   (`High`, `Medium` or `Low`) and `holds_back` (the phases or tasks it holds back, or
   `Nothing` or `None`, in any case, when it holds back no work; any other text counts as
   holding back work). A `Ready after approvals` verdict needs at least one item that holds
-  back work and at least one waiting phase; a `Ready` verdict must have none that does. In a phase-only validation, an
+  back work, and the `waits_for` of a waiting phase must name each such item's ID; a
+  `Ready` verdict must have none that does. In a phase-only validation, an
   approval that holds back only phases outside the selected scope is a separately scoped
   follow-up in section 6 and stays out of `open_decisions`.
 - `watch_list`: a list, `[]` when none. Each item has `kind` (`gap`, `limit`, `risk` or
@@ -334,7 +335,7 @@ Confirm applicable dependency/alternative tables and recorded choices are inside
 the report, and that the copied prompt references their complete saved record.
 Check that each copied prompt matches `handoff.txt` or its `handoff-phase-<id>.txt`.
 Confirm the Run validation again card shows this run's number and answer, and for
-`yes` that the copied re-run prompt matches `rerun.txt`. Provide a clickable absolute link
+a new report with `yes` that the copied re-run prompt matches `rerun.txt`. Provide a clickable absolute link
 to `report.html`; a short local preview URL may accompany it. If serving locally,
 bind to `127.0.0.1`, serve only this report directory, and keep that preview alive.
 No dependency install or external hosting is needed. Render new reports with `--open`,

@@ -723,14 +723,39 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         render(*self.phase_1_waits(source.replace("**Ready.**", "**Ready after approvals.**"),
                                    self.pending_d1(REPORT, self.modern_context())[1]))
 
-    def test_v4_ready_after_approvals_needs_a_waiting_phase(self):
+    def test_v4_held_back_work_waits_for_its_decision(self):
         # A decision that holds back Phase 1 while Phase 1 is ready would hand out its implementation prompt.
         source, context = self.pending_d1(REPORT.replace("**Ready.**", "**Ready after approvals.**"), self.modern_context())
-        with self.assertRaisesRegex(ValueError, "waiting phase"):
+        with self.assertRaisesRegex(ValueError, "D1 holds back work"):
             render(source, context)
+        # Phase 1 is ready and Phase 2 waits for something else: Phase 1 would still get a prompt.
+        two_source, two = self.two_phase()
+        two_source, two = self.pending_d1(two_source.replace("**Ready.**", "**Ready after approvals.**"), two)
+        two["phases"][1].update(status="waiting", waits_for="D10 and the CI fix")
+        two_source = two_source.split("```text\nImplement Phase 2.")[0]
+        with self.assertRaisesRegex(ValueError, "D1 holds back work"):
+            render(two_source, two)
+        two["phases"][1]["waits_for"] = "D1"
+        render(two_source, two)
         page, prompt, _, _ = render(*self.phase_1_waits(source, context))
         self.assertIn("Do not start dependent implementation.", prompt)
         self.assertNotIn("Copy Phase 1 prompt", page)
+
+    def test_phase_only_rerun_prompt_keeps_its_scope(self):
+        # Without the scope sentence the next session validates the full plan and restarts the count.
+        source, two = self.two_phase()
+        two["validation_run"]["scope"] = "phases:1-2"
+        with self.assertRaisesRegex(ValueError, "Validate only Phases 1-2"):
+            render(source, self.rerun_yes(two))
+        render(source, self.rerun_yes(two, self.RERUN_PROMPT + " Validate only Phases 1-2."))
+        one = self.modern_context()
+        one["validation_run"]["scope"] = "phases:1-1"
+        for sentence in ("Validate only Phases 1-1.", "Validate only Phase 1."):
+            with self.subTest(sentence=sentence):
+                render(REPORT, self.rerun_yes(one, self.RERUN_PROMPT + " " + sentence))
+        with self.assertRaisesRegex(ValueError, "Validate only Phase 1"):
+            render(REPORT, self.rerun_yes(one, self.RERUN_PROMPT + " Validate only Phase 10."))
+        render(REPORT, self.rerun_yes(self.modern_context()))
 
     def test_v4_decision_ids_are_unique(self):
         source = REPORT.replace("No blockers.", "Pending approvals D1 and d1.")
@@ -756,7 +781,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             with self.subTest(count=count):
                 context = self.modern_context()
                 context["open_decisions"] = [dict(decision, id=f"D{n}", holds_back=f"Phase {n}") for n in range(1, count + 1)]
-                page, _, _, _ = render(*self.phase_1_waits(source, context))
+                page, _, _, _ = render(*self.phase_1_waits(source, context, " and ".join(f"D{n}" for n in range(1, count + 1))))
                 button = re.search(r'<button class="count" type="button" data-open-tab="answer">.*?</button>', page, re.S).group(0)
                 self.assertIn("D1 holds back Phase 1 " + tail + " ·", button)
 
@@ -1287,9 +1312,10 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
     def test_phase_titles_cannot_inject_markup(self):
         source, context = self.two_phase()
         context["phases"][0]["title"] = "<img src=x onerror=alert(1)>"
-        context["phases"][1].update(status="waiting", waits_for="<script>alert(2)</script>")
+        context["phases"][1].update(status="waiting", waits_for="D1 <script>alert(2)</script>")
         source = source.replace("**Ready.**", "**Ready after approvals.**").split("```text\nImplement Phase 2.")[0]
         source, context = self.pending_d1(source, context)
+        context["open_decisions"][0]["holds_back"] = "Phase 2"
         page, _, _, _ = render(source, context)
         self.assertNotIn("<img src=x", page)
         self.assertNotIn("<script>alert", page)
