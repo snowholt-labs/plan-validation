@@ -99,9 +99,9 @@ Actual captured outputs are saved in evidence.json. No agent evaluation, Git reh
 
 ## 8. Fresh-session handoff
 ```text
-Work in `{ROOT}`. Resume validation of the retry-delay fixture using `{output / 'plan.md'}` and `{output / 'spec.md'}`.
+Work in `{ROOT}`. Fix the retry-delay fixture documents `{output / 'plan.md'}` and `{output / 'spec.md'}`.
 
-Read `{output / 'report.md'}`, its context.json, and repository instructions first. Confirm the saved evidence still applies. Resolve the missing delay cap and independent review within recorded permissions; rerun the three acceptance checks.
+Read `{output / 'report.md'}`, its context.json, and repository instructions first. Confirm the saved evidence still applies. Add the missing 30-second delay cap (R3) within recorded permissions; rerun the three acceptance checks. Do not validate again; the re-run prompt does that.
 
 Do not start dependent implementation. Report results and any defaults chosen, then stop.
 ```
@@ -173,7 +173,7 @@ Do not start dependent implementation. Report results and any defaults chosen, t
             "prompt": (f"/plan-validation:validate-plan PLAN: `{output / 'plan.md'}` SPEC: `{output / 'spec.md'}` "
                        f"FOCUS: Run validation again (run 2 of 3). Previous report: `{output / 'report.md'}`; "
                        "read it and its context.json first. Run this after the remediation session. "
-                       "Focus on the missing delay cap and the independent review. "
+                       "Focus on the delay cap fix and the independent review. "
                        "Do not start dependent implementation."),
         },
         "scope": {"explanation": "The same one-task fixture is retained; the corrected control adds no requirement.",

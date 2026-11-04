@@ -59,6 +59,7 @@ Each new report says whether to run validation again: **yes** (another run is li
 
 - The renderer requires yes or stop, never no, when the confidence is below 70% or Unknown, a revised PLAN or SPEC average is below 8.0 or Unknown, or the verdict is Not ready.
 - Run 3 never says yes. A pending approval is never a reason to run again: recording your answer re-renders the same report, or, once earlier phases have merged, starts a phase-only validation of the remaining phases.
+- With a yes in a Ready or Ready after approvals report, run validation again before starting any phase.
 - In a Not ready report, use the remediation prompt first. A remediation session is not a validation run; the re-run prompt then validates the fix as the next counted run.
 - A yes comes with a copyable re-run prompt of at most 80 words, saved as `rerun.txt` beside the report. A report re-rendered from saved evidence shows the prompt without a copy button and leaves `rerun.txt` as its run wrote it. It invokes the skill with the plan, the spec and the previous report, says which run it starts, keeps a phase-only run's scope, and never starts implementation.
 - Runs are counted per plan path (relative to the repository) and scope, across all worktrees of the repository. A re-render is not a new run. A phase-only validation after merges starts its own count. A fourth run needs your explicit reset.

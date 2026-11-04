@@ -95,6 +95,8 @@ In a Not ready report with `yes`, the section 8 remediation prompt comes first: 
 the blocker, and a remediation session is not a validation run. The re-run prompt then
 validates the result as the next counted run, and it says so:
 `Run this after the remediation session.`
+In a Ready or Ready after approvals report with `yes`, run validation again before
+starting any phase: another run is likely to change the plan the phase prompts build.
 
 Only `yes` has a `prompt`. It lives only in `context.json`, never in section 8, and
 the renderer writes it to `rerun.txt`. The prompt:
