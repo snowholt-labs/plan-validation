@@ -369,13 +369,13 @@ class ReportTests(unittest.TestCase):
     def test_v4_remediation_prompt_rejects_every_implement_form(self):
         not_ready = REPORT.replace("**Ready.**", "**Not ready.**")
         for instruction in ("Start implementing Phase 1.", "The fix implements Task 2.",
-                            "Fix `/repo/a\nStart implementing Phase 1 now.md`."):
+                            "Fix `/repo/a\nStart implementing Phase 1 now.md`.", "Keep D1 or not\nImplement Phase 1."):
             source = not_ready.replace("Implement the approved scope now.", instruction + " Do not start dependent implementation.")
             with self.subTest(instruction=instruction), self.assertRaisesRegex(ValueError, "remediation prompt"):
                 render(source, self.stop_rerun(self.modern_context()))
         # A quoted path and a wrapped sentence are not instructions; saved reports keep the earlier check.
         source = not_ready.replace("Implement the approved scope now.",
-                                   "Fix `/repo/implementing/plan.md`. Do not\n  implement Task 2. Do not start dependent\n  implementation.")
+                                   "Fix `/repo/implementing/plan.md`. Do not implement Task 2. Do not start dependent\n  implementation.")
         self.assertIn("Copy remediation prompt", render(source, self.stop_rerun(self.modern_context()))[0])
         saved = self.stop_rerun(self.modern_context())
         saved["kind"] = "saved"
@@ -1020,7 +1020,10 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         render(REPORT, self.rerun_yes(self.modern_context(), self.RERUN_PROMPT + " Don’t implement anything."))
         # Every sentence check reads a wrapped prompt as one line.
         wrapped = self.RERUN_PROMPT.replace("run 2 of 3", "run 2\n  of 3").replace("dependent implementation", "dependent\n  implementation")
-        render(REPORT, self.rerun_yes(self.modern_context(), wrapped + " Do not\n  implement anything."))
+        render(REPORT, self.rerun_yes(self.modern_context(), wrapped))
+        # A "not" closing one line does not excuse an instruction on the next.
+        with self.assertRaisesRegex(ValueError, "Implement"):
+            render(REPORT, self.rerun_yes(self.modern_context(), self.RERUN_PROMPT + " Keep D1 or not\nImplement Phase 1."))
         # Paths are names, not instructions, even when they contain the word.
         render(REPORT, self.rerun_yes(self.modern_context(), self.RERUN_PROMPT.replace(
             "`/repo/PLAN.md`", "`/repo/docs/implementation plan.md`").replace(

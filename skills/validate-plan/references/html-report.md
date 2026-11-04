@@ -102,14 +102,14 @@ Versions 3 and 4 check the phase grouping. The renderer also checks that:
   for the ready phase before it, never negated;
 - a Not ready report, or one whose first phase waits, has exactly one prompt that
   says `Do not start dependent implementation.` and has no `Implement` instruction
-  (in a new version 4 report, no `implements` or `implementing` either, outside a
-  negated phrase or a backtick-quoted absolute path).
+  (in a new version 4 report, no `implements` or `implementing` either, except right
+  after `not`, `n't` or `never` on the same line or inside a backtick-quoted absolute path).
 
 Section 8 shows the phase table above the prompts, and each phase prompt has its
 own copy button. In version 4 the Summary repeats the first ready prompt (or the single
 remediation prompt) with its own copy button, or with the historical warning when the
-handoff is not current. When a current Ready or Ready after approvals report recommends
-running validation again (`yes`), the phase prompts in the Summary and section 8 show
+handoff is not current. When a current Ready or Ready after approvals report with at
+least one ready phase recommends running validation again (`yes`), the phase prompts in the Summary and section 8 show
 `Run validation again first, with the re-run prompt in the Summary; start a phase only
 after that run.` instead of a copy button, the header has no **Prompt .txt** link, and
 the Summary puts the re-run card above the next session. Besides `handoff.txt` (the first prompt), the renderer writes
