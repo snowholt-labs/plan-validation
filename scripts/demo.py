@@ -130,7 +130,7 @@ Do not start dependent implementation. Report results and any defaults chosen, t
                 "caption": "Each wait doubles from 1 second and stops growing at 30 seconds (R3). The original plan left out that cap.",
                 "steps": [
                     {"title": "Try the request", "sub": "send it to the API"},
-                    {"title": "It fails", "sub": "the request did not succeed"},
+                    {"title": "It fails", "sub": "if it does not succeed"},
                     {"title": "Wait the next delay", "sub": "doubles, capped at 30 s"},
                 ],
                 "branches": [

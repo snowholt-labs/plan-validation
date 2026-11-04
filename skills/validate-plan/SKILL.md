@@ -46,8 +46,8 @@ Read [references/report-contract.md](references/report-contract.md) for the rubr
 
 For new reports, use format version 4: a Summary tab with 1–3 diagrams of the intended design (not the validation workflow; each diagram's eyebrow says whether it shows planned, existing or changing parts, a node's sub-line can mark a single part that differs, and invent no connections the spec does not describe), `open_decisions` that mirror section 6's pending approvals for the validated scope, and a `watch_list` of gaps, limits, risks and fixed items; then the eight evidence sections with concise summaries and expandable technical details, “Decisions made without your reply” at the end, and the phase grouping below. Keep blockers, pending approvals and both full score tables visible. Target 50–80 words per launch prompt, referencing the plan, spec and saved report; do not duplicate the evidence in it. Existing reports and plans are not migrated or reformatted merely because the plugin changed.
 
-- **Ready:** no material blocker or unresolved approval for the named implementation scope, with the independent review completed.
-- **Ready after approvals:** only identified non-blocking approvals remain; dependent work waits.
+- **Ready:** no material blocker, and no unresolved approval that holds back work in the named implementation scope, with the independent review completed.
+- **Ready after approvals:** only identified non-blocking approvals remain, and at least one holds back dependent work in the named scope; that work waits.
 - **Not ready:** a blocker remains or required independent review/evidence is missing. Include a remediation prompt stating `Do not start dependent implementation.`
 
 ### Phase grouping
