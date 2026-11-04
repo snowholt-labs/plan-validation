@@ -10,8 +10,8 @@ with the diagram descriptions, open decisions, watch list and defaulted decision
 
 Use a new, private local run directory under
 `~/.local/share/plan-validation/<repo-name>/<UTC-timestamp>-<topic>/`.
-`<repo-name>` is the folder name of the repository's main worktree: the parent of
-`git rev-parse --path-format=absolute --git-common-dir`. A linked worktree or a
+`<repo-name>` is the folder name of the repository's main worktree: the first
+`worktree` entry of `git worktree list --porcelain`. A linked worktree or a
 `.worktrees/…` checkout therefore uses the same folder as the main checkout.
 Do not put the only copy in `/tmp`, a session scratchpad, personal memory or a
 throwaway worktree. Do not commit it to the project, and publish it only as the
@@ -251,14 +251,16 @@ Version 4 fields:
   repository root, never absolute or with a `..` segment; the PLAN document's `path`
   must end with `/` and this key), `scope` (`full`, or `phases:<first>-<last>` for a
   phase-only validation, with the first and last phase IDs in `phases`, compared as one
-  string) and `previous_report` (the absolute path of the previous run's `report.md`,
-  required from run 2).
+  string), `previous_report` (the absolute path of the previous run's `report.md`,
+  required from run 2) and `reset` (`true` only on run 1 after the user's explicit
+  reset; omit it otherwise).
 - `rerun`: `recommendation` (`yes`, `no` or `stop`), `reasons` (1–4 short, nonempty
   strings) and, only for `yes`, `prompt`. The rules are in report-contract.md, "Run
   validation again". The renderer computes the triggers and rejects a `no` that a
   trigger forbids, a `yes` at run 3, and a prompt that breaks the prompt rules. The
   page shows the recommendation as a header pill and a Summary card with the run
-  number and reasons; only `yes` has a copy button.
+  number and reasons; only `yes` has a copy button. A historical page labels the
+  recommendation "Recorded", because it predates the change.
 
 `task_inventory` lists every validated task ID as a string, in plan order
 (`"5b"` and `"5"` are different tasks). Each phase has an `id`, a `title`, its
@@ -302,14 +304,16 @@ Count runs in workflow step 1, before validating:
   run 2, `previous_report` is the `report.md` of that highest-numbered run.
 - When the new number would be above 3, stop before validating: tell the user the run
   limit is reached and that they decide the next step. Count again from 1 only when the
-  user explicitly resets the count; never assume a reset. The reset run is run 1 and
-  records the user's words in `decisions_without_reply`. Later counts ignore matching
-  runs whose folder timestamp is older than the latest reset run.
+  user explicitly resets the count; never assume a reset. The reset run is run 1, sets
+  `validation_run.reset` to `true` and records the user's words in
+  `decisions_without_reply`. Later counts ignore matching runs whose folder timestamp
+  is older than the latest matching run with `reset: true`.
 - A re-render never counts: it keeps the `validation_run` already recorded in that run
   directory's `context.json` and does not search again.
 - A phase-only validation counts separately, because its `scope` differs. It keeps the
-  earlier report's phase IDs, so its `scope` string stays the same across its runs. A
-  changed spec path does not reset the count.
+  earlier report's phase IDs, so its `scope` string stays the same across its runs.
+  Never regroup or rename phases to start a new count. A changed spec path does not
+  reset the count.
 
 ## Delivery
 

@@ -998,6 +998,38 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         self.assertNotEqual(result.returncode, 0)
         self.assertTrue((out / "rerun.txt").exists())
 
+    def test_failed_write_never_leaves_an_old_rerun_prompt(self):
+        out = Path(self.directory.name) / "rerun-fail"
+        out.mkdir()
+        code, _, err = self.run_main(out, REPORT, self.rerun_yes(self.modern_context()))
+        self.assertEqual(code, 0, err)
+        self.assertTrue((out / "rerun.txt").exists())
+        # A later write fails after report.html is written; the old yes prompt must already be gone.
+        with mock.patch.object(render_report, "phase_handoffs", side_effect=OSError("disk full")):
+            code, _, err = self.run_main(out, REPORT, self.modern_context())
+        self.assertEqual(code, 1)
+        self.assertIn("disk full", err)
+        self.assertFalse((out / "rerun.txt").exists())
+
+    def test_run_three_error_names_only_stop(self):
+        context = self.modern_context()
+        context["validation_run"].update(number=3, previous_report="/data/run-2/report.md")
+        with self.assertRaises(ValueError) as caught:
+            render(REPORT.replace("Confidence: 75%", "Confidence: 65%"), context)
+        self.assertIn("recommend stop", str(caught.exception))
+        self.assertNotIn("yes", str(caught.exception))
+
+    def test_reset_run_is_run_one(self):
+        context = self.modern_context()
+        context["validation_run"]["reset"] = True
+        render(REPORT, context)
+        for change in ({"reset": "true"}, {"reset": True, "number": 2, "previous_report": "/data/run-1/report.md"}):
+            with self.subTest(change=change):
+                context = self.modern_context()
+                context["validation_run"].update(change)
+                with self.assertRaisesRegex(ValueError, "reset"):
+                    render(REPORT, context)
+
     def test_v4_historical_says_rerun(self):
         context = self.modern_context()
         plan = Path(context["documents"][0]["path"])
@@ -1005,6 +1037,10 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         page, _, _, _ = render(REPORT, context)
         self.assertIn("Run validation again (run 2 of 3) instead of more review rounds", self.panel(page, "summary"))
         self.assertIn("Run validation again (run 2 of 3) instead of more review rounds", self.panel(page, "full"))
+        self.assertIn("changed or could not be read", page)
+        # The recorded no came before the change, so the page says so instead of contradicting the warning.
+        self.assertIn("<span>Recorded: run validation again: no</span>", page)
+        self.assertNotIn("<span>Run validation again: no</span>", page)
         context["validation_run"].update(number=3, previous_report="/data/run-2/report.md")
         context["rerun"] = {"recommendation": "stop", "reasons": ["The run limit is reached."]}
         page, _, _, _ = render(REPORT, context)

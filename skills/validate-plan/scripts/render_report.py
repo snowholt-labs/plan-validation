@@ -531,6 +531,9 @@ def rerun_check(context, verdict, confidence, plan_revised, spec_revised):
         raise ValueError("validation_run previous_report must be an absolute path")
     if number > 1 and previous is None:
         raise ValueError("validation_run previous_report is required from run 2")
+    reset = run.get("reset", False)
+    if type(reset) is not bool or (reset and number != 1):
+        raise ValueError("validation_run reset must be true or false, and a reset run is run 1")
     phases = context["phases"]
     scope = run.get("scope")
     # Phase IDs may contain hyphens, so the scope is compared whole, never split.
@@ -565,7 +568,8 @@ def rerun_check(context, verdict, confidence, plan_revised, spec_revised):
     if number == MAX_RUNS and recommendation == "yes":
         raise ValueError(f"rerun cannot be yes at run {MAX_RUNS}; recommend stop, or no when nothing fires")
     if triggers and recommendation == "no":
-        raise ValueError("Run validation again: " + ", ".join(triggers) + "; recommend yes or stop, not no")
+        allowed = "stop" if number == MAX_RUNS else "yes or stop"
+        raise ValueError("Run validation again: " + ", ".join(triggers) + f"; recommend {allowed}, not no")
     prompt = rerun.get("prompt")
     if recommendation != "yes":
         if prompt is not None:
@@ -739,10 +743,15 @@ def historical_warning_v4(rerun, fingerprints_match):
         advice = f"Run validation again (run {rerun['number'] + 1} of {MAX_RUNS}) instead of more review rounds."
     else:
         advice = "Do not run more review rounds: the run limit is reached; decide the next step yourself."
-    return HISTORICAL_WARNING.replace("</p>", " The plan or spec changed after this validation. " + advice + "</p>")
+    return HISTORICAL_WARNING.replace("</p>", " The plan or spec changed or could not be read after this validation. " + advice + "</p>")
 
 
-def rerun_card(rerun):
+def rerun_label(rerun, current):
+    """A historical page shows the recommendation as recorded, as it does the verdict."""
+    return ("Run validation again: " if current else "Recorded: run validation again: ") + rerun["recommendation"]
+
+
+def rerun_card(rerun, current):
     """The Summary's "Run validation again" card; only yes has a prompt to copy."""
     reasons = "".join(f"<li>{inline(reason)}</li>" for reason in rerun["reasons"])
     triggers = ('<p class="rerun-triggers">Triggers: ' + escape(", ".join(rerun["triggers"])) + "</p>") if rerun["triggers"] else ""
@@ -752,7 +761,7 @@ def rerun_card(rerun):
                   '<button class="copy-prompt" type="button" data-copy-target="rerun-prompt">Copy re-run prompt</button>'
                   '<span class="copy-status" role="status" aria-live="polite"></span></div>'
                   f'<pre id="rerun-prompt" tabindex="0">{escape(rerun["prompt"])}</pre>')
-    return (f'<div id="rerun" class="card rerun"><h3>Run validation again: {rerun["recommendation"]}</h3>'
+    return (f'<div id="rerun" class="card rerun"><h3>{rerun_label(rerun, current)}</h3>'
             f'<p class="rerun-run">Run {rerun["number"]} of at most {MAX_RUNS}</p><ul>{reasons}</ul>{triggers}{prompt}</div>')
 
 
@@ -774,7 +783,7 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
     status = "Recorded: " + verdict if context["kind"] == "saved" or not current else verdict
     pills = [chip(*VERDICT_STYLE[verdict.lower()], escape(status)),
              chip("chip-info", "square", plural(len(phases), "phase") + " · " + plural(len(context["task_inventory"]), "task"))]
-    pills.append(chip(*RERUN_STYLE[rerun["recommendation"]], "Run validation again: " + rerun["recommendation"]))
+    pills.append(chip(*RERUN_STYLE[rerun["recommendation"]], rerun_label(rerun, current)))
     if not current:
         pills.append(chip("chip-wait", "triangle", "Historical"))
     pills_html = '<ul class="pills" role="list">' + "".join(f"<li>{pill}</li>" for pill in pills) + "</ul>"
@@ -838,7 +847,7 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
                     f'<h4 class="prompt-title">{prompt_title}</h4><div class="prompt-toolbar">{toolbar}</div>'
                     f'<pre id="{escape(target)}" tabindex="0">{escape(prompt)}</pre>'
                     '<p><a href="#section-8">All prompts: Full report, section 8</a></p></div>')
-    panels = [panel("summary", "Summary", figures + counts + next_session + rerun_card(rerun))]
+    panels = [panel("summary", "Summary", figures + counts + next_session + rerun_card(rerun, current))]
 
     if decisions:
         head = "".join(f'<th scope="col">{title}</th>' for title in ("ID", "Question", "Recommendation", "Confidence", "Holds back"))
@@ -1023,6 +1032,9 @@ def main():
         context = json.loads(args.context.read_text(encoding="utf-8"))
         page, handoff, current, rerun_prompt = render(source, context)
         args.output.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        # Delete the old re-run prompt before any write, so a failed render never leaves it beside a new page.
+        rerun_path = args.output.with_name("rerun.txt")
+        rerun_path.unlink(missing_ok=True)
         if args.report.resolve() != args.output.with_suffix(".md").resolve():
             args.output.with_suffix(".md").write_text(source, encoding="utf-8")
         args.output.write_text(page, encoding="utf-8")
@@ -1036,8 +1048,6 @@ def main():
             path.write_text(("" if current else HISTORICAL_PREFIX) + prompt + "\n", encoding="utf-8")
             phase_files.append(str(path.resolve()))
         # The re-run prompt starts a validation, never implementation, so it is written even for a historical handoff.
-        rerun_path = args.output.with_name("rerun.txt")
-        rerun_path.unlink(missing_ok=True)
         if rerun_prompt is not None:
             rerun_path.write_text(rerun_prompt + "\n", encoding="utf-8")
     except (ValueError, KeyError, OSError, ArithmeticError) as error:
