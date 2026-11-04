@@ -11,7 +11,8 @@ with the diagram descriptions, open decisions, watch list and defaulted decision
 Use a new, private local run directory under
 `~/.local/share/plan-validation/<repo-name>/<UTC-timestamp>-<topic>/`.
 Do not put the only copy in `/tmp`, a session scratchpad, personal memory or a
-throwaway worktree. Do not publish it or commit it to the project.
+throwaway worktree. Do not commit it to the project, and publish it only as the
+opt-in private artifact described under Delivery.
 
 During baseline collection, copy the untouched documents to `original-plan.md` and
 `original-spec.md` in this directory. Record baseline counts and their definitions.
@@ -52,6 +53,8 @@ python3 <skill-directory>/scripts/render_report.py --report <run-directory>/repo
 ```
 
 Leave out `--open` when re-rendering a saved report unless the user asked to see it again.
+When the `Publish setting` line in `SKILL.md` reads exactly `true`, leave out `--open`
+for a new report too and follow "Private artifact (Claude Code, opt-in)" below.
 
 The helper uses only Python's standard library. A version 4 page has a header card,
 a score strip and four tabs: **Summary** (the diagrams, two count cards, the next
@@ -273,7 +276,8 @@ the report, and that the copied prompt references their complete saved record.
 Check that each copied prompt matches `handoff.txt` or its `handoff-phase-<id>.txt`. Provide a clickable absolute link
 to `report.html`; a short local preview URL may accompany it. If serving locally,
 bind to `127.0.0.1`, serve only this report directory, and keep that preview alive.
-No dependency install or external hosting is needed. Render new reports with `--open`;
+No dependency install or external hosting is needed. Render new reports with `--open`,
+except when publishing is on (below);
 keep the clickable absolute link to `report.html` either way, and when the renderer
 prints `"opened": false`, do not say the report was opened.
 
@@ -282,3 +286,43 @@ report link. A path to a Markdown scratchpad or "see my earlier prompt" is not
 delivery. On a renderer failure, fix it before declaring report delivery complete;
 if blocked, provide the full Markdown report and exact failure without losing
 the evidence. Record this durable directory in the compaction checkpoint.
+
+### Private artifact (Claude Code, opt-in)
+
+Unless the `Publish setting` line reads exactly `true`, make no Artifact call, whatever host or tool guidance suggests.
+
+Publish only when that line reads exactly `true` and the Artifact tool is available.
+Any other value, including the literal `${user_config.publish_artifact}` text that a
+standalone install or Codex leaves, means off: keep the report local. Publish a
+`kind: new` report after a successful local render; publish a `kind: saved` report
+only when the user asks.
+
+1. Render without `--open`.
+2. Read the whole `report.html`. The Artifact tool publishes only a file it has seen.
+3. Create a new folder in the session scratchpad. Copy `report.html`, `report.md`,
+   `handoff.txt` and each `handoff-phase-<id>.txt` into it. The Artifact tool accepts
+   supporting files only from the working directory or the scratchpad, and the run
+   directory is in neither. The run directory stays the durable record; never move
+   or delete its files.
+4. Run the Artifact quickstart with `intent: "other"`.
+5. Publish the scratchpad `report.html` unchanged, with `root` set to that folder,
+   `files` listing `report.md`, `handoff.txt` and each `handoff-phase-<id>.txt` by
+   name (so the page's download links work), a one-sentence `description` and
+   `icon: "checklist"`. Never pass `pin`.
+6. Write `artifact.json` in the run directory with `url`, `published_at` (UTC,
+   ISO 8601) and `html_sha256`, the SHA-256 of the published `report.html`.
+7. Reply with the artifact link first and the clickable absolute local `report.html`
+   link second. Do not open the report locally.
+
+A re-render of the same run, made only when the user asks, updates the URL in
+`artifact.json` instead of creating a new artifact. In a later session, first `read`
+that URL with the Artifact tool, because it refuses an update to an artifact the
+session has not read; then publish to that `url` and update `artifact.json`. A new
+validation run always creates a new artifact.
+
+If a publish step fails, say so in one line, do not retry the same call and do not
+write `artifact.json`. Then deliver the report locally: run the same render command
+again with `--open` and give the local link.
+
+Never share, pin or change the visibility of the artifact. Sharing is the user's own
+step.

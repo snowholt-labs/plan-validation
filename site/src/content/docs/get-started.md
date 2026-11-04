@@ -36,6 +36,10 @@ This is the project's own marketplace, not Anthropic's official directory. Insta
 
 To inspect locally before installing, clone the repository and run `claude plugin validate .` from its root. A temporary local session can load it with `claude --plugin-dir /absolute/path/to/plan-validation`.
 
+### Optional: private report artifacts
+
+The plugin has one setting, **Publish validation reports as private artifacts** (`publish_artifact`). It is off by default. Claude Code asks for it when the plugin is enabled, and you can change it later in `/config`. When it is on, each new report is also uploaded, with its local file paths, to your claude.ai account as a private artifact that only you can see. The skill never shares it. The report folder on your machine stays the full record. Codex and standalone skill installs have no such setting and never publish.
+
 ### Update or remove
 
 ```bash
