@@ -107,7 +107,8 @@ handoff is not current. A re-render first deletes every `handoff-phase-*.txt` in
 run directory, so an earlier phase prompt never survives a changed verdict.
 For a version 4 report whose `rerun` recommendation is `yes`, the renderer also writes
 the re-run prompt to `rerun.txt`, even when the handoff is historical, because running
-validation again is the answer to drift. A re-render first deletes any `rerun.txt`, so
+validation again is the answer to drift. A `kind: saved` re-render shows the prompt
+without a copy button and writes no `rerun.txt`, because later runs may exist. A re-render first deletes any `rerun.txt`, so
 a `no` or `stop` report leaves none. The renderer's JSON output names it under `rerun`
 (`null` when there is none).
 
@@ -182,7 +183,7 @@ Example context shape (replace every example value; do not invent a review):
      "security_review": false, "status": "waiting", "waits_for": "D1 approval"}
   ],
   "documents": [
-    {"label": "PLAN", "path": "/absolute/plan.md", "sha256": "<64 lowercase hex characters>"},
+    {"label": "PLAN", "path": "/absolute/repository/docs/plans/feature.md", "sha256": "<64 lowercase hex characters>"},
     {"label": "SPEC", "path": "/absolute/spec.md", "sha256": "<64 lowercase hex characters>"}
   ],
   "scope": {
@@ -311,8 +312,9 @@ Count runs in workflow step 1, before validating:
 - A re-render never counts: it keeps the `validation_run` already recorded in that run
   directory's `context.json` and does not search again.
 - A phase-only validation counts separately, because its `scope` differs. It keeps the
-  earlier report's phase IDs, so its `scope` string stays the same across its runs.
-  Never regroup or rename phases to start a new count. A changed spec path does not
+  earlier report's phase IDs, so its `scope` string stays the same across its runs
+  until another phase merges; a new first phase then starts a new count, as the spec
+  intends. Never regroup or rename phases to start a new count. A changed spec path does not
   reset the count.
 
 ## Delivery

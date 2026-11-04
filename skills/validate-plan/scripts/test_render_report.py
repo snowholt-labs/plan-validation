@@ -912,6 +912,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             "run 2 of 3": self.RERUN_PROMPT.replace("run 2 of 3", "run 3 of 3"),
             "Implement": self.RERUN_PROMPT + " Implement Phase 1.",
             "implementing": self.RERUN_PROMPT + " Then start implementing Phase 1.",
+            "implementation": self.RERUN_PROMPT + " Then start implementation of Phase 1.",
             "Do not start dependent implementation": self.RERUN_PROMPT.replace(" Do not start dependent implementation.", ""),
         }
         for name, prompt in cases.items():
@@ -921,8 +922,10 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                     del context["rerun"]["prompt"]
                 else:
                     context["rerun"]["prompt"] = prompt
-                with self.assertRaisesRegex(ValueError, "Implement" if name == "implementing" else name):
+                with self.assertRaisesRegex(ValueError, "Implement" if name.startswith("implement") else name):
                     render(REPORT, context)
+        # A negated mention, with a typographic apostrophe too, is not an instruction.
+        render(REPORT, self.rerun_yes(self.modern_context(), self.RERUN_PROMPT + " Don’t implement anything."))
         # Only yes carries a prompt, so rerun.txt exists only for yes.
         context = self.modern_context()
         context["rerun"]["prompt"] = self.RERUN_PROMPT
@@ -971,8 +974,12 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         # A saved report shows its re-run advice as recorded, like its verdict.
         context = self.rerun_yes(self.modern_context())
         context["kind"] = "saved"
-        page, _, _, _ = render(REPORT, context)
+        page, _, _, prompt = render(REPORT, context)
         self.assertIn("<span>Recorded: run validation again: yes</span>", page)
+        # A saved report's run label may be stale, so it gets no copy button and no rerun.txt.
+        self.assertIsNone(prompt)
+        self.assertNotIn('data-copy-target="rerun-prompt"', page)
+        self.assertIn('<pre id="rerun-prompt"', page)
 
     def test_rerun_text_cannot_inject_markup(self):
         probe = '<script>x</script>"&amp'

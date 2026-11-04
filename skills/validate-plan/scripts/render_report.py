@@ -64,8 +64,10 @@ PHASE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9.-]{0,15}\Z")
 CONFIDENCE_LEVELS = ("High", "Medium", "Low")
 # Any "implement" instruction, except a negated one such as "Do not implement".
 IMPLEMENT = re.compile(r"(?<!not )(?<!n't )(?<!never )\bimplement\b", re.I)
-# The re-run prompt is written even for a historical page, so it also rejects other forms of the verb.
-IMPLEMENT_ANY = re.compile(r"(?<!not )(?<!n't )(?<!never )\bimplement(?:s|ed|ing)?\b", re.I)
+# The re-run prompt is written even for a historical page, so once its required sentence is removed
+# it rejects every unnegated form of the word, such as "start implementing" or "start implementation".
+IMPLEMENT_ANY = re.compile(r"(?<!not )(?<!n't )(?<!n’t )(?<!never )\bimplement\w*", re.I)
+NO_DEPENDENT_IMPLEMENTATION = re.compile(r"do not start dependent implementation", re.I)
 MAX_RUNS = 3
 RERUN_RECOMMENDATIONS = ("yes", "no", "stop")
 WATCH_KINDS = ("gap", "limit", "risk", "fixed")
@@ -585,7 +587,7 @@ def rerun_check(context, verdict, confidence, plan_revised, spec_revised):
         label = f"run {number + 1} of {MAX_RUNS}"
         if not re.search(rf"\b{label}\b", prompt, re.I):
             raise ValueError(f"The rerun prompt must say {label}")
-        if IMPLEMENT_ANY.search(prompt):
+        if IMPLEMENT_ANY.search(NO_DEPENDENT_IMPLEMENTATION.sub("", prompt)):
             raise ValueError("The rerun prompt cannot contain an Implement instruction")
         if "do not start dependent implementation" not in prompt.lower():
             raise ValueError("The rerun prompt must say: Do not start dependent implementation.")
@@ -754,15 +756,15 @@ def rerun_label(rerun, recorded):
     return ("Recorded: run validation again: " if recorded else "Run validation again: ") + rerun["recommendation"]
 
 
-def rerun_card(rerun, recorded):
-    """The Summary's "Run validation again" card; only yes has a prompt to copy."""
+def rerun_card(rerun, recorded, copyable):
+    """The Summary's "Run validation again" card; only yes has a prompt, copyable unless the report is saved."""
     reasons = "".join(f"<li>{inline(reason)}</li>" for reason in rerun["reasons"])
     triggers = ('<p class="rerun-triggers">Triggers: ' + escape(", ".join(rerun["triggers"])) + "</p>") if rerun["triggers"] else ""
     prompt = ""
     if rerun["prompt"] is not None:
-        prompt = ('<h4 class="prompt-title">Re-run prompt</h4><div class="prompt-toolbar">'
-                  '<button class="copy-prompt" type="button" data-copy-target="rerun-prompt">Copy re-run prompt</button>'
-                  '<span class="copy-status" role="status" aria-live="polite"></span></div>'
+        toolbar = ('<div class="prompt-toolbar"><button class="copy-prompt" type="button" data-copy-target="rerun-prompt">'
+                   'Copy re-run prompt</button><span class="copy-status" role="status" aria-live="polite"></span></div>') if copyable else ""
+        prompt = (f'<h4 class="prompt-title">Re-run prompt</h4>{toolbar}'
                   f'<pre id="rerun-prompt" tabindex="0">{escape(rerun["prompt"])}</pre>')
     return (f'<div id="rerun" class="card rerun"><h3>{rerun_label(rerun, recorded)}</h3>'
             f'<p class="rerun-run">Run {rerun["number"]} of at most {MAX_RUNS}</p><ul>{reasons}</ul>{triggers}{prompt}</div>')
@@ -851,7 +853,7 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
                     f'<h4 class="prompt-title">{prompt_title}</h4><div class="prompt-toolbar">{toolbar}</div>'
                     f'<pre id="{escape(target)}" tabindex="0">{escape(prompt)}</pre>'
                     '<p><a href="#section-8">All prompts: Full report, section 8</a></p></div>')
-    panels = [panel("summary", "Summary", figures + counts + next_session + rerun_card(rerun, recorded))]
+    panels = [panel("summary", "Summary", figures + counts + next_session + rerun_card(rerun, recorded, context["kind"] == "new"))]
 
     if decisions:
         head = "".join(f'<th scope="col">{title}</th>' for title in ("ID", "Question", "Recommendation", "Confidence", "Holds back"))
@@ -953,7 +955,8 @@ def render(source, context):
     marked = handoff if current else HISTORICAL_PREFIX + handoff
     if version >= 4:
         page = page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pairs, current, checks)
-        return page, marked, current, fields["rerun"]["prompt"]
+        # A saved report's run label may be stale (later runs can exist), so only a new report writes rerun.txt.
+        return page, marked, current, fields["rerun"]["prompt"] if context["kind"] == "new" else None
     css = (ASSETS / "report.css").read_text()
     js = (ASSETS / "report.js").read_text()
     favicon = base64.b64encode((ASSETS / "favicon.svg").read_bytes()).decode()
