@@ -475,8 +475,8 @@ def handoff_prompts(section, version, verdict, context):
     first = prompts[0][2]
     if version >= 4 and context.get("kind") == "new":
         # Like the re-run prompt: any form of the word, quoted paths excepted, wrapped lines joined.
+        implement = IMPLEMENT_ANY.search(re.sub(r"\s+", " ", QUOTED_NAME.sub("path", first)))
         first = re.sub(r"\s+", " ", first)
-        implement = IMPLEMENT_ANY.search(QUOTED_NAME.sub("path", first))
     else:
         implement = IMPLEMENT.search(first)
     # With no startable phase, a version 3 or later prompt is a remediation prompt even before Not ready.
@@ -622,7 +622,7 @@ def rerun_check(context, verdict, confidence, plan_revised, spec_revised):
         if not re.search(rf"\b{label}\b", spaced, re.I):
             raise ValueError(f"The rerun prompt must say {label}")
         # Quoted paths are names, not instructions, even when they contain the word.
-        if IMPLEMENT_ANY.search(QUOTED_NAME.sub("path", spaced)):
+        if IMPLEMENT_ANY.search(re.sub(r"\s+", " ", QUOTED_NAME.sub("path", prompt))):
             raise ValueError("The rerun prompt cannot contain an Implement instruction")
         order = "Run this after the remediation session." if verdict.lower() == "not ready" else "Run this before starting any phase."
         if new and order.lower()[:-1] not in spaced.lower():
@@ -665,10 +665,11 @@ def report_sections(parts, version, verdict, prompts, pairs, context, current, m
                 titles = {phase["id"]: phase["title"] for phase in context["phases"]}
                 for phase_id, prompt in pairs:
                     target = escape("handoff-" + phase_id)
-                    toolbar = (f'<button class="copy-prompt" type="button" data-copy-target="{target}">Copy Phase {escape(phase_id)} prompt</button>'
-                               '<span class="copy-status" role="status" aria-live="polite"></span>') if current else warning
                     if current and rerun_first:
                         toolbar = RUN_FIRST_NOTE
+                    else:
+                        toolbar = (f'<button class="copy-prompt" type="button" data-copy-target="{target}">Copy Phase {escape(phase_id)} prompt</button>'
+                                   '<span class="copy-status" role="status" aria-live="polite"></span>') if current else warning
                     content_html += (f'<h3>Phase {escape(phase_id)}: {inline(titles[phase_id])}</h3><div class="prompt-toolbar">' + toolbar
                                      + f'</div><pre id="{target}" tabindex="0">' + escape(prompt) + '</pre>')
             else:
@@ -824,6 +825,8 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
     decisions, watch, phases, rerun = fields["decisions"], fields["watch"], context["phases"], fields["rerun"]
     # A yes outside Not ready asks for another run before any phase starts.
     rerun_first = rerun["recommendation"] == "yes" and verdict.lower() != "not ready"
+    # Current phase prompts wait for that run: no copy button, no download, the re-run card first.
+    hold_phases = bool(current and rerun_first and pairs)
     fingerprints_match = all(matches for _, matches in checks)
     warning = historical_warning_v4(rerun, fingerprints_match, context["kind"] == "saved")
 
@@ -841,7 +844,7 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
     pills_html = '<ul class="pills" role="list">' + "".join(f"<li>{pill}</li>" for pill in pills) + "</ul>"
     notes = "".join('<p class="note-title"><strong>' + escape(note["title"]) + "</strong></p><p>" + inline(note["body"]) + "</p>" for note in context.get("notes", []))
     notes_html = f'<div class="notes">{notes}</div>' if notes else ""
-    prompt_download = '<a href="handoff.txt" download>Prompt .txt</a>' if current else ""
+    prompt_download = '<a href="handoff.txt" download>Prompt .txt</a>' if current and not hold_phases else ""
     hero = (f'<header class="hero"><div class="hero-text"><p class="kicker">{kicker}</p><h1>{heading}</h1>'
             f'<p class="lead">{inline(context["summary"])}</p>{pills_html}'
             f'<p class="freshness">{escape(freshness_state(4, fingerprints_match, current))} {inline(context["freshness"])}</p>{notes_html}'
@@ -895,15 +898,14 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
         prompt, target, action, prompt_title = prompts[0][2], "summary-handoff", "Copy remediation prompt", "Remediation prompt"
     toolbar = (f'<button class="copy-prompt" type="button" data-copy-target="{escape(target)}">{action}</button>'
                '<span class="copy-status" role="status" aria-live="polite"></span>') if current else warning
-    if current and rerun_first and pairs:
-        # A phase prompt waits for the re-run, so the re-run card comes first and the prompt has no copy button.
+    if hold_phases:
         toolbar = RUN_FIRST_NOTE
     next_session = (f'<div class="card next"><h3>Next session</h3><ul class="phase-cards" role="list">{"".join(cards)}</ul>'
                     f'<h4 class="prompt-title">{prompt_title}</h4><div class="prompt-toolbar">{toolbar}</div>'
                     f'<pre id="{escape(target)}" tabindex="0">{escape(prompt)}</pre>'
                     '<p><a href="#section-8">All prompts: Full report, section 8</a></p></div>')
     rerun_html = rerun_card(rerun, recorded, context["kind"] == "new")
-    ordered = rerun_html + next_session if current and rerun_first and pairs else next_session + rerun_html
+    ordered = rerun_html + next_session if hold_phases else next_session + rerun_html
     panels = [panel("summary", "Summary", figures + counts + ordered)]
 
     if decisions:

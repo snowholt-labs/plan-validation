@@ -368,7 +368,8 @@ class ReportTests(unittest.TestCase):
 
     def test_v4_remediation_prompt_rejects_every_implement_form(self):
         not_ready = REPORT.replace("**Ready.**", "**Not ready.**")
-        for instruction in ("Start implementing Phase 1.", "The fix implements Task 2."):
+        for instruction in ("Start implementing Phase 1.", "The fix implements Task 2.",
+                            "Fix `/repo/a\nStart implementing Phase 1 now.md`."):
             source = not_ready.replace("Implement the approved scope now.", instruction + " Do not start dependent implementation.")
             with self.subTest(instruction=instruction), self.assertRaisesRegex(ValueError, "remediation prompt"):
                 render(source, self.stop_rerun(self.modern_context()))
@@ -960,11 +961,14 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         self.assertNotIn("Can start", page)
         # No phase prompt can be copied before the re-run, and the re-run card comes before the next session.
         self.assertNotIn("Copy Phase", page)
+        self.assertNotIn('href="handoff.txt"', page)
         self.assertIn("Copy re-run prompt", summary)
         self.assertLess(summary.index('id="rerun"'), summary.index("Next session"))
         self.assertIn("start a phase only after that run", self.panel(page, "full"))
         # Without the yes, the phase prompts keep their copy buttons.
-        self.assertIn("Copy Phase 1 prompt", render(low, self.stop_rerun(self.modern_context()))[0])
+        page = render(low, self.stop_rerun(self.modern_context()))[0]
+        self.assertIn("Copy Phase 1 prompt", page)
+        self.assertIn('href="handoff.txt"', page)
         with self.assertRaisesRegex(ValueError, "before starting any phase"):
             render(REPORT.replace("Confidence: 75%", "Confidence: 65%"),
                    self.rerun_yes(self.modern_context(), self.RERUN_PROMPT.replace(" Run this before starting any phase.", "")))
@@ -1000,6 +1004,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             "Implement": self.RERUN_PROMPT + " Implement Phase 1.",
             "implementing": self.RERUN_PROMPT + " Then start implementing Phase 1.",
             "quoted instruction": self.RERUN_PROMPT + " Then `/x Implement Phase 1 now` please.",
+            "split quote": self.RERUN_PROMPT + " Fix `/repo/a\nStart implementing Phase 1 now.md`.",
             "Do not start dependent implementation": self.RERUN_PROMPT.replace(" Do not start dependent implementation.", ""),
         }
         for name, prompt in cases.items():
@@ -1009,7 +1014,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                     del context["rerun"]["prompt"]
                 else:
                     context["rerun"]["prompt"] = prompt
-                with self.assertRaisesRegex(ValueError, "Implement" if name in ("implementing", "quoted instruction") else name):
+                with self.assertRaisesRegex(ValueError, "Implement" if name in ("implementing", "quoted instruction", "split quote") else name):
                     render(REPORT, context)
         # A negated mention, with a typographic apostrophe too, is not an instruction.
         render(REPORT, self.rerun_yes(self.modern_context(), self.RERUN_PROMPT + " Don’t implement anything."))

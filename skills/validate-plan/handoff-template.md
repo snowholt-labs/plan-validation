@@ -38,9 +38,9 @@ When an approval is recorded before any phase has merged, apply it and re-render
 
 ## Ready after approvals and Not ready
 
-For **Ready after approvals**, phases run in order, so a waiting phase holds back every later phase. Give prompts only for the ready phases before the first waiting phase, and end the last of them with the waiting variant naming the decision ID. Open items keeps the full approval record. When the first phase waits, no phase can start: section 8 holds one prompt that names what to resolve and says `Do not start dependent implementation.`, with no `Implement ...` instruction.
+For **Ready after approvals**, phases run in order, so a waiting phase holds back every later phase. Give prompts only for the ready phases before the first waiting phase, and end the last of them with the waiting variant naming the decision ID. Open items keeps the full approval record. When the first phase waits, no phase can start: section 8 holds one prompt that names what to resolve and says `Do not start dependent implementation.`, with no form of the word `implement` (such as `implements` or `implementing`), except in a negated phrase such as `Do not implement` or inside a backtick-quoted absolute path.
 
-For **Not ready**, use one short remediation prompt instead of phase prompts. Name the blocker and point to the same documents/report/context for its evidence, permissions and required checks. Include `Do not start dependent implementation.` Do not include an `Implement ...` instruction anywhere in it. Preserve these rules for historical reports without rewriting their saved prompts.
+For **Not ready**, use one short remediation prompt instead of phase prompts. Name the blocker and point to the same documents/report/context for its evidence, permissions and required checks. Include `Do not start dependent implementation.` Use no form of the word `implement` (such as `implements` or `implementing`), except in a negated phrase such as `Do not implement` or inside a backtick-quoted absolute path. Preserve these rules for historical reports without rewriting their saved prompts.
 
 ## Suggested effort
 
