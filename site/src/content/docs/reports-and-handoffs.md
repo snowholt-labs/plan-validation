@@ -47,7 +47,7 @@ These checks validate the report contract. They do not verify the truth of an ag
 
 ## Freshness
 
-Changed or unavailable documents disable the phase prompt controls. A new report keeps its re-run prompt copyable, because running validation again is the advice for changed documents. The agent must also mark Git or approval drift as historical even if document hashes match. The static HTML does not refresh itself when you edit files afterward.
+Changed or unavailable documents disable the launch prompt controls. A new report keeps its re-run prompt copyable, because running validation again is the advice for changed documents. The agent must also mark Git or approval drift as historical even if document hashes match. The static HTML does not refresh itself when you edit files afterward.
 
 On resumption, the skill rechecks the saved report, current paths, hashes, branch/base and approvals. It can regenerate missing HTML from saved evidence, clearly labeling this as recovery rather than a new validation.
 

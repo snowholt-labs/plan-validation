@@ -18,7 +18,7 @@ Variants, each replacing the stop sentence or the merge check:
 
 - **First phase of the plan:** drop "Phase [previous] is merged and", so it reads "Confirm the scope is still valid." In a phase-only validation, the first selected phase keeps the check and names the plan phase before it.
 - **Last phase of the plan:** "Stop at the end of Phase [N]; it is the last phase." In a phase-only validation whose last selected phase is not the plan's last, use "Stop at the end of Phase [N]; it is the last validated phase."
-- **Phase before a waiting phase:** "Stop at the end of Phase [N]. Phase [next] waits for [decision]; there is no prompt for it yet." Name only the decision ID (for example `D1`), because a descriptive decision pushes this variant past 80 words.
+- **Phase before a waiting phase:** "Stop at the end of Phase [N]. Phase [next] waits for [decision]; there is no prompt for it yet." Name only the decision ID (for example `D1`), because a descriptive decision pushes this variant past 80 words. When several decisions hold back work, name each ID here (`D1 and D2`) and in the `waits_for` of the waiting phases.
 
 The renderer requires each ready-phase prompt to say `Stop at the end of Phase <id>` for its own phase only, never negated. In a new report, each ready-phase prompt after the first must also say `Confirm Phase <previous> is merged` for the ready phase before it, never negated. Keep the continuation, pause, merge-check and stop sentences when shortening; shorten the scope wording instead and point to Open items.
 
