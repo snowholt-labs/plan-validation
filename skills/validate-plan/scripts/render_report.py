@@ -413,19 +413,22 @@ def phase_plan(context, verdict):
     return phases
 
 
-def phase_status(phase, verdict, current):
+def phase_status(phase, verdict, current, rerun_first=False):
     """Return the escaped status shown for a phase in section 8 and on the Summary."""
     if phase["status"] == "waiting":
         return "Waits for " + inline(phase["waits_for"])
     # A remediation-only or historical report never shows a phase as startable.
     if verdict.lower() == "not ready":
         return "Waits for remediation"
-    return "Can start" if current else "Revalidate before starting"
+    if not current:
+        return "Revalidate before starting"
+    # A version 4 yes asks for another run before any phase starts.
+    return "Run validation again first" if rerun_first else "Can start"
 
 
-def phase_table(phases, verdict, current):
+def phase_table(phases, verdict, current, first=False):
     def status(phase):
-        return phase_status(phase, verdict, current)
+        return phase_status(phase, verdict, current, first)
     rows = ''.join('<tr>' + ''.join(f'<td>{cell}</td>' for cell in (
         escape(phase["id"]) + ': ' + inline(phase["title"]), escape(", ".join(phase["tasks"])),
         "Docs only" if phase["docs_only"] else "Code",
@@ -613,8 +616,11 @@ def rerun_check(context, verdict, confidence, plan_revised, spec_revised):
         # Quoted paths are names, not instructions, even when they contain the word.
         if IMPLEMENT_ANY.search(QUOTED_NAME.sub("path", prompt)):
             raise ValueError("The rerun prompt cannot contain an Implement instruction")
-        if new and verdict.lower() == "not ready" and "run this after the remediation session" not in prompt.lower():
-            raise ValueError("The rerun prompt of a Not ready report must say: Run this after the remediation session.")
+        order = "Run this after the remediation session." if verdict.lower() == "not ready" else "Run this before starting any phase."
+        # Compare with single spaces, so a wrapped prompt still says the sentence.
+        spaced = re.sub(r"\s+", " ", prompt).lower()
+        if new and order.lower()[:-1] not in spaced:
+            raise ValueError(f"The rerun prompt of a {verdict} report must say: {order}")
         if "do not start dependent implementation" not in prompt.lower():
             raise ValueError("The rerun prompt must say: Do not start dependent implementation.")
     return {"number": number, "recommendation": recommendation, "reasons": reasons,
@@ -631,7 +637,8 @@ def scope_section(context):
     return '<aside id="scope" class="scope"><h3>Scope &amp; complexity</h3><p>' + inline(scope["explanation"]) + '</p>' + scope_table + '<p><strong>Approval basis.</strong> ' + inline(scope["approval"]) + '</p></aside>'
 
 
-def report_sections(parts, version, verdict, prompts, pairs, context, current, marks=None, warning=HISTORICAL_WARNING):
+def report_sections(parts, version, verdict, prompts, pairs, context, current, marks=None, warning=HISTORICAL_WARNING,
+                    rerun_first=False):
     """Return the eight report sections; section 8 holds the prompts and their copy buttons."""
     handoff = prompts[0][2]
     scope_html = scope_section(context)
@@ -647,7 +654,7 @@ def report_sections(parts, version, verdict, prompts, pairs, context, current, m
                 intro = intro[:start] + intro[end:]
             content_html = markdown(intro)
             if version >= 3:
-                content_html += phase_table(context["phases"], verdict, current)
+                content_html += phase_table(context["phases"], verdict, current, rerun_first)
             if pairs:
                 titles = {phase["id"]: phase["title"] for phase in context["phases"]}
                 for phase_id, prompt in pairs:
@@ -807,6 +814,8 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
     script_hash = base64.b64encode(hashlib.sha256(js.encode()).digest()).decode()
     icon = (ASSETS / "report-icon.svg").read_text().strip().replace("<svg ", '<svg class="hero-icon" aria-hidden="true" focusable="false" ', 1)
     decisions, watch, phases, rerun = fields["decisions"], fields["watch"], context["phases"], fields["rerun"]
+    # A yes outside Not ready asks for another run before any phase starts.
+    rerun_first = rerun["recommendation"] == "yes" and verdict.lower() != "not ready"
     fingerprints_match = all(matches for _, matches in checks)
     warning = historical_warning_v4(rerun, fingerprints_match, context["kind"] == "saved")
 
@@ -861,7 +870,7 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
               + "</div>")
     cards = []
     for phase in phases:
-        state = phase_status(phase, verdict, current)
+        state = phase_status(phase, verdict, current, rerun_first)
         style = ("chip-ok", "circle") if state == "Can start" else ("chip-wait", "diamond")
         flags = [chip(*style, "Ready" if state == "Can start" else state)]
         if phase["docs_only"]:
@@ -902,7 +911,7 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
         panels.append(panel("watch", "Watch list", f'<div class="watch-grid">{items}</div>'))
 
     marks = [mark(SECTION_SHAPES[index % len(SECTION_SHAPES)]) for index in range(8)]
-    sections_html = "".join(report_sections(parts, 4, verdict, prompts, pairs, context, current, marks, warning))
+    sections_html = "".join(report_sections(parts, 4, verdict, prompts, pairs, context, current, marks, warning, rerun_first))
     panels.append(panel("full", "Full report", sections_html + defaulted_decisions(context["decisions_without_reply"]) + identity_details(checks, context)))
 
     return f'''<!doctype html>
