@@ -66,18 +66,28 @@ PHASE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9.-]{0,15}\Z")
 CONFIDENCE_LEVELS = ("High", "Medium", "Low")
 # Any "implement" instruction, except a negated one such as "Do not implement".
 IMPLEMENT = re.compile(r"(?<!not )(?<!n't )(?<!never )\bimplement\b", re.I)
-# The re-run prompt is written even for a historical page, so it also rejects the other verb forms
-# ("implements", "implementing", "reimplement"). Descriptive words such as "implemented" or
-# "implementation" stay allowed.
-IMPLEMENT_ANY = re.compile(r"(?<!not )(?<!n't )(?<!n’t )(?<!never )\b(?:re-?)?implement(?:s|ing)?\b", re.I)
+# Version 4 prompts also reject the other verb forms ("implements", "implementing", "reimplement",
+# "re-implement"). Descriptive words such as "implemented" or "implementation" stay allowed.
+IMPLEMENT_VERB = re.compile(r"\b(?:re-?)?implement(?:s|ing)?\b", re.I)
+# Text ending in a negation: a word ending in "not" ("cannot"), "n't" (straight or curly) or "never".
+NEGATION = re.compile(r"(?:not|n['’]t|\bnever)\s+$", re.I)
 # Only path-like spans are skipped: no whitespace, or ending in a file extension.
 QUOTED_NAME = re.compile(r"`(?:/|~/|[A-Za-z]:[\\/])(?:[^`\s]*|[^`\n]*\.[A-Za-z0-9]+)`")
 
 
+def spaced(text):
+    """Single spaces, so a wrapped sentence still reads as one."""
+    return re.sub(r"\s+", " ", text)
+
+
 def implement_instruction(text):
-    """Any form of the verb outside a quoted path. Other whitespace joins, but a line break still ends a
-    negation, so a "not" closing one line cannot excuse an instruction on the next."""
-    return IMPLEMENT_ANY.search(re.sub(r"[^\S\n]+", " ", QUOTED_NAME.sub("path", text)))
+    """The first form of the verb that is outside a quoted path and not negated earlier on its own line.
+    Every line break (CR and Unicode separators too) ends a negation."""
+    text = QUOTED_NAME.sub("path", "\n".join(text.splitlines()))
+    for match in IMPLEMENT_VERB.finditer(text):
+        if not NEGATION.search(text[:match.start()].rsplit("\n", 1)[-1]):
+            return match
+    return None
 
 
 MAX_RUNS = 3
@@ -472,7 +482,7 @@ def handoff_prompts(section, version, verdict, context):
             # Every stop sentence names this phase, unnegated. "Phase 1.2", "Phase 1-b" and
             # "Phase 12" are other phases; a sentence-ending period is not.
             own = re.compile(rf"{re.escape(ready[index])}(?![A-Za-z0-9-]|\.[A-Za-z0-9])", re.I)
-            negated = re.compile(r"(?:not|n['’]t|\bnever)\s+$", re.I)
+            negated = NEGATION
             stops = list(re.finditer(r"\bstop\s+at\s+the\s+end\s+of\s+phase\s+", prompt, re.I))
             if not stops or any(not own.match(prompt, stop.end()) or negated.search(prompt[:stop.start()]) for stop in stops):
                 raise ValueError(f"Phase {ready[index]} prompt must say: Stop at the end of Phase {ready[index]}")
@@ -487,10 +497,12 @@ def handoff_prompts(section, version, verdict, context):
         if version >= 4:
             # Like the re-run prompt, for new and saved reports alike; the required sentence may wrap.
             implement = implement_instruction(first)
-            first = re.sub(r"\s+", " ", first)
+            first = spaced(first)
         else:
             implement = IMPLEMENT.search(first)
-        if implement or "do not start dependent implementation" not in first.lower():
+        if implement:
+            raise ValueError(f"The remediation prompt cannot contain an Implement instruction: {implement.group(0)}")
+        if "do not start dependent implementation" not in first.lower():
             raise ValueError("Not ready requires a remediation prompt stating: Do not start dependent implementation")
     return prompts, list(zip(ready, (prompt for _, _, prompt in prompts)))
 
@@ -615,7 +627,7 @@ def rerun_check(context, verdict, confidence, plan_revised, spec_revised):
         if word_count(prompt) > 80:
             raise ValueError("The rerun prompt must be at most 80 words; wrap paths in backticks")
         # Compare with single spaces, so a wrapped prompt still says each sentence.
-        spaced = re.sub(r"\s+", " ", prompt)
+        joined = spaced(prompt)
         # The next run keeps this run's scope, or it would count under another scope.
         first, last = phases[0]["id"], phases[-1]["id"]
         # Like the merge check, these sentences apply to new prompts; saved prompts stay as written.
@@ -626,18 +638,18 @@ def rerun_check(context, verdict, confidence, plan_revised, spec_revised):
             forms = [rf"Validate only Phases {re.escape(first)}[-–]{re.escape(last)}"]
             if first == last:
                 forms.append(rf"Validate only Phase {re.escape(first)}")
-            if not re.search(rf"(?<![A-Za-z0-9])(?:{'|'.join(forms)})\.(?![A-Za-z0-9])", spaced, re.I):
+            if not re.search(rf"(?<![A-Za-z0-9])(?:{'|'.join(forms)})\.(?![A-Za-z0-9])", joined, re.I):
                 raise ValueError("The rerun prompt of a phase-only validation must say: " + " or ".join(sentences))
         label = f"run {number + 1} of {MAX_RUNS}"
-        if not re.search(rf"\b{label}\b", spaced, re.I):
+        if not re.search(rf"\b{label}\b", joined, re.I):
             raise ValueError(f"The rerun prompt must say {label}")
         # Quoted paths are names, not instructions, even when they contain the word.
         if implement_instruction(prompt):
             raise ValueError("The rerun prompt cannot contain an Implement instruction")
         order = "Run this after the remediation session." if verdict.lower() == "not ready" else "Run this before starting any phase."
-        if new and order.lower()[:-1] not in spaced.lower():
+        if new and order.lower()[:-1] not in joined.lower():
             raise ValueError(f"The rerun prompt of a {verdict} report must say: {order}")
-        if "do not start dependent implementation" not in spaced.lower():
+        if "do not start dependent implementation" not in joined.lower():
             raise ValueError("The rerun prompt must say: Do not start dependent implementation.")
     return {"number": number, "recommendation": recommendation, "reasons": reasons,
             "prompt": prompt if recommendation == "yes" else None, "triggers": triggers}
@@ -823,8 +835,8 @@ def rerun_card(rerun, recorded, copyable):
     triggers = ('<p class="rerun-triggers">Triggers: ' + escape(", ".join(rerun["triggers"])) + "</p>") if rerun["triggers"] else ""
     prompt = ""
     if rerun["prompt"] is not None:
-        toolbar = ('<div class="prompt-toolbar"><button class="copy-prompt" type="button" data-copy-target="rerun-prompt">'
-                   'Copy re-run prompt</button><span class="copy-status" role="status" aria-live="polite"></span></div>') if copyable else ""
+        toolbar = ('<div class="prompt-toolbar">' + prompt_toolbar("rerun-prompt", "Copy re-run prompt", True, "")
+                   + "</div>") if copyable else ""
         prompt = (f'<h4 class="prompt-title">Re-run prompt</h4>{toolbar}'
                   f'<pre id="rerun-prompt" tabindex="0">{escape(rerun["prompt"])}</pre>')
     return (f'<div id="rerun" class="card rerun"><h3>{rerun_label(rerun, recorded)}</h3>'

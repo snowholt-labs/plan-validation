@@ -370,7 +370,7 @@ class ReportTests(unittest.TestCase):
         not_ready = REPORT.replace("**Ready.**", "**Not ready.**")
         for instruction in ("Start implementing Phase 1.", "The fix implements Task 2.",
                             "Fix `/repo/a\nStart implementing Phase 1 now.md`.", "Keep D1 or not\nImplement Phase 1.",
-                            "Reimplement Phase 1."):
+                            "Reimplement Phase 1.", "Keep D1 or not\u2028Implement Phase 1.", "Keep D1 or not\rImplement Phase 1."):
             source = not_ready.replace("Implement the approved scope now.", instruction + " Do not start dependent implementation.")
             with self.subTest(instruction=instruction), self.assertRaisesRegex(ValueError, "remediation prompt"):
                 render(source, self.stop_rerun(self.modern_context()))
@@ -378,7 +378,7 @@ class ReportTests(unittest.TestCase):
         # and a saved re-render accepts and rejects exactly what the new report did.
         source = not_ready.replace("Implement the approved scope now.",
                                    "Fix `/repo/implementing/plan.md`. Don’t implement Task 2. Do not\timplement Task 3. "
-                                   "Do not\u00a0reimplement Task 4. Do not start dependent\n  implementation.")
+                                   "Do not\u00a0reimplement Task 4. Never re-implement Task 5. Do not start dependent\n  implementation.")
         saved = self.stop_rerun(self.modern_context())
         saved["kind"] = "saved"
         for context in (self.stop_rerun(self.modern_context()), saved):
@@ -969,7 +969,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         self.assertNotIn('href="handoff.txt"', page)
         self.assertIn("Copy re-run prompt", summary)
         self.assertLess(summary.index('id="rerun"'), summary.index("Next session"))
-        self.assertIn("start a phase only after that run", self.panel(page, "full"))
+        self.assertIn(render_report.RUN_FIRST_NOTE, self.panel(page, "full"))
         # Without the yes, the phase prompts keep their copy buttons.
         page = render(low, self.stop_rerun(self.modern_context()))[0]
         self.assertIn("Copy Phase 1 prompt", page)
@@ -1277,7 +1277,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         _, prompt, _, _ = render(waiting, context)
         self.assertIn("Do not start dependent implementation.", prompt)
         self.assertEqual(phase_handoffs(waiting, context), [])
-        with self.assertRaisesRegex(ValueError, "Do not start dependent implementation"):
+        with self.assertRaisesRegex(ValueError, "cannot contain an Implement instruction"):
             render(waiting.replace("Record D1, then", "Implement Phase 1, then"), context)
 
     def test_every_phase_prompt_has_the_word_limit(self):
