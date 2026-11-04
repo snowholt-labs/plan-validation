@@ -64,10 +64,11 @@ PHASE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9.-]{0,15}\Z")
 CONFIDENCE_LEVELS = ("High", "Medium", "Low")
 # Any "implement" instruction, except a negated one such as "Do not implement".
 IMPLEMENT = re.compile(r"(?<!not )(?<!n't )(?<!never )\bimplement\b", re.I)
-# The re-run prompt is written even for a historical page, so once its required sentence is removed
-# it rejects every unnegated form of the word, such as "start implementing" or "start implementation".
-IMPLEMENT_ANY = re.compile(r"(?<!not )(?<!n't )(?<!n’t )(?<!never )\bimplement\w*", re.I)
-NO_DEPENDENT_IMPLEMENTATION = re.compile(r"do not start dependent implementation", re.I)
+# The re-run prompt is written even for a historical page, so it also rejects the other verb forms
+# ("implements", "implementing"). Descriptive words such as "implemented" or "implementation" stay allowed.
+IMPLEMENT_ANY = re.compile(r"(?<!not )(?<!n't )(?<!n’t )(?<!never )\bimplement(?:s|ing)?\b", re.I)
+# Only path-like spans are skipped: no whitespace, or ending in a file extension.
+QUOTED_NAME = re.compile(r"`(?:/|~/|[A-Za-z]:[\\/])(?:[^`\s]*|[^`\n]*\.[A-Za-z0-9]+)`")
 MAX_RUNS = 3
 RERUN_RECOMMENDATIONS = ("yes", "no", "stop")
 WATCH_KINDS = ("gap", "limit", "risk", "fixed")
@@ -591,7 +592,7 @@ def rerun_check(context, verdict, confidence, plan_revised, spec_revised):
         if not re.search(rf"\b{label}\b", prompt, re.I):
             raise ValueError(f"The rerun prompt must say {label}")
         # Quoted paths are names, not instructions, even when they contain the word.
-        if IMPLEMENT_ANY.search(NO_DEPENDENT_IMPLEMENTATION.sub("", QUOTED_PATH.sub("path", prompt))):
+        if IMPLEMENT_ANY.search(QUOTED_NAME.sub("path", prompt)):
             raise ValueError("The rerun prompt cannot contain an Implement instruction")
         if "do not start dependent implementation" not in prompt.lower():
             raise ValueError("The rerun prompt must say: Do not start dependent implementation.")
@@ -1069,7 +1070,7 @@ def main():
     except (ValueError, KeyError, OSError, ArithmeticError) as error:
         parser.exit(1, f"Report not generated: {error}\n")
     result = {"html": str(args.output.resolve()), "handoff": str(args.output.with_name("handoff.txt").resolve()), "handoff_current": current, "phase_handoffs": phase_files,
-              "rerun": str(rerun_path.resolve()) if rerun_prompt is not None else None}
+              "rerun": str(rerun_path.resolve()) if rerun_path.exists() else None}
     if args.open:
         result["opened"], reason = open_report(args.output.resolve())
         if not result["opened"]:

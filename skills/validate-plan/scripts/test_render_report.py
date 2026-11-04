@@ -912,7 +912,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             "run 2 of 3": self.RERUN_PROMPT.replace("run 2 of 3", "run 3 of 3"),
             "Implement": self.RERUN_PROMPT + " Implement Phase 1.",
             "implementing": self.RERUN_PROMPT + " Then start implementing Phase 1.",
-            "implementation": self.RERUN_PROMPT + " Then start implementation of Phase 1.",
+            "quoted instruction": self.RERUN_PROMPT + " Then `/x Implement Phase 1 now` please.",
             "Do not start dependent implementation": self.RERUN_PROMPT.replace(" Do not start dependent implementation.", ""),
         }
         for name, prompt in cases.items():
@@ -922,13 +922,17 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                     del context["rerun"]["prompt"]
                 else:
                     context["rerun"]["prompt"] = prompt
-                with self.assertRaisesRegex(ValueError, "Implement" if name.startswith("implement") else name):
+                with self.assertRaisesRegex(ValueError, "Implement" if name in ("implementing", "quoted instruction") else name):
                     render(REPORT, context)
         # A negated mention, with a typographic apostrophe too, is not an instruction.
         render(REPORT, self.rerun_yes(self.modern_context(), self.RERUN_PROMPT + " Don’t implement anything."))
         # Paths are names, not instructions, even when they contain the word.
         render(REPORT, self.rerun_yes(self.modern_context(), self.RERUN_PROMPT.replace(
-            "`/repo/PLAN.md`", "`/repo/docs/implementation plan.md`")))
+            "`/repo/PLAN.md`", "`/repo/docs/implementation plan.md`").replace(
+            "`/data/run-1/report.md`", "`/data/20261104T0000Z-implement-retry/report.md`")))
+        # Describing implementation is not an instruction to implement.
+        render(REPORT, self.rerun_yes(self.modern_context(), self.RERUN_PROMPT.replace(
+            "Focus on the delay cap.", "Check whether Task 3 is implemented correctly and the implementation order.")))
         # Only yes carries a prompt, so rerun.txt exists only for yes.
         context = self.modern_context()
         context["rerun"]["prompt"] = self.RERUN_PROMPT
@@ -1025,7 +1029,8 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         context["kind"] = "saved"
         code, stdout, err = self.run_main(out, REPORT, context)
         self.assertEqual(code, 0, err)
-        self.assertIsNone(json.loads(stdout)["rerun"])
+        # The JSON names the kept file, so the reply can still give its path.
+        self.assertEqual(json.loads(stdout)["rerun"], str((out / "rerun.txt").resolve()))
         self.assertEqual((out / "rerun.txt").read_text(encoding="utf-8"), self.RERUN_PROMPT + "\n")
 
     def test_saved_drift_warning_names_no_run_number(self):

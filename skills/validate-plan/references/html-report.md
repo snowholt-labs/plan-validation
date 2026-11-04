@@ -111,7 +111,8 @@ validation again is the answer to drift. A new report's re-render first deletes 
 `rerun.txt`, so a `no` or `stop` report leaves none. A `kind: saved` re-render shows the
 prompt without a copy button, writes no `rerun.txt` and leaves the one its run wrote,
 because later runs may exist; its drift warning names no run number. The renderer's
-JSON output names the file it wrote under `rerun` (`null` when it wrote none).
+JSON output names `rerun.txt` under `rerun` whenever one is beside the report
+(`null` when there is none).
 
 Example context shape (replace every example value; do not invent a review):
 
