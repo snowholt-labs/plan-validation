@@ -23,7 +23,7 @@ The package has no telemetry, analytics, account service or model API client. Th
 
 Reports, snapshots, command output and handoffs can contain private source details and absolute paths. Keep the run directory private. Redact and review content before sharing. Do not read `.env` files or credentials as part of validation.
 
-Reports stay local, with one opt-in exception. In Claude Code, the plugin setting **Publish validation reports as private artifacts** (`publish_artifact`, off by default) uploads each new report, including its local paths, to your own claude.ai account as a private artifact. The skill never shares it, pins it or changes its visibility, and makes no publish call while the setting is off, in Codex or in a standalone skill install. Anthropic's data handling for your account applies to the uploaded artifact.
+Reports stay local, with one opt-in exception. In Claude Code, the plugin setting **Publish validation reports as private artifacts** (`publish_artifact`, off by default) uploads each new report, and any report you later ask it to publish or update, including its local paths, to your own claude.ai account as a private artifact. The skill never shares it, pins it or changes its visibility, and makes no publish call while the setting is off, in Codex or in a standalone skill install. Anthropic's data handling for your account applies to the uploaded artifact.
 
 The default report location is documented in Unix form. Users on other platforms should select an equivalent private persistent directory and verify the workflow there.
 

@@ -34,11 +34,13 @@ def main():
         and publish.get("default") is False
         and isinstance(publish.get("title"), str) and publish["title"].strip()
         and isinstance(publish.get("description"), str) and publish["description"].strip()
-        and publish.get("sensitive") is not True
+        and publish.get("sensitive", False) is False
     ):
         errors.append(
             "userConfig.publish_artifact must be a non-sensitive boolean with default false, a title and a description"
         )
+    if "- Publish setting: ${user_config.publish_artifact}\n" not in (ROOT / "skills/validate-plan/SKILL.md").read_text():
+        errors.append("validate-plan SKILL.md must keep the line '- Publish setting: ${user_config.publish_artifact}'")
     icons = [claude.get("icon")] + [codex.get("interface", {}).get(key) for key in ("composerIcon", "logo", "logoDark")]
     for icon in filter(None, icons):
         path = (ROOT / icon).resolve()

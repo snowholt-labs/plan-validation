@@ -53,7 +53,8 @@ python3 <skill-directory>/scripts/render_report.py --report <run-directory>/repo
 ```
 
 Leave out `--open` when re-rendering a saved report unless the user asked to see it again.
-When the `Publish setting` line in `SKILL.md` reads exactly `true`, leave out `--open`
+When publishing will run (the `Publish setting` line in `SKILL.md` reads exactly `true`,
+and the Artifact tool and a session scratchpad are available), leave out `--open`
 for a new report too and follow "Private artifact (Claude Code, opt-in)" below.
 
 The helper uses only Python's standard library. A version 4 page has a header card,
@@ -302,11 +303,12 @@ Publish a `kind: new` report when the line reads exactly `true`, the Artifact to
 available in this session (a deferred tool that can be loaded counts) and the session
 has a scratchpad directory; check all three before rendering, for a new report and for
 an update below. If the line reads `true` but the tool or the scratchpad is missing,
-say in one line that publishing is unavailable and deliver the report locally with
-`--open`. Never copy report files into the repository or another working directory to
+say in one line that publishing is unavailable and deliver the report locally: with
+`--open` for a new report, and for an update only when the user asked to see it. Never copy report files into the repository or another working directory to
 publish them. Publish a `kind: saved` report only when the user asks. If the user asks to publish
-while the line is not exactly `true`, say in one line that publishing is off and
-that the user can turn it on in `/config` and start a new session.
+while the line is not exactly `true`, say in one line that publishing is off. In a Claude Code plugin install the user can
+turn it on in `/config` and start a new session; Codex and standalone skill installs
+cannot publish.
 
 1. Render without `--open`.
 2. Create a new folder in the session scratchpad. Copy `report.html`, `report.md`,
@@ -314,7 +316,8 @@ that the user can turn it on in `/config` and start a new session.
    supporting files only from the working directory or the scratchpad, and the run
    directory is in neither. The run directory stays the durable record; never move
    or delete its files.
-3. Read the whole scratchpad `report.html`, in full even when it is large. The
+3. Read the whole scratchpad `report.html`, in full even when it is large (in Claude
+   Code, Read with `allow_large`). The
    Artifact tool publishes only a file the session has read.
 4. Run the Artifact quickstart with `intent: "other"` and `design_systems: false`.
    Publish the page as rendered; never restyle or rebuild it.
@@ -339,15 +342,18 @@ skip the quickstart, and in step 5 publish with `url` set to the URL in
 to see the report; the artifact link takes its place. In a later session, first
 `read` that URL with the Artifact tool, because it refuses an update to an artifact
 the session has not read. An update keeps files it does not name, so list the
-artifact's files (`scope: "files"`) and pass `files` as a map that names each
-current file and sets each `handoff-phase-<id>.txt` the re-render no longer wrote
-to `null`. Then rewrite `artifact.json`
+artifact's files (`scope: "files"`) and pass `files` as a map that names every file
+the re-render wrote (`report.md`, `handoff.txt` and each `handoff-phase-<id>.txt`)
+and sets each listed `handoff-phase-<id>.txt` the re-render no longer wrote to `null`.
+If the stored URL can no longer be read, say so in one line; publish a new artifact
+and replace `artifact.json` only when the user asks. Then rewrite `artifact.json`
 with the same `url` and the new `published_at` and `html_sha256`, and reply as in
 step 7. A new validation run always creates a new artifact.
 
 When you give a saved artifact link without publishing, compare its `html_sha256`
 with the current local `report.html`. If they differ, say in the same line that the
-artifact shows an older render.
+artifact shows an older render whose prompts may be out of date, and point to the
+local report.
 
 If a step before the upload, or the upload itself, fails, say so in one line, do not
 retry the same call and do not write `artifact.json`. Then deliver the report locally
