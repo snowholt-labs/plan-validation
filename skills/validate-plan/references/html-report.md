@@ -209,7 +209,7 @@ Version 4 fields:
     return paths may not overlap (they may share an end step).
   - Diagram limits count a wide or full-width (East Asian) character as 2; the `project`,
     `audience` and watch-list `title` limits count every character as 1. The renderer also
-    estimates each label's drawn width, with wide letters such as `W` and `M`, symbols
+    estimates the drawn width of each label inside a shape or gap, with wide letters such as `W` and `M`, symbols
     and emoji counting wider, so a label within its limit can still be too wide. It then
     checks every shape, label and line for overlap. It rejects a label that does not fit or a layout that collides,
     naming the field, the link or the colliding shapes; it never cuts or moves text. Links are routed in the order
@@ -219,7 +219,7 @@ Version 4 fields:
 - `open_decisions`: a list, `[]` when none. It mirrors section 6's pending approvals. Each
   item has `id` (1–16 letters, digits, dots or hyphens, starting with a letter or digit,
   unique ignoring case, and present in section 6
-  as a whole word: `D1` does not match `D10`), `question`, `recommendation`, `confidence`
+  with the same case, as a whole word: `D1` does not match `D10`), `question`, `recommendation`, `confidence`
   (`High`, `Medium` or `Low`) and `holds_back` (the phases or tasks it holds back, or
   `Nothing` or `None`, in any case, when it holds back no work; any other text counts as
   holding back work). A `Ready after approvals` verdict needs at least one item that holds
