@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add report format version 4 for new reports: a light blue, tabbed page with a header card, a score strip and the tabs Summary, Needs your answer, Watch list and Full report. The Summary shows 1–3 diagrams of the planned design, drawn as inline SVG from `context.json` data, with every label checked to fit and nothing overlapping; counts of pending decisions and watch-list items; and the next session's first prompt. New `context.json` fields: `project`, `audience`, `title_accent`, `diagrams`, `open_decisions` and `watch_list`; `feature` is dropped. Without JavaScript every tab shows in order, and print shows everything. The page stays self-contained under the same strict content security policy. Saved version 1–3 reports render exactly as before. The demo report uses version 4.
 - The documentation website asks for consent before it loads Google Analytics. Nothing third-party loads until a visitor accepts. Declining, or changing the choice later through **Cookie settings** in the footer, removes the analytics cookies and reloads a page where analytics was running. The choice is asked again after a year. The plugin and its reports are unchanged and send nothing to Google.
 
 ## 0.4.0 — 2026-10-25
