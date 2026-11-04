@@ -4,6 +4,7 @@ import base64
 import contextlib
 import copy
 import hashlib
+import html
 import io
 import json
 import os
@@ -417,8 +418,8 @@ class ReportTests(unittest.TestCase):
         context = self.modern_context()
         context["handoff_status"] = "historical"
         page, _, _ = render(REPORT, context)
-        hero = page[page.index('class="freshness"'):page.index('</p>', page.index('class="freshness"'))]
-        self.assertIn("historical", hero)
+        pills = page[page.index('<ul class="pills"'):page.index('</ul>', page.index('<ul class="pills"'))]
+        self.assertIn("Historical", pills)
 
     def test_complete_report_preserves_prompt_and_both_tables(self):
         page, prompt, current = render(REPORT, self.context)
@@ -663,7 +664,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             context[field] = "x" * limit
             render(REPORT, context)
         for title, accent in (("Example", "Missing"), ("Example Example", "Example"), ("Example", ""), ("Example", None),
-                              ("Fish & chips", "amp")):
+                              ("Fish & chips", "amp"), ("Fish camp", " ")):
             with self.subTest(title=title, accent=accent):
                 context = self.modern_context()
                 context.update(title=title, title_accent=accent)
@@ -723,12 +724,18 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         self.assertNotIn("<script>x", page)
         self.assertNotIn('"&amp<', page)
         self.assertEqual(page.count("<script>"), 1)
-        self.assertIn("&lt;script&gt;x&lt;/script&gt;&quot;&amp;amp", page)
+        escaped = "&lt;script&gt;x&lt;/script&gt;&quot;&amp;amp"
+        self.assertIn(f'<p class="kicker">{escaped} · {escaped} · Evidence as of 2026-10-14</p>', page)
+        self.assertIn(f"<h1>&lt;script&gt;<em>x</em>&lt;/script&gt;&quot;&amp;amp</h1>", page)
+        answer = page[page.index('id="panel-answer"'):page.index('</section>', page.index('id="panel-answer"'))]
+        self.assertEqual(answer.count(f"<td>{escaped}</td>"), 3)
+        watch = page[page.index('id="panel-watch"'):page.index('</section>', page.index('id="panel-watch"'))]
+        self.assertIn(f"<h3>{escaped}</h3><p>{escaped}</p>", watch)
         # The accent is split from the raw title, so an entity can never be cut in two.
         context = self.modern_context()
         context.update(title="Fish & camp", title_accent="amp")
         page, _, _ = render(REPORT, context)
-        self.assertIn("Fish &amp; c", page)
+        self.assertIn("<h1>Fish &amp; c<em>amp</em></h1>", page)
         self.assertNotIn("&<", page)
 
     def test_v4_phase_prompts_still_checked(self):
@@ -878,7 +885,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         source, context = self.two_phase()
         page, _, _ = render(source, context)
         targets = re.findall(r'data-copy-target="([^"]+)"', page)
-        self.assertEqual(targets, ["handoff-1", "handoff-2"])
+        self.assertEqual(targets, ["summary-handoff-1", "handoff-1", "handoff-2"])
         for target in targets:
             self.assertIn(f'<pre id="{target}"', page)
         self.assertIn("Copy Phase 2 prompt", page)
@@ -891,7 +898,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         # report.js is inlined and names the attribute, so look for markup only.
         self.assertNotIn('data-copy-target="', page)
         self.assertNotIn('href="handoff.txt"', page)
-        self.assertEqual(page.count("This is a historical prompt."), 2)
+        self.assertEqual(page.count("This is a historical prompt."), 3)
 
     def test_not_ready_phase_table_offers_no_start(self):
         source = REPORT.replace("**Ready.**", "**Not ready.**").replace(
@@ -1088,6 +1095,162 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIs(json.loads(result.stdout)["opened"], True)
 
+
+    def panel(self, page, name):
+        """Return one tab panel's markup, up to the next panel or the end of main."""
+        start = page.index(f'<section id="panel-{name}"')
+        ends = [page.find(marker, start + 1) for marker in ('<section id="panel-', '</main>')]
+        return page[start:min(end for end in ends if end != -1)]
+
+    def test_v4_layout_order(self):
+        context = self.modern_context()
+        context["decisions_without_reply"] = [{"question": "Q?", "decision": "D.", "reason": "R."}]
+        page, _, _ = render(REPORT, context)
+        markers = ('<header class="hero"', '<p class="kicker">plan-validation · plan review for the maintainer · Evidence as of 2026-10-14</p>',
+                   '<h1><em>Example</em></h1>', '<div class="scores"', '<div role="tablist" class="tabs" hidden',
+                   '<section id="panel-summary"', '<section id="panel-full"')
+        positions = [page.index(marker) for marker in markers]
+        self.assertEqual(positions, sorted(positions))
+        full = self.panel(page, "full")
+        for number, heading in enumerate(render_report.READABLE_HEADINGS, 1):
+            self.assertIn(f'<h2 id="heading-{number}">{heading}</h2>', full)
+        self.assertLess(full.index('id="section-8"'), full.index('id="defaulted-decisions"'))
+        self.assertLess(full.index('id="defaulted-decisions"'), full.index('class="identity"'))
+        self.assertIn('<div id="rerun-slot"></div>', self.panel(page, "summary"))
+
+    def test_v4_status_pills(self):
+        page, _, _ = render(REPORT, self.modern_context())
+        pills = page[page.index('<ul class="pills"'):page.index('</ul>', page.index('<ul class="pills"'))]
+        self.assertIn('<span>Ready</span>', pills)
+        self.assertIn("1 phase · 1 task", pills)
+        self.assertNotIn("Historical", pills)
+        source, context = self.two_phase()
+        context["handoff_status"] = "historical"
+        page, _, _ = render(source, context)
+        pills = page[page.index('<ul class="pills"'):page.index('</ul>', page.index('<ul class="pills"'))]
+        self.assertIn("2 phases · 2 tasks", pills)
+        self.assertIn("<span>Historical</span>", pills)
+
+    def test_v4_optional_tabs(self):
+        page, _, _ = render(REPORT, self.modern_context())
+        for name in ("answer", "watch"):
+            self.assertNotIn(f'id="panel-{name}"', page)
+            self.assertNotIn(f'id="tab-{name}"', page)
+        self.assertNotIn('data-open-tab="', page)
+        summary = self.panel(page, "summary")
+        self.assertEqual(summary.count('<div class="count count-none"><strong>None</strong>'), 2)
+        self.assertNotIn('<button class="count"', summary)
+
+        source = REPORT.replace("No blockers.", "Pending approvals D1 and D2.")
+        context = self.modern_context()
+        decision = {"question": "Approve?", "recommendation": "Approve it.", "confidence": "High", "holds_back": "Nothing"}
+        context["open_decisions"] = [dict(decision, id="D1"), dict(decision, id="D2", holds_back="Phase 2")]
+        context["watch_list"] = [{"kind": kind, "title": f"{kind} item", "body": "Body."} for kind in ("gap", "limit", "risk", "fixed")]
+        page, _, _ = render(source, context)
+        tab = page[page.index('id="tab-answer"'):page.index('</button>', page.index('id="tab-answer"'))]
+        self.assertIn("Needs your answer", tab)
+        self.assertIn('<span class="badge">2</span>', tab)
+        answer = self.panel(page, "answer")
+        rows = re.findall(r"<tr>.*?</tr>", answer[answer.index("<tbody>"):])
+        self.assertEqual(len(rows), 2)
+        for row in rows:
+            self.assertIn('href="#section-6"', row)
+        summary = self.panel(page, "summary")
+        self.assertIn('<button class="count" type="button" data-open-tab="answer"><strong>2</strong>', summary)
+        self.assertIn('<button class="count" type="button" data-open-tab="watch"><strong>4</strong>', summary)
+        self.assertNotIn("Approve it.", summary)
+        cards = re.findall(r'<article class="watch watch-(\w+)">(.*?)</article>', self.panel(page, "watch"), re.S)
+        self.assertEqual([kind for kind, _ in cards], ["gap", "limit", "risk", "fixed"])
+        for kind, card in cards:
+            self.assertIn(f"<span>{kind.capitalize()}</span>", card)
+
+    def test_v4_prompt_ids_are_unique_and_match_handoff(self):
+        source, context = self.two_phase()
+        source = source.replace("Phase 1", "Phase 1.2")
+        context["phases"][0]["id"] = "1.2"
+        context["diagrams"] = [copy.deepcopy(ZONES_DIAGRAM), copy.deepcopy(ZONES_DIAGRAM)]
+        out = Path(self.directory.name) / "ids"
+        out.mkdir()
+        result = self.run_renderer(out, source, context)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        page = (out / "report.html").read_text(encoding="utf-8")
+        ids = re.findall(r'\sid="([^"]+)"', page)
+        self.assertEqual(len(ids), len(set(ids)))
+        texts = {}
+        for name in ("summary-handoff-1.2", "handoff-1.2"):
+            match = re.search(rf'<pre id="{re.escape(name)}"[^>]*>(.*?)</pre>', page, re.S)
+            texts[name] = html.unescape(match.group(1))
+        self.assertEqual(texts["summary-handoff-1.2"], texts["handoff-1.2"])
+        self.assertEqual(texts["handoff-1.2"] + "\n", (out / "handoff.txt").read_text(encoding="utf-8"))
+        targets = re.findall(r'data-copy-target="([^"]+)"', page)
+        self.assertEqual(targets, ["summary-handoff-1.2", "handoff-1.2", "handoff-2"])
+        self.assertTrue(set(targets) <= set(ids))
+
+    def test_v4_historical_summary_has_no_copy_button(self):
+        for change in ("status", "document"):
+            with self.subTest(change=change):
+                context = self.modern_context()
+                if change == "status":
+                    context["handoff_status"] = "historical"
+                else:
+                    Path(context["documents"][0]["path"]).write_text("Changed")
+                page, _, current = render(REPORT, context)
+                self.assertFalse(current)
+                summary = self.panel(page, "summary")
+                self.assertNotIn('data-copy-target="', summary)
+                self.assertIn(render_report.HISTORICAL_WARNING, summary)
+                self.assertIn('<pre id="summary-handoff-1"', summary)
+                self.assertNotIn('href="handoff.txt"', page)
+                Path(context["documents"][0]["path"]).write_text("PLAN")
+
+    def test_v4_summary_shows_remediation_prompt_when_no_phase_is_ready(self):
+        source = REPORT.replace("**Ready.**", "**Not ready.**").replace(
+            "Implement the approved scope now.", "Resume validation. Do not start dependent implementation.")
+        page, _, _ = render(source, self.modern_context())
+        summary = self.panel(page, "summary")
+        self.assertIn('data-copy-target="summary-handoff"', summary)
+        self.assertIn('<pre id="summary-handoff"', summary)
+        self.assertIn("Resume validation.", summary)
+        self.assertIn("Waits for remediation", summary)
+        self.assertNotIn("Can start", page)
+
+    def test_v4_page_contract(self):
+        page, _, _ = render(REPORT, self.modern_context())
+        self.assertIn("<title>Example</title>", page)
+        js = (ASSETS / "report-v4.js").read_text()
+        digest = base64.b64encode(hashlib.sha256(js.encode()).digest()).decode()
+        self.assertIn(f"script-src 'sha256-{digest}'", page)
+        self.assertIn(f"<script>{js}</script>", page)
+        self.assertEqual(page.count("<script>"), 1)
+        self.assertNotRegex(page.replace("http://www.w3.org/2000/svg", ""), r"https?://")
+        icon = (ASSETS / "report-icon.svg").read_text().strip()
+        inner = icon[icon.index(">") + 1:]
+        self.assertIn(inner, page)
+        tag = page[page.rindex("<svg", 0, page.index(inner)):page.index(inner)]
+        self.assertIn('aria-hidden="true"', tag)
+        self.assertLessEqual(set(re.findall(r"<([a-z]+)", icon)), {"svg", "rect", "path", "circle"})
+        self.assertNotRegex(icon.lower(), r"href|url\(|script|style|\sid=")
+
+    def test_v4_css_scrolls_diagrams_not_page(self):
+        css = (ASSETS / "report-v4.css").read_text()
+        for text in (".dg-wrap{overflow-x:auto", ".fig{min-width:0", "[hidden]{display:none!important}",
+                     ".fig:has(.dg-w3){grid-column:1/-1}", "prefers-color-scheme: dark",
+                     ':root[data-theme="dark"]', ':root:not([data-theme="light"])'):
+            self.assertIn(text, css)
+        for name, width in (("dg-w1", 232), ("dg-w2", 584), ("dg-w3", 936), ("dg-flow", 608)):
+            self.assertRegex(css, rf"\.{name}\{{[^}}]*min-width:{width}px")
+        self.assertRegex(css, r"(?<![\w.-])pre\{[^}]*white-space:pre-wrap[^}]*overflow-wrap:anywhere")
+        self.assertRegex(css, r"(?<![\w.-])code\{[^}]*overflow-wrap:anywhere")
+        self.assertRegex(css, r"\.identity small\{[^}]*overflow-wrap:anywhere")
+        # Count-card hints and status chips hold agent text such as a long holds_back path.
+        self.assertRegex(css, r"\.count\{[^}]*overflow-wrap:anywhere")
+        self.assertRegex(css, r"\.chip\{[^}]*overflow-wrap:anywhere")
+        self.assertRegex(css, r"(?<![\w.-])body\{[^}]*background:")
+        # Diagram text sizes match the geometry in diagrams.py; marker heads are never dashed.
+        self.assertRegex(css, r"\.t,\.zl,\.lb,\.numt\{[^}]*font-size:13px")
+        self.assertRegex(css, r"\.s,\.ls\{[^}]*font-size:11px")
+        self.assertIn("marker path{stroke:none", css)
+        self.assertNotRegex(css, r"(?<![\]\w-])\.ar-dash\{[^}]*dasharray")
 
     def legacy_documents(self):
         root = Path(self.directory.name)

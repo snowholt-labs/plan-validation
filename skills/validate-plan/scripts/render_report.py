@@ -20,7 +20,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from diagrams import validate_diagrams
+from diagrams import render_diagram, validate_diagrams
 
 
 ASSETS = Path(__file__).resolve().parents[1] / "assets"
@@ -33,6 +33,8 @@ SOURCE_HEADINGS = (
     "Changes", "Open items", "Verification and checkout", "Fresh-session handoff",
 )
 HISTORICAL_PREFIX = "HISTORICAL PROMPT — DO NOT EXECUTE.\nDocument identity, Git state or approvals need revalidation before implementation.\n\n"
+HISTORICAL_WARNING = ('<p class="warning">Document identity, Git state or approvals changed or could not be checked. '
+                      'This is a historical prompt. Revalidate the changed scope before using it.</p>')
 # Phase IDs become file names, so they cannot contain path separators.
 PHASE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9.-]{0,15}\Z")
 CONFIDENCE_LEVELS = ("High", "Medium", "Low")
@@ -372,14 +374,19 @@ def phase_plan(context, verdict):
     return phases
 
 
+def phase_status(phase, verdict, current):
+    """Return the escaped status shown for a phase in section 8 and on the Summary."""
+    if phase["status"] == "waiting":
+        return "Waits for " + inline(phase["waits_for"])
+    # A remediation-only or historical report never shows a phase as startable.
+    if verdict.lower() == "not ready":
+        return "Waits for remediation"
+    return "Can start" if current else "Revalidate before starting"
+
+
 def phase_table(phases, verdict, current):
     def status(phase):
-        if phase["status"] == "waiting":
-            return "Waits for " + inline(phase["waits_for"])
-        # A remediation-only or historical report never shows a phase as startable.
-        if verdict.lower() == "not ready":
-            return "Waits for remediation"
-        return "Can start" if current else "Revalidate before starting"
+        return phase_status(phase, verdict, current)
     rows = ''.join('<tr>' + ''.join(f'<td>{cell}</td>' for cell in (
         escape(phase["id"]) + ': ' + inline(phase["title"]), escape(", ".join(phase["tasks"])),
         "Docs only" if phase["docs_only"] else "Code",
@@ -446,7 +453,7 @@ def v4_fields(context, open_items):
     short_text(context.get("audience"), "audience", 60)
     accent, title = context.get("title_accent"), context.get("title")
     # Counted on the raw title: the page splits it around the accent before escaping each part.
-    if not isinstance(accent, str) or not accent or not isinstance(title, str) or title.count(accent) != 1:
+    if not isinstance(accent, str) or not accent.strip() or not isinstance(title, str) or title.count(accent) != 1:
         raise ValueError("title_accent must be text that appears exactly once in title")
     diagrams = validate_diagrams(context.get("diagrams"))
     decisions = context.get("open_decisions")
@@ -475,6 +482,73 @@ def v4_fields(context, open_items):
     return {"diagrams": diagrams, "decisions": decisions, "watch": watch}
 
 
+def scope_section(context):
+    """Return the scope comparison card shown at the start of section 5."""
+    scope = context["scope"]
+    scope_rows = scope["rows"]
+    scope_table = '<div class="table-scroll" role="region" aria-label="Scope comparison" tabindex="0"><table><thead><tr>'
+    scope_table += ''.join(f'<th scope="col">{title}</th>' for title in ["Measure", "Original", "Revised", "Reason / evidence"])
+    scope_table += '</tr></thead><tbody>' + ''.join('<tr>' + ''.join(f'<td>{inline(str(row[key]))}</td>' for key in ["metric", "original", "revised", "reason"]) + '</tr>' for row in scope_rows) + '</tbody></table></div>'
+    return '<aside id="scope" class="scope"><h3>Scope &amp; complexity</h3><p>' + inline(scope["explanation"]) + '</p>' + scope_table + '<p><strong>Approval basis.</strong> ' + inline(scope["approval"]) + '</p></aside>'
+
+
+def report_sections(parts, version, verdict, prompts, pairs, context, current, marks=None):
+    """Return the eight report sections; section 8 holds the prompts and their copy buttons."""
+    handoff = prompts[0][2]
+    scope_html = scope_section(context)
+    body = []
+    for index, (heading, content) in enumerate(parts, 1):
+        if version >= 2:
+            heading = READABLE_HEADINGS[index - 1]
+        if index == 8:
+            if version >= 2:
+                detail_marker(content, index)
+            intro = content
+            for start, end, _ in reversed(prompts):
+                intro = intro[:start] + intro[end:]
+            warning = HISTORICAL_WARNING
+            content_html = markdown(intro)
+            if version >= 3:
+                content_html += phase_table(context["phases"], verdict, current)
+            if pairs:
+                titles = {phase["id"]: phase["title"] for phase in context["phases"]}
+                for phase_id, prompt in pairs:
+                    target = escape("handoff-" + phase_id)
+                    toolbar = (f'<button class="copy-prompt" type="button" data-copy-target="{target}">Copy Phase {escape(phase_id)} prompt</button>'
+                               '<span class="copy-status" role="status" aria-live="polite"></span>') if current else warning
+                    content_html += (f'<h3>Phase {escape(phase_id)}: {inline(titles[phase_id])}</h3><div class="prompt-toolbar">' + toolbar
+                                     + f'</div><pre id="{target}" tabindex="0">' + escape(prompt) + '</pre>')
+            else:
+                # In version 3 a single prompt is always a remediation prompt.
+                action = "Copy implementation prompt" if verdict.lower().startswith("ready") and version < 3 else "Copy remediation prompt"
+                toolbar = (f'<button id="copy-prompt" class="copy-prompt" type="button" data-copy-target="handoff">{action}</button>'
+                           '<span id="copy-status" class="copy-status" role="status" aria-live="polite"></span>') if current else warning
+                content_html += '<div class="prompt-toolbar">' + toolbar + '</div><pre id="handoff" tabindex="0">' + escape(handoff) + '</pre>'
+        else:
+            content_html = section_content(content, index) if version >= 2 else markdown(content)
+        body.append(f'<section id="section-{index}" aria-labelledby="heading-{index}"><div class="section-heading">{marks[index - 1] if marks else ''}<span>{index:02}</span><h2 id="heading-{index}">{inline(heading)}</h2></div>' + (scope_html if index == 5 else "") + content_html + '</section>')
+    return body
+
+
+def freshness_state(version, fingerprints_match, current):
+    """Return the plain-text sentence about document identity shown in the page header."""
+    if version >= 2:
+        state = "Plan and spec match the saved review." if fingerprints_match else "Plan or spec changed or could not be read."
+        stale = " This handoff is historical. Recheck the saved evidence before starting."
+    else:
+        state = "Document fingerprints match the saved validation." if fingerprints_match else "Document fingerprints differ or files are unavailable."
+        stale = " The handoff is historical; refresh its evidence before implementation."
+    return state if current else state + stale
+
+
+def identity_details(checks, context):
+    """Return the collapsed document identity and provenance block."""
+    stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    doc_html = ''.join('<li><strong>' + escape(doc["label"]) + '</strong> · ' + ("matches" if matches else "changed / unavailable") + '<br><code>' + escape(doc["path"]) + '</code><br><small>SHA256 ' + escape(doc["sha256"]) + '</small></li>' for doc, matches in checks)
+    return ('<details class="identity"><summary>Document identity &amp; report provenance</summary><ul>' + doc_html
+            + '</ul><p>HTML generated ' + escape(stamp) + '. ' + escape(context.get("provenance", "")) + '</p></details>')
+
+
 def phase_handoffs(source, context):
     """Return (phase_id, prompt) for each ready phase of a version 3 or 4 Ready report."""
     version = context.get("format_version", 1)
@@ -483,6 +557,178 @@ def phase_handoffs(source, context):
     if type(version) is not int or version < 3 or not verdict_match:
         return []
     return handoff_prompts(parts[7][1], version, verdict_match.group(1), context)[1]
+
+
+SHAPES = {
+    "circle": '<circle cx="6" cy="6" r="5"/>',
+    "ring": '<circle class="ring" cx="6" cy="6" r="4.6"/>',
+    "diamond": '<path d="M6 .6L11.4 6L6 11.4L.6 6z"/>',
+    "triangle": '<path d="M6 .8L11.4 10.8H.6z"/>',
+    "square": '<rect x="1" y="1" width="10" height="10" rx="3"/>',
+}
+SECTION_SHAPES = ("circle", "diamond", "triangle", "square")
+# Each kind is shown by colour, shape and a word.
+WATCH_STYLE = {"gap": ("ring", "Gap"), "limit": ("square", "Limit"), "risk": ("triangle", "Risk"), "fixed": ("circle", "Fixed")}
+VERDICT_STYLE = {"ready": ("chip-ok", "circle"), "ready after approvals": ("chip-wait", "diamond"), "not ready": ("chip-stop", "triangle")}
+CONFIDENCE_STYLE = {"High": ("chip-ok", "circle"), "Medium": ("chip-wait", "diamond"), "Low": ("chip-stop", "triangle")}
+
+
+def mark(shape):
+    return f'<svg class="mark" viewBox="0 0 12 12" aria-hidden="true" focusable="false">{SHAPES[shape]}</svg>'
+
+
+def chip(css, shape, words):
+    """A status pill: colour, shape and words, never colour alone. ``words`` is escaped markup."""
+    return f'<span class="chip {css}">{mark(shape)}<span>{words}</span></span>'
+
+
+def plural(count, word):
+    return f"{count} {word}{'' if count == 1 else 's'}"
+
+
+def count_card(tab, items, noun, nouns, empty, hint):
+    if not items:
+        return f'<div class="count count-none"><strong>None</strong><span>{nouns}</span><small>{empty}</small></div>'
+    return (f'<button class="count" type="button" data-open-tab="{tab}"><strong>{len(items)}</strong>'
+            f'<span>{noun if len(items) == 1 else nouns}</span><small>{hint}</small></button>')
+
+
+def answer_hint(decisions):
+    holding = [item for item in decisions if item["holds_back"].strip().lower() != "nothing"]
+    if not holding:
+        first = "Nothing is held back"
+    else:
+        first = escape(holding[0]["id"]) + " holds back " + escape(holding[0]["holds_back"])
+        if len(holding) > 1:
+            first += f" · {len(holding) - 1} more hold back work"
+    return first + " · each has a recommendation"
+
+
+def watch_hint(watch):
+    phrases = {"fixed": ("fixed in the plan", "fixed in the plan"), "gap": ("open gap", "open gaps"),
+               "limit": ("limit to know", "limits to know"), "risk": ("risk to watch", "risks to watch")}
+    parts = []
+    for kind in ("fixed", "gap", "limit", "risk"):
+        count = sum(item["kind"] == kind for item in watch)
+        if count:
+            parts.append(f"{count} {phrases[kind][count != 1]}")
+    return " · ".join(parts)
+
+
+def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pairs, current, checks):
+    """Return the version 4 page: header card, score strip, tabs (Summary, answers, watch list, full report)."""
+    css = (ASSETS / "report-v4.css").read_text()
+    js = (ASSETS / "report-v4.js").read_text()
+    favicon = base64.b64encode((ASSETS / "favicon.svg").read_bytes()).decode()
+    script_hash = base64.b64encode(hashlib.sha256(js.encode()).digest()).decode()
+    icon = (ASSETS / "report-icon.svg").read_text().strip().replace("<svg ", '<svg class="hero-icon" aria-hidden="true" focusable="false" ', 1)
+    decisions, watch, phases = fields["decisions"], fields["watch"], context["phases"]
+    fingerprints_match = all(matches for _, matches in checks)
+
+    # Header card. The accent is split from the raw title, then each part is escaped.
+    before, accent, after = context["title"].partition(context["title_accent"])
+    heading = escape(before) + "<em>" + escape(accent) + "</em>" + escape(after)
+    kicker = " · ".join((escape(context["project"]), escape(context["audience"]), "Evidence as of " + escape(context["validation_date"])))
+    status = "Recorded: " + verdict if context["kind"] == "saved" or not current else verdict
+    pills = [chip(*VERDICT_STYLE[verdict.lower()], escape(status)),
+             chip("chip-info", "square", plural(len(phases), "phase") + " · " + plural(len(context["task_inventory"]), "task"))]
+    if not current:
+        pills.append(chip("chip-wait", "triangle", "Historical"))
+    pills_html = '<ul class="pills" role="list">' + "".join(f"<li>{pill}</li>" for pill in pills) + "</ul>"
+    notes = "".join('<p class="note-title"><strong>' + escape(note["title"]) + "</strong></p><p>" + inline(note["body"]) + "</p>" for note in context.get("notes", []))
+    notes_html = f'<div class="notes">{notes}</div>' if notes else ""
+    prompt_download = '<a href="handoff.txt" download>Prompt .txt</a>' if current else ""
+    hero = (f'<header class="hero"><div class="hero-text"><p class="kicker">{kicker}</p><h1>{heading}</h1>'
+            f'<p class="lead">{inline(context["summary"])}</p>{pills_html}'
+            f'<p class="freshness">{escape(freshness_state(4, fingerprints_match, current))} {inline(context["freshness"])}</p>{notes_html}'
+            f'<div class="actions"><a href="report.md" download>Source Markdown</a>{prompt_download}'
+            f'<button id="print-report" type="button">Print / PDF</button></div></div>{icon}</header>')
+    scores_html = ('<div class="scores">'
+                   f'<div class="score"><span class="score-label">PLAN · average /10</span><strong>{plan[0]} <span class="arrow">→</span> {plan[1]}</strong></div>'
+                   f'<div class="score"><span class="score-label">SPEC · average /10</span><strong>{spec[0]} <span class="arrow">→</span> {spec[1]}</strong></div>'
+                   f'<div class="score"><span class="score-label">Evidence confidence</span><strong>{escape(confidence)}</strong>'
+                   '<small>Subjective estimate, not a measured probability</small></div></div>')
+
+    # Tabs: a tab whose list is empty is left out.
+    tabs = [("summary", "Summary", None)]
+    if decisions:
+        tabs.append(("answer", "Needs your answer", len(decisions)))
+    if watch:
+        tabs.append(("watch", "Watch list", len(watch)))
+    tabs.append(("full", "Full report", None))
+    tab_html = "".join(
+        f'<button id="tab-{name}" type="button" role="tab" aria-controls="panel-{name}" aria-selected="{"true" if index == 0 else "false"}" '
+        f'tabindex="{0 if index == 0 else -1}">{label}' + (f' <span class="badge">{count}</span>' if count else "") + "</button>"
+        for index, (name, label, count) in enumerate(tabs))
+    tablist = f'<div role="tablist" class="tabs" hidden aria-label="Report views">{tab_html}</div>'
+
+    def panel(name, title, content):
+        return (f'<section id="panel-{name}" class="panel" role="tabpanel" aria-labelledby="tab-{name}" tabindex="0">'
+                f'<h2 class="panel-title">{title}</h2>{content}</section>')
+
+    # Summary: diagrams, count cards, next session, re-run slot.
+    figures = '<div class="figs">' + "".join(render_diagram(diagram, index) for index, diagram in enumerate(fields["diagrams"], 1)) + "</div>"
+    counts = ('<div class="counts">'
+              + count_card("answer", decisions, "needs your answer", "need your answer", "No approvals are pending", answer_hint(decisions))
+              + count_card("watch", watch, "gap on the watch list", "gaps on the watch list", "No gaps, limits or risks recorded", watch_hint(watch))
+              + "</div>")
+    cards = []
+    for phase in phases:
+        state = phase_status(phase, verdict, current)
+        style = ("chip-ok", "circle") if state == "Can start" else ("chip-wait", "diamond")
+        flags = [chip(*style, "Ready" if state == "Can start" else state)]
+        if phase["docs_only"]:
+            flags.append(chip("chip-info", "square", "Docs only"))
+        if phase["security_review"]:
+            flags.append(chip("chip-stop", "triangle", "Security review"))
+        tasks = ("Task " if len(phase["tasks"]) == 1 else "Tasks ") + escape(", ".join(phase["tasks"]))
+        cards.append(f'<li class="phase-card"><p class="phase-head">Phase {escape(phase["id"])} · {tasks}</p>'
+                     f'<p class="phase-title">{inline(phase["title"])}</p><p class="phase-flags">{"".join(flags)}</p></li>')
+    if pairs:
+        phase_id, prompt = pairs[0]
+        target, action, prompt_title = "summary-handoff-" + phase_id, f"Copy Phase {escape(phase_id)} prompt", f"Phase {escape(phase_id)} prompt"
+    else:
+        prompt, target, action, prompt_title = prompts[0][2], "summary-handoff", "Copy remediation prompt", "Remediation prompt"
+    toolbar = (f'<button class="copy-prompt" type="button" data-copy-target="{escape(target)}">{action}</button>'
+               '<span class="copy-status" role="status" aria-live="polite"></span>') if current else HISTORICAL_WARNING
+    next_session = (f'<div class="card next"><h3>Next session</h3><ul class="phase-cards" role="list">{"".join(cards)}</ul>'
+                    f'<h4 class="prompt-title">{prompt_title}</h4><div class="prompt-toolbar">{toolbar}</div>'
+                    f'<pre id="{escape(target)}" tabindex="0">{escape(prompt)}</pre>'
+                    '<p><a href="#section-8">All prompts: Full report, section 8</a></p></div>')
+    panels = [panel("summary", "Summary", figures + counts + next_session + '<div id="rerun-slot"></div>')]
+
+    if decisions:
+        head = "".join(f'<th scope="col">{title}</th>' for title in ("ID", "Question", "Recommendation", "Confidence", "Holds back"))
+        rows = "".join(
+            f'<tr><td><a href="#section-6">{escape(item["id"])}</a></td><td>{inline(item["question"])}</td>'
+            f'<td>{inline(item["recommendation"])}</td><td>{chip(*CONFIDENCE_STYLE[item["confidence"]], item["confidence"])}</td>'
+            f'<td>{inline(item["holds_back"])}</td></tr>' for item in decisions)
+        panels.append(panel("answer", "Needs your answer",
+                            '<p>Each decision has a recommendation. The full options are in <a href="#section-6">Full report, section 6</a>.</p>'
+                            '<div class="table-scroll" role="region" aria-label="Decisions that need your answer" tabindex="0">'
+                            f'<table><thead><tr>{head}</tr></thead><tbody>{rows}</tbody></table></div>'))
+    if watch:
+        items = "".join(
+            f'<article class="watch watch-{item["kind"]}"><p class="watch-kind">{mark(WATCH_STYLE[item["kind"]][0])}'
+            f'<span>{WATCH_STYLE[item["kind"]][1]}</span></p><h3>{escape(item["title"])}</h3><p>{inline(item["body"])}</p></article>'
+            for item in watch)
+        panels.append(panel("watch", "Watch list", f'<div class="watch-grid">{items}</div>'))
+
+    marks = [mark(SECTION_SHAPES[index % len(SECTION_SHAPES)]) for index in range(8)]
+    sections_html = "".join(report_sections(parts, 4, verdict, prompts, pairs, context, current, marks))
+    panels.append(panel("full", "Full report", sections_html + defaulted_decisions(context["decisions_without_reply"]) + identity_details(checks, context)))
+
+    return f'''<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-{script_hash}'; img-src data:; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer"><link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,{favicon}">
+<title>{escape(context["title"])}</title><style>{css}</style></head><body>
+<a class="skip" href="#content">Skip to report</a>
+<main id="content">{hero}
+{scores_html}
+{tablist}
+{"".join(panels)}
+</main><footer>Local report · No external fonts, scripts, analytics or network requests. Scores describe document quality; they do not guarantee implementation success.</footer><script>{js}</script></body></html>'''
 
 
 def render(source, context):
@@ -525,7 +771,6 @@ def render(source, context):
         raise ValueError("Confidence must be Unknown or a percentage in steps of five")
     prompts, pairs = handoff_prompts(parts[7][1], version, verdict, context)
     if version >= 4:
-        # Task 4 draws these; until then version 4 uses the version 3 page without the feature overview.
         fields = v4_fields(context, parts[5][1])
         if verdict.lower() == "ready after approvals" and not fields["decisions"]:
             raise ValueError("A Ready after approvals verdict needs its pending approvals in open_decisions")
@@ -542,62 +787,22 @@ def render(source, context):
         raise ValueError("Scope comparison needs phases, implementation/supporting/numbered tasks and dependencies/services")
     if not scope.get("explanation") or not scope.get("approval"):
         raise ValueError("Scope comparison needs an explanation and approval basis (or Unknown)")
-    scope_table = '<div class="table-scroll" role="region" aria-label="Scope comparison" tabindex="0"><table><thead><tr>'
-    scope_table += ''.join(f'<th scope="col">{title}</th>' for title in ["Measure", "Original", "Revised", "Reason / evidence"])
-    scope_table += '</tr></thead><tbody>' + ''.join('<tr>' + ''.join(f'<td>{inline(str(row[key]))}</td>' for key in ["metric", "original", "revised", "reason"]) + '</tr>' for row in scope_rows) + '</tbody></table></div>'
-    scope_html = '<aside id="scope" class="scope"><h3>Scope &amp; complexity</h3><p>' + inline(scope["explanation"]) + '</p>' + scope_table + '<p><strong>Approval basis.</strong> ' + inline(scope["approval"]) + '</p></aside>'
+    if context.get("kind") not in {"saved", "new"}:
+        raise ValueError("Context kind must be saved or new")
+    marked = handoff if current else HISTORICAL_PREFIX + handoff
+    if version >= 4:
+        return page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pairs, current, checks), marked, current
     css = (ASSETS / "report.css").read_text()
     js = (ASSETS / "report.js").read_text()
     favicon = base64.b64encode((ASSETS / "favicon.svg").read_bytes()).decode()
     script_hash = base64.b64encode(hashlib.sha256(js.encode()).digest()).decode()
-    body = []
-    for index, (heading, content) in enumerate(parts, 1):
-        if version >= 2:
-            heading = READABLE_HEADINGS[index - 1]
-        if index == 8:
-            if version >= 2:
-                detail_marker(content, index)
-            intro = content
-            for start, end, _ in reversed(prompts):
-                intro = intro[:start] + intro[end:]
-            warning = '<p class="warning">Document identity, Git state or approvals changed or could not be checked. This is a historical prompt. Revalidate the changed scope before using it.</p>'
-            content_html = markdown(intro)
-            if version >= 3:
-                content_html += phase_table(context["phases"], verdict, current)
-            if pairs:
-                titles = {phase["id"]: phase["title"] for phase in context["phases"]}
-                for phase_id, prompt in pairs:
-                    target = escape("handoff-" + phase_id)
-                    toolbar = (f'<button class="copy-prompt" type="button" data-copy-target="{target}">Copy Phase {escape(phase_id)} prompt</button>'
-                               '<span class="copy-status" role="status" aria-live="polite"></span>') if current else warning
-                    content_html += (f'<h3>Phase {escape(phase_id)}: {inline(titles[phase_id])}</h3><div class="prompt-toolbar">' + toolbar
-                                     + f'</div><pre id="{target}" tabindex="0">' + escape(prompt) + '</pre>')
-            else:
-                # In version 3 a single prompt is always a remediation prompt.
-                action = "Copy implementation prompt" if verdict.lower().startswith("ready") and version < 3 else "Copy remediation prompt"
-                toolbar = (f'<button id="copy-prompt" class="copy-prompt" type="button" data-copy-target="handoff">{action}</button>'
-                           '<span id="copy-status" class="copy-status" role="status" aria-live="polite"></span>') if current else warning
-                content_html += '<div class="prompt-toolbar">' + toolbar + '</div><pre id="handoff" tabindex="0">' + escape(handoff) + '</pre>'
-        else:
-            content_html = section_content(content, index) if version >= 2 else markdown(content)
-        body.append(f'<section id="section-{index}" aria-labelledby="heading-{index}"><div class="section-heading"><span>{index:02}</span><h2 id="heading-{index}">{inline(heading)}</h2></div>' + (scope_html if index == 5 else "") + content_html + '</section>')
+    body = report_sections(parts, version, verdict, prompts, pairs, context, current)
     title = escape(context["title"])
     note_html = ''.join('<article><h3>' + escape(note["title"]) + '</h3><p>' + inline(note["body"]) + '</p></article>' for note in context.get("notes", []))
-    if version >= 2:
-        state = "Plan and spec match the saved review." if fingerprints_match else "Plan or spec changed or could not be read."
-        stale = " This handoff is historical. Recheck the saved evidence before starting."
-    else:
-        state = "Document fingerprints match the saved validation." if fingerprints_match else "Document fingerprints differ or files are unavailable."
-        stale = " The handoff is historical; refresh its evidence before implementation."
-    if not current:
-        state += stale
-    kind = context.get("kind")
-    if kind not in {"saved", "new"}:
-        raise ValueError("Context kind must be saved or new")
+    state = freshness_state(version, fingerprints_match, current)
+    kind = context["kind"]
     label = "Saved validation" if kind == "saved" else "Validation report"
     status = "Recorded: " + verdict if kind == "saved" or not current else verdict
-    stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    doc_html = ''.join('<li><strong>' + escape(doc["label"]) + '</strong> · ' + ("matches" if matches else "changed / unavailable") + '<br><code>' + escape(doc["path"]) + '</code><br><small>SHA256 ' + escape(doc["sha256"]) + '</small></li>' for doc, matches in checks)
     prompt_download = '<a href="handoff.txt" download>Prompt .txt</a>' if current else ''
     overview_link = '<a href="#feature-overview">Feature overview</a>' if overview else ''
     page = f'''<!doctype html>
@@ -613,12 +818,10 @@ def render(source, context):
 <p class="freshness">{escape(state)} {inline(context['freshness'])}</p></div>
 <nav aria-label="Report sections">{overview_link}<a href="#section-1">Summary</a><a href="#section-2">Scores</a><a href="#scope">Scope</a><a href="#section-5">Changes</a><a href="#section-6">Open items</a><a href="#section-7">Checks</a><a href="#section-8">Start prompt</a></nav>
 <div class="notes">{note_html}</div>{overview}{''.join(body)}
-<details class="identity"><summary>Document identity &amp; report provenance</summary><ul>{doc_html}</ul><p>HTML generated {escape(stamp)}. {escape(context.get('provenance', ''))}</p></details>
+{identity_details(checks, context)}
 {defaults}
 </main><footer>Local report · No external fonts, scripts, analytics or network requests. Scores describe document quality; they do not guarantee implementation success.</footer><script>{js}</script></body></html>'''
-    if not current:
-        handoff = HISTORICAL_PREFIX + handoff
-    return page, handoff, current
+    return page, marked, current
 
 
 def foreground(browser):
