@@ -1193,7 +1193,9 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 if change == "status":
                     context["handoff_status"] = "historical"
                 else:
-                    Path(context["documents"][0]["path"]).write_text("Changed")
+                    plan = Path(context["documents"][0]["path"])
+                    plan.write_text("Changed")
+                    self.addCleanup(plan.write_text, "PLAN")
                 page, _, current = render(REPORT, context)
                 self.assertFalse(current)
                 summary = self.panel(page, "summary")
@@ -1201,7 +1203,6 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 self.assertIn(render_report.HISTORICAL_WARNING, summary)
                 self.assertIn('<pre id="summary-handoff-1"', summary)
                 self.assertNotIn('href="handoff.txt"', page)
-                Path(context["documents"][0]["path"]).write_text("PLAN")
 
     def test_v4_summary_shows_remediation_prompt_when_no_phase_is_ready(self):
         source = REPORT.replace("**Ready.**", "**Not ready.**").replace(

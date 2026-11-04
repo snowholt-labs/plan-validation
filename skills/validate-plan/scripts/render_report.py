@@ -526,7 +526,8 @@ def report_sections(parts, version, verdict, prompts, pairs, context, current, m
                 content_html += '<div class="prompt-toolbar">' + toolbar + '</div><pre id="handoff" tabindex="0">' + escape(handoff) + '</pre>'
         else:
             content_html = section_content(content, index) if version >= 2 else markdown(content)
-        body.append(f'<section id="section-{index}" aria-labelledby="heading-{index}"><div class="section-heading">{marks[index - 1] if marks else ''}<span>{index:02}</span><h2 id="heading-{index}">{inline(heading)}</h2></div>' + (scope_html if index == 5 else "") + content_html + '</section>')
+        mark_html = marks[index - 1] if marks else ""
+        body.append(f'<section id="section-{index}" aria-labelledby="heading-{index}"><div class="section-heading">{mark_html}<span>{index:02}</span><h2 id="heading-{index}">{inline(heading)}</h2></div>' + (scope_html if index == 5 else "") + content_html + '</section>')
     return body
 
 
@@ -586,9 +587,9 @@ def plural(count, word):
     return f"{count} {word}{'' if count == 1 else 's'}"
 
 
-def count_card(tab, items, noun, nouns, empty, hint):
+def count_card(tab, items, noun, nouns, label, empty, hint):
     if not items:
-        return f'<div class="count count-none"><strong>None</strong><span>{nouns}</span><small>{empty}</small></div>'
+        return f'<div class="count count-none"><strong>None</strong><span>{label}</span><small>{empty}</small></div>'
     return (f'<button class="count" type="button" data-open-tab="{tab}"><strong>{len(items)}</strong>'
             f'<span>{noun if len(items) == 1 else nouns}</span><small>{hint}</small></button>')
 
@@ -598,7 +599,7 @@ def answer_hint(decisions):
     if not holding:
         first = "Nothing is held back"
     else:
-        first = escape(holding[0]["id"]) + " holds back " + escape(holding[0]["holds_back"])
+        first = escape(holding[0]["id"]) + " holds back " + inline(holding[0]["holds_back"])
         if len(holding) > 1:
             first += f" · {len(holding) - 1} more hold back work"
     return first + " · each has a recommendation"
@@ -669,8 +670,8 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
     # Summary: diagrams, count cards, next session, re-run slot.
     figures = '<div class="figs">' + "".join(render_diagram(diagram, index) for index, diagram in enumerate(fields["diagrams"], 1)) + "</div>"
     counts = ('<div class="counts">'
-              + count_card("answer", decisions, "needs your answer", "need your answer", "No approvals are pending", answer_hint(decisions))
-              + count_card("watch", watch, "gap on the watch list", "gaps on the watch list", "No gaps, limits or risks recorded", watch_hint(watch))
+              + count_card("answer", decisions, "needs your answer", "need your answer", "Decisions", "No approvals are pending", answer_hint(decisions))
+              + count_card("watch", watch, "gap on the watch list", "gaps on the watch list", "Watch list", "No gaps, limits or risks recorded", watch_hint(watch))
               + "</div>")
     cards = []
     for phase in phases:
@@ -680,7 +681,7 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
         if phase["docs_only"]:
             flags.append(chip("chip-info", "square", "Docs only"))
         if phase["security_review"]:
-            flags.append(chip("chip-stop", "triangle", "Security review"))
+            flags.append(chip("chip-info", "diamond", "Security review"))
         tasks = ("Task " if len(phase["tasks"]) == 1 else "Tasks ") + escape(", ".join(phase["tasks"]))
         cards.append(f'<li class="phase-card"><p class="phase-head">Phase {escape(phase["id"])} · {tasks}</p>'
                      f'<p class="phase-title">{inline(phase["title"])}</p><p class="phase-flags">{"".join(flags)}</p></li>')
