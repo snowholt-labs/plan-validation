@@ -108,9 +108,9 @@ Do not start dependent implementation. Report results and any defaults chosen, t
 '''
     context = {
         "format_version": 4,
-        "project": "retry example",
-        "audience": "plan review for the maintainer",
-        "title_accent": "a missing boundary",
+        "project": "plan-validation",
+        "audience": "example report",
+        "title_accent": "missing boundary",
         "task_inventory": ["1"],
         "phases": [{"id": "1", "title": "Retry delay cap", "tasks": ["1"], "docs_only": False, "security_review": False,
                     "status": "waiting", "waits_for": "Remediation of the missing delay cap"}],
@@ -121,28 +121,49 @@ Do not start dependent implementation. Report results and any defaults chosen, t
         "freshness": "Fixture copies checked at rendering. No repository or implementation approval is represented.",
         "provenance": "scripts/demo.py; authored public fixture, not an agent benchmark.",
         "documents": documents,
-        "diagrams": [{
-            "kind": "zones",
-            "eyebrow": "Architecture · planned",
-            "title": "Who talks to whom",
-            "description": "The caller asks the retry helper, which sends requests to the remote API.",
-            "caption": "The helper waits between tries, never more than 30 seconds.",
-            "zones": [
-                {"label": "Your app", "nodes": [
-                    {"id": "caller", "title": "Caller", "sub": "asks for a request"},
-                    {"id": "helper", "title": "Retry helper", "sub": "waits, then tries again"},
-                ], "chain": True},
-                {"label": "Remote service", "nodes": [
-                    {"id": "api", "title": "API endpoint", "sub": "may answer 503"},
-                ]},
-            ],
-            "links": [
-                {"from": "helper", "to": "api", "label": "request", "sub": "HTTPS"},
-                {"from": "api", "to": "helper", "label": "result"},
-            ],
-        }],
+        "diagrams": [
+            {
+                "kind": "flow",
+                "eyebrow": "Flow · planned",
+                "title": "One request, start to finish",
+                "description": "The caller tries the request; when it fails, it waits the next delay, at most 30 seconds, and tries again, or gives up after attempt 10.",
+                "caption": "Each wait doubles from 1 second and stops growing at 30 seconds (R3). The original plan left out that cap.",
+                "steps": [
+                    {"title": "Try the request", "sub": "attempt 0 has no wait"},
+                    {"title": "It fails", "sub": "the caller must wait"},
+                    {"title": "Wait the next delay", "sub": "doubles, capped at 30 s"},
+                ],
+                "branches": [
+                    {"from_step": 3, "title": "Retry", "sub": "next attempt", "tone": "retry", "returns_to": 1},
+                    {"from_step": 3, "title": "Give up", "sub": "after attempt 10", "tone": "stop"},
+                ],
+            },
+            {
+                "kind": "zones",
+                "eyebrow": "Architecture · planned",
+                "title": "Who talks to whom",
+                "description": "The caller asks the retry helper, which sends requests to the remote API endpoint and gets each result back.",
+                "caption": "The helper waits between tries, never more than 30 seconds.",
+                "zones": [
+                    {"label": "Your app", "nodes": [
+                        {"id": "caller", "title": "Caller", "sub": "asks for a request"},
+                        {"id": "helper", "title": "Retry helper", "sub": "waits, then tries again"},
+                    ], "chain": True},
+                    {"label": "Remote service", "nodes": [
+                        {"id": "api", "title": "API endpoint", "sub": "may fail for a while"},
+                    ]},
+                ],
+                "links": [
+                    {"from": "helper", "to": "api", "label": "request"},
+                    {"from": "api", "to": "helper", "label": "result"},
+                ],
+            },
+        ],
         "open_decisions": [],
-        "watch_list": [],
+        "watch_list": [
+            {"kind": "gap", "title": "No delay cap",
+             "body": "Task 1 returns 2 ** attempt with no limit, so attempt 6 waits 64 seconds instead of 30 (SPEC R3)."},
+        ],
         "decisions_without_reply": [],
         "scope": {"explanation": "The same one-task fixture is retained; the corrected control adds no requirement.",
                   "approval": "Teaching example only. No real implementation or external-action authorization.",
