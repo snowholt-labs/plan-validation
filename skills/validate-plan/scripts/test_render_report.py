@@ -373,13 +373,16 @@ class ReportTests(unittest.TestCase):
             source = not_ready.replace("Implement the approved scope now.", instruction + " Do not start dependent implementation.")
             with self.subTest(instruction=instruction), self.assertRaisesRegex(ValueError, "remediation prompt"):
                 render(source, self.stop_rerun(self.modern_context()))
-        # A quoted path and a wrapped sentence are not instructions; saved reports keep the earlier check.
+        # A quoted path, a curly or tabbed negation and a wrapped sentence are not instructions,
+        # and a saved re-render accepts and rejects exactly what the new report did.
         source = not_ready.replace("Implement the approved scope now.",
-                                   "Fix `/repo/implementing/plan.md`. Do not implement Task 2. Do not start dependent\n  implementation.")
-        self.assertIn("Copy remediation prompt", render(source, self.stop_rerun(self.modern_context()))[0])
+                                   "Fix `/repo/implementing/plan.md`. Don’t implement Task 2. Do not\timplement Task 3. Do not start dependent\n  implementation.")
         saved = self.stop_rerun(self.modern_context())
         saved["kind"] = "saved"
-        render(not_ready.replace("Implement the approved scope now.", "Start implementing Phase 1. Do not start dependent implementation."), saved)
+        for context in (self.stop_rerun(self.modern_context()), saved):
+            self.assertIn("Copy remediation prompt", render(source, context)[0])
+        with self.assertRaisesRegex(ValueError, "remediation prompt"):
+            render(not_ready.replace("Implement the approved scope now.", "Start implementing Phase 1. Do not start dependent implementation."), saved)
 
     def test_backticks_around_prose_do_not_bypass_the_word_limit(self):
         source = REPORT.replace("Implement the approved scope now.", "`" + "detail " * 81 + "` now.")
@@ -1231,11 +1234,15 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                     render(bad, context)
         render(source.replace("Stop at the end of Phase 2;", "Stop at the end of Phase 2."), context)
         render(source.replace("Stop at the end of Phase 1 and", "Stop at the end of\nPhase 1 and"), context)
+        # A curly apostrophe negates like a straight one.
+        with self.assertRaisesRegex(ValueError, "Stop at the end of Phase 1"):
+            render(source.replace("Stop at the end of Phase 1 and", "Don’t stop at the end of Phase 1 and"), context)
 
     def test_later_prompt_must_confirm_the_previous_phase_is_merged(self):
         source, context = self.two_phase()
         for bad in ("Confirm Phase 1 is committed.", "Confirm Phase 12 is merged.", "Confirm Phase 1.2 is merged.",
-                    "Confirm Phase 1-b is merged.", "Do not confirm Phase 1 is merged.", "Never confirm Phase 1 is merged.", ""):
+                    "Confirm Phase 1-b is merged.", "Do not confirm Phase 1 is merged.", "Never confirm Phase 1 is merged.",
+                    "Don’t confirm Phase 1 is merged.", ""):
             with self.subTest(bad=bad):
                 with self.assertRaisesRegex(ValueError, "Confirm Phase 1 is merged"):
                     render(source.replace("Confirm Phase 1 is merged.", bad), context)

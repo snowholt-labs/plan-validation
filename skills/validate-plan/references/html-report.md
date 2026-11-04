@@ -102,8 +102,9 @@ Versions 3 and 4 check the phase grouping. The renderer also checks that:
   for the ready phase before it, never negated;
 - a Not ready report, or one whose first phase waits, has exactly one prompt that
   says `Do not start dependent implementation.` and has no `Implement` instruction
-  (in a new version 4 report, no `implements` or `implementing` either, except right
-  after `not`, `n't` or `never` on the same line or inside a backtick-quoted absolute path).
+  (in a version 4 report, no `implements` or `implementing` either; any of the three
+  forms may follow a word ending in `not`, `n't` (straight or curly) or `never` on the
+  same line, or sit inside a backtick-quoted absolute path).
 
 Section 8 shows the phase table above the prompts, and each phase prompt has its
 own copy button. In version 4 the Summary repeats the first ready prompt (or the single
@@ -344,7 +345,9 @@ evidence and the final defaults record. Confirm both five-row tables and average
 confidence/evidence, scope comparison, limits and the entire prompt are present.
 Confirm applicable dependency/alternative tables and recorded choices are inside
 the report, and that the copied prompt references their complete saved record.
-Check that each copied prompt matches `handoff.txt` or its `handoff-phase-<id>.txt`.
+Check that each copied prompt matches `handoff.txt` or its `handoff-phase-<id>.txt`;
+while phase prompts are held for a re-run, check instead that each shows the run-first
+note and has no copy button.
 Confirm the Run validation again card shows this run's number and answer, and for
 a new report with `yes` that the copied re-run prompt matches `rerun.txt`. Provide a clickable absolute link
 to `report.html`; a short local preview URL may accompany it. If serving locally,

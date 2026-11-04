@@ -436,12 +436,12 @@ def phase_status(phase, verdict, current, rerun_first=False):
     return "Run validation again first" if rerun_first else "Can start"
 
 
-def phase_table(phases, verdict, current, first=False):
+def phase_table(phases, verdict, current, rerun_first=False):
     rows = ''.join('<tr>' + ''.join(f'<td>{cell}</td>' for cell in (
         escape(phase["id"]) + ': ' + inline(phase["title"]), escape(", ".join(phase["tasks"])),
         "Docs only" if phase["docs_only"] else "Code",
         "Yes — " + inline(phase["security_reason"]) if phase["security_review"] else "No",
-        phase_status(phase, verdict, current, first))) + '</tr>' for phase in phases)
+        phase_status(phase, verdict, current, rerun_first))) + '</tr>' for phase in phases)
     head = ''.join(f'<th scope="col">{title}</th>' for title in ("Phase", "Tasks", "Kind", "Security review", "Status"))
     return f'<div class="table-scroll" role="region" aria-label="Phase plan" tabindex="0"><table><thead><tr>{head}</tr></thead><tbody>{rows}</tbody></table></div>'
 
@@ -471,7 +471,7 @@ def handoff_prompts(section, version, verdict, context):
             # Every stop sentence names this phase, unnegated. "Phase 1.2", "Phase 1-b" and
             # "Phase 12" are other phases; a sentence-ending period is not.
             own = re.compile(rf"{re.escape(ready[index])}(?![A-Za-z0-9-]|\.[A-Za-z0-9])", re.I)
-            negated = re.compile(r"(?:\bnot|n't|\bnever)\s+$", re.I)
+            negated = re.compile(r"(?:\bnot|n['’]t|\bnever)\s+$", re.I)
             stops = list(re.finditer(r"\bstop\s+at\s+the\s+end\s+of\s+phase\s+", prompt, re.I))
             if not stops or any(not own.match(prompt, stop.end()) or negated.search(prompt[:stop.start()]) for stop in stops):
                 raise ValueError(f"Phase {ready[index]} prompt must say: Stop at the end of Phase {ready[index]}")
@@ -481,8 +481,8 @@ def handoff_prompts(section, version, verdict, context):
                 if all(negated.search(prompt[:check.start()]) for check in checks):
                     raise ValueError(f"Phase {ready[index]} prompt must say: Confirm Phase {ready[index - 1]} is merged")
     first = prompts[0][2]
-    if version >= 4 and context.get("kind") == "new":
-        # Like the re-run prompt; the required sentence may wrap.
+    if version >= 4:
+        # Like the re-run prompt, for new and saved reports alike; the required sentence may wrap.
         implement = implement_instruction(first)
         first = re.sub(r"\s+", " ", first)
     else:
@@ -651,6 +651,17 @@ def scope_section(context):
     return '<aside id="scope" class="scope"><h3>Scope &amp; complexity</h3><p>' + inline(scope["explanation"]) + '</p>' + scope_table + '<p><strong>Approval basis.</strong> ' + inline(scope["approval"]) + '</p></aside>'
 
 
+def prompt_toolbar(target, action, current, warning, held=False, ids=False):
+    """A prompt's copy button; the historical warning when not current; the run-first note while held."""
+    if held:
+        return RUN_FIRST_NOTE
+    if not current:
+        return warning
+    button_id, status_id = (' id="copy-prompt"', ' id="copy-status"') if ids else ("", "")
+    return (f'<button{button_id} class="copy-prompt" type="button" data-copy-target="{escape(target)}">{action}</button>'
+            f'<span{status_id} class="copy-status" role="status" aria-live="polite"></span>')
+
+
 def report_sections(parts, version, verdict, prompts, pairs, context, current, marks=None, warning=HISTORICAL_WARNING,
                     rerun_first=False, hold_phases=False):
     """Return the eight report sections; section 8 holds the prompts and their copy buttons."""
@@ -673,18 +684,13 @@ def report_sections(parts, version, verdict, prompts, pairs, context, current, m
                 titles = {phase["id"]: phase["title"] for phase in context["phases"]}
                 for phase_id, prompt in pairs:
                     target = escape("handoff-" + phase_id)
-                    if hold_phases:
-                        toolbar = RUN_FIRST_NOTE
-                    else:
-                        toolbar = (f'<button class="copy-prompt" type="button" data-copy-target="{target}">Copy Phase {escape(phase_id)} prompt</button>'
-                                   '<span class="copy-status" role="status" aria-live="polite"></span>') if current else warning
+                    toolbar = prompt_toolbar("handoff-" + phase_id, f"Copy Phase {escape(phase_id)} prompt", current, warning, hold_phases)
                     content_html += (f'<h3>Phase {escape(phase_id)}: {inline(titles[phase_id])}</h3><div class="prompt-toolbar">' + toolbar
                                      + f'</div><pre id="{target}" tabindex="0">' + escape(prompt) + '</pre>')
             else:
                 # In version 3 a single prompt is always a remediation prompt.
                 action = "Copy implementation prompt" if verdict.lower().startswith("ready") and version < 3 else "Copy remediation prompt"
-                toolbar = (f'<button id="copy-prompt" class="copy-prompt" type="button" data-copy-target="handoff">{action}</button>'
-                           '<span id="copy-status" class="copy-status" role="status" aria-live="polite"></span>') if current else warning
+                toolbar = prompt_toolbar("handoff", action, current, warning, ids=True)
                 content_html += '<div class="prompt-toolbar">' + toolbar + '</div><pre id="handoff" tabindex="0">' + escape(handoff) + '</pre>'
         else:
             content_html = section_content(content, index) if version >= 2 else markdown(content)
@@ -904,11 +910,7 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
         target, action, prompt_title = "summary-handoff-" + phase_id, f"Copy Phase {escape(phase_id)} prompt", f"Phase {escape(phase_id)} prompt"
     else:
         prompt, target, action, prompt_title = prompts[0][2], "summary-handoff", "Copy remediation prompt", "Remediation prompt"
-    if hold_phases:
-        toolbar = RUN_FIRST_NOTE
-    else:
-        toolbar = (f'<button class="copy-prompt" type="button" data-copy-target="{escape(target)}">{action}</button>'
-                   '<span class="copy-status" role="status" aria-live="polite"></span>') if current else warning
+    toolbar = prompt_toolbar(target, action, current, warning, hold_phases)
     next_session = (f'<div class="card next"><h3>Next session</h3><ul class="phase-cards" role="list">{"".join(cards)}</ul>'
                     f'<h4 class="prompt-title">{prompt_title}</h4><div class="prompt-toolbar">{toolbar}</div>'
                     f'<pre id="{escape(target)}" tabindex="0">{escape(prompt)}</pre>'
