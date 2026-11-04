@@ -10,7 +10,7 @@ import re
 import unicodedata
 
 
-LIMITS = {"eyebrow": 40, "title": 60, "node_title": 24, "node_sub": 30, "zone_label": 28,
+LIMITS = {"eyebrow": 40, "title": 60, "node_title": 24, "node_sub": 30, "zone_label": 26,
           "link_label": 14, "link_sub": 18, "branch_title": 14, "branch_sub": 18}
 CHAR_WIDTH = {"t": 7, "s": 6}  # SVG units per character: 13 px titles and labels, 11 px sub-lines
 FONT = {key: "s" if key.endswith("_sub") else "t" for key in LIMITS}

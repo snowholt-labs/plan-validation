@@ -165,7 +165,9 @@ class DiagramValidationTests(unittest.TestCase):
         # Wide characters count twice, so they cannot overflow the pill.
         self.rejects([zones(zones=[{"label": "One", "nodes": [node("n1", title="字" * 13)]}], links=[])], "node_title")
         validate_diagrams([zones(zones=[{"label": "One", "nodes": [node("n1", title="字" * 12)]}], links=[])])
-        self.rejects([zones(zones=[{"label": "x" * 29, "nodes": [node("n1")]}], links=[])], "zone_label")
+        # 26, not 28: a 28-capital zone label ran past the viewBox in the third zone.
+        self.rejects([zones(zones=[{"label": "x" * 27, "nodes": [node("n1")]}], links=[])], "zone_label")
+        validate_diagrams([zones(zones=[{"label": "x" * 26, "nodes": [node("n1")]}], links=[])])
         self.rejects([zones(eyebrow="x" * 41)], "eyebrow")
         self.rejects([zones(title="x" * 61)], "title")
 

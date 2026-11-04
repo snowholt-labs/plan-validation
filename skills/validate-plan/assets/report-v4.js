@@ -70,6 +70,8 @@ if (tabs.length) {
   // A link to the hash already in the URL fires no hashchange, so open its panel on click;
   // the browser then scrolls to the now-visible target.
   document.addEventListener("click", event => {
+    // A modified or non-primary click opens a new tab or window, so this page's tab stays put.
+    if (event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
     const link = event.target.closest?.('a[href^="#"]');
     if (link) openPanelFor(targetOf(link.getAttribute("href")));
   });
@@ -77,6 +79,7 @@ if (tabs.length) {
 }
 
 // Print shows every panel and opens every details element, then restores them.
+// The print button and copy buttons below mirror report.js: fix a bug in both files.
 let restoreAfterPrint = null;
 window.addEventListener("beforeprint", () => {
   if (restoreAfterPrint !== null) return;
