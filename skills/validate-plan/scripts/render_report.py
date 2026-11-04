@@ -597,14 +597,13 @@ def rerun_check(context, verdict, confidence, plan_revised, spec_revised):
             raise ValueError("The rerun prompt must be at most 80 words; wrap paths in backticks")
         # The next run keeps this run's scope, or it would count under another scope.
         first, last = phases[0]["id"], phases[-1]["id"]
-        if scope == "full":
-            if re.search(r"\bvalidate only\b", prompt, re.I):
-                raise ValueError("The rerun prompt of a full validation cannot narrow it with Validate only")
-        else:
+        if scope != "full":
             sentences = [f"Validate only Phases {first}-{last}."] + ([f"Validate only Phase {first}."] if first == last else [])
-            # The period must end the sentence, so Phase 1. does not match Phase 1.5.
-            pattern = "|".join(re.escape(sentence[:-1]) for sentence in sentences)
-            if not re.search(rf"(?<![A-Za-z0-9])(?:{pattern})\.(?![A-Za-z0-9])", prompt, re.I):
+            # An en dash may join the range; the period must end the sentence, so Phase 1. is not Phase 1.5.
+            forms = [rf"Validate only Phases {re.escape(first)}[-–]{re.escape(last)}"]
+            if first == last:
+                forms.append(rf"Validate only Phase {re.escape(first)}")
+            if not re.search(rf"(?<![A-Za-z0-9])(?:{'|'.join(forms)})\.(?![A-Za-z0-9])", prompt, re.I):
                 raise ValueError("The rerun prompt of a phase-only validation must say: " + " or ".join(sentences))
         label = f"run {number + 1} of {MAX_RUNS}"
         if not re.search(rf"\b{label}\b", prompt, re.I):

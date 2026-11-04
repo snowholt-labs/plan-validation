@@ -93,7 +93,8 @@ Versions 3 and 4 check the phase grouping. The renderer also checks that:
   what it `waits_for`;
 - once a phase waits, every later phase waits, and a `Ready` verdict has no waiting phase;
 - in version 4, with a `Ready after approvals` verdict, the `waits_for` of a waiting
-  phase names each open decision that holds back work, by its exact ID;
+  phase names each open decision that holds back work, by its exact ID (list each
+  ID; a range such as `D1-D2` names neither);
 - section 8 has one fenced prompt per ready phase, in order, each within 80 words and
   saying `Stop at the end of Phase <id>` for its own phase only, never negated;
 - in a new report, each ready prompt after the first says `Confirm Phase <previous> is merged`
