@@ -259,7 +259,7 @@ Version 4 fields:
   validation again". The renderer computes the triggers and rejects a `no` that a
   trigger forbids, a `yes` at run 3, and a prompt that breaks the prompt rules. The
   page shows the recommendation as a header pill and a Summary card with the run
-  number and reasons; only `yes` has a copy button. A historical page labels the
+  number and reasons; only `yes` has a copy button. A saved or historical page labels the
   recommendation "Recorded", because it predates the change.
 
 `task_inventory` lists every validated task ID as a string, in plan order

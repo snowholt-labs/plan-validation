@@ -911,6 +911,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             "80 words": self.RERUN_PROMPT + " detail" * 80,
             "run 2 of 3": self.RERUN_PROMPT.replace("run 2 of 3", "run 3 of 3"),
             "Implement": self.RERUN_PROMPT + " Implement Phase 1.",
+            "implementing": self.RERUN_PROMPT + " Then start implementing Phase 1.",
             "Do not start dependent implementation": self.RERUN_PROMPT.replace(" Do not start dependent implementation.", ""),
         }
         for name, prompt in cases.items():
@@ -920,7 +921,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                     del context["rerun"]["prompt"]
                 else:
                     context["rerun"]["prompt"] = prompt
-                with self.assertRaisesRegex(ValueError, name):
+                with self.assertRaisesRegex(ValueError, "Implement" if name == "implementing" else name):
                     render(REPORT, context)
         # Only yes carries a prompt, so rerun.txt exists only for yes.
         context = self.modern_context()
@@ -964,7 +965,14 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         context["handoff_status"] = "historical"
         page, _, current, _ = render(REPORT, context)
         self.assertFalse(current)
-        self.assertIn('data-copy-target="rerun-prompt"', page)
+        targets = re.findall(r'data-copy-target="([^"]+)"', self.panel(page, "summary"))
+        self.assertEqual(targets, ["rerun-prompt"])
+        self.assertIn("<span>Recorded: run validation again: yes</span>", page)
+        # A saved report shows its re-run advice as recorded, like its verdict.
+        context = self.rerun_yes(self.modern_context())
+        context["kind"] = "saved"
+        page, _, _, _ = render(REPORT, context)
+        self.assertIn("<span>Recorded: run validation again: yes</span>", page)
 
     def test_rerun_text_cannot_inject_markup(self):
         probe = '<script>x</script>"&amp'
@@ -1052,7 +1060,8 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         context["handoff_status"] = "historical"
         page, _, _, _ = render(REPORT, context)
         self.assertIn("This is a historical prompt.", page)
-        self.assertNotIn("The plan or spec changed after this validation.", page)
+        self.assertNotIn("The plan or spec changed", page)
+        self.assertNotIn("Run validation again (run", page)
 
     def two_phase(self):
         context = self.modern_context()
@@ -1511,7 +1520,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 page, _, current, _ = render(REPORT, context)
                 self.assertFalse(current)
                 summary = self.panel(page, "summary")
-                self.assertNotIn('data-copy-target="', summary)
+                self.assertNotIn('data-copy-target="summary-handoff', summary)
                 self.assertIn("This is a historical prompt.", summary)
                 self.assertEqual(change == "document", "Run validation again (run 2 of 3)" in summary)
                 self.assertIn('<pre id="summary-handoff-1"', summary)

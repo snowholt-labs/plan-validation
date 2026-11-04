@@ -56,13 +56,16 @@ SOURCE_HEADINGS = (
     "Changes", "Open items", "Verification and checkout", "Fresh-session handoff",
 )
 HISTORICAL_PREFIX = "HISTORICAL PROMPT — DO NOT EXECUTE.\nDocument identity, Git state or approvals need revalidation before implementation.\n\n"
-HISTORICAL_WARNING = ('<p class="warning">Document identity, Git state or approvals changed or could not be checked. '
-                      'This is a historical prompt. Revalidate the changed scope before using it.</p>')
+HISTORICAL_TEXT = ("Document identity, Git state or approvals changed or could not be checked. "
+                   "This is a historical prompt. Revalidate the changed scope before using it.")
+HISTORICAL_WARNING = f'<p class="warning">{HISTORICAL_TEXT}</p>'
 # Phase IDs become file names, so they cannot contain path separators.
 PHASE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9.-]{0,15}\Z")
 CONFIDENCE_LEVELS = ("High", "Medium", "Low")
 # Any "implement" instruction, except a negated one such as "Do not implement".
 IMPLEMENT = re.compile(r"(?<!not )(?<!n't )(?<!never )\bimplement\b", re.I)
+# The re-run prompt is written even for a historical page, so it also rejects other forms of the verb.
+IMPLEMENT_ANY = re.compile(r"(?<!not )(?<!n't )(?<!never )\bimplement(?:s|ed|ing)?\b", re.I)
 MAX_RUNS = 3
 RERUN_RECOMMENDATIONS = ("yes", "no", "stop")
 WATCH_KINDS = ("gap", "limit", "risk", "fixed")
@@ -582,7 +585,7 @@ def rerun_check(context, verdict, confidence, plan_revised, spec_revised):
         label = f"run {number + 1} of {MAX_RUNS}"
         if not re.search(rf"\b{label}\b", prompt, re.I):
             raise ValueError(f"The rerun prompt must say {label}")
-        if IMPLEMENT.search(prompt):
+        if IMPLEMENT_ANY.search(prompt):
             raise ValueError("The rerun prompt cannot contain an Implement instruction")
         if "do not start dependent implementation" not in prompt.lower():
             raise ValueError("The rerun prompt must say: Do not start dependent implementation.")
@@ -743,15 +746,15 @@ def historical_warning_v4(rerun, fingerprints_match):
         advice = f"Run validation again (run {rerun['number'] + 1} of {MAX_RUNS}) instead of more review rounds."
     else:
         advice = "Do not run more review rounds: the run limit is reached; decide the next step yourself."
-    return HISTORICAL_WARNING.replace("</p>", " The plan or spec changed or could not be read after this validation. " + advice + "</p>")
+    return f'<p class="warning">{HISTORICAL_TEXT} The plan or spec changed or could not be read after this validation. {advice}</p>'
 
 
-def rerun_label(rerun, current):
-    """A historical page shows the recommendation as recorded, as it does the verdict."""
-    return ("Run validation again: " if current else "Recorded: run validation again: ") + rerun["recommendation"]
+def rerun_label(rerun, recorded):
+    """A saved or historical page shows the recommendation as recorded, as it does the verdict."""
+    return ("Recorded: run validation again: " if recorded else "Run validation again: ") + rerun["recommendation"]
 
 
-def rerun_card(rerun, current):
+def rerun_card(rerun, recorded):
     """The Summary's "Run validation again" card; only yes has a prompt to copy."""
     reasons = "".join(f"<li>{inline(reason)}</li>" for reason in rerun["reasons"])
     triggers = ('<p class="rerun-triggers">Triggers: ' + escape(", ".join(rerun["triggers"])) + "</p>") if rerun["triggers"] else ""
@@ -761,7 +764,7 @@ def rerun_card(rerun, current):
                   '<button class="copy-prompt" type="button" data-copy-target="rerun-prompt">Copy re-run prompt</button>'
                   '<span class="copy-status" role="status" aria-live="polite"></span></div>'
                   f'<pre id="rerun-prompt" tabindex="0">{escape(rerun["prompt"])}</pre>')
-    return (f'<div id="rerun" class="card rerun"><h3>{rerun_label(rerun, current)}</h3>'
+    return (f'<div id="rerun" class="card rerun"><h3>{rerun_label(rerun, recorded)}</h3>'
             f'<p class="rerun-run">Run {rerun["number"]} of at most {MAX_RUNS}</p><ul>{reasons}</ul>{triggers}{prompt}</div>')
 
 
@@ -780,10 +783,11 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
     before, accent, after = context["title"].partition(context["title_accent"])
     heading = escape(before) + "<em>" + escape(accent) + "</em>" + escape(after)
     kicker = " · ".join((escape(context["project"]), escape(context["audience"]), "Evidence as of " + escape(context["validation_date"])))
-    status = "Recorded: " + verdict if context["kind"] == "saved" or not current else verdict
+    recorded = context["kind"] == "saved" or not current
+    status = "Recorded: " + verdict if recorded else verdict
     pills = [chip(*VERDICT_STYLE[verdict.lower()], escape(status)),
              chip("chip-info", "square", plural(len(phases), "phase") + " · " + plural(len(context["task_inventory"]), "task"))]
-    pills.append(chip(*RERUN_STYLE[rerun["recommendation"]], rerun_label(rerun, current)))
+    pills.append(chip(*RERUN_STYLE[rerun["recommendation"]], rerun_label(rerun, recorded)))
     if not current:
         pills.append(chip("chip-wait", "triangle", "Historical"))
     pills_html = '<ul class="pills" role="list">' + "".join(f"<li>{pill}</li>" for pill in pills) + "</ul>"
@@ -847,7 +851,7 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
                     f'<h4 class="prompt-title">{prompt_title}</h4><div class="prompt-toolbar">{toolbar}</div>'
                     f'<pre id="{escape(target)}" tabindex="0">{escape(prompt)}</pre>'
                     '<p><a href="#section-8">All prompts: Full report, section 8</a></p></div>')
-    panels = [panel("summary", "Summary", figures + counts + next_session + rerun_card(rerun, current))]
+    panels = [panel("summary", "Summary", figures + counts + next_session + rerun_card(rerun, recorded))]
 
     if decisions:
         head = "".join(f'<th scope="col">{title}</th>' for title in ("ID", "Question", "Recommendation", "Confidence", "Holds back"))
