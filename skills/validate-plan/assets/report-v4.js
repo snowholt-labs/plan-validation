@@ -75,7 +75,11 @@ if (tabs.length) {
     const link = event.target.closest?.('a[href^="#"]');
     if (link) openPanelFor(targetOf(link.getAttribute("href")));
   });
-  window.addEventListener("hashchange", route);
+  // Back to the URL without a fragment returns to the first tab; on load an empty hash keeps the default.
+  window.addEventListener("hashchange", () => {
+    if (window.location.hash.length < 2) activate(start, false);
+    else route();
+  });
 }
 
 // Print shows every panel and opens every details element, then restores them.

@@ -20,6 +20,13 @@ main{max-width:1160px;margin:0 auto;padding:24px 24px 48px}
 .hero{display:flex;gap:24px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:32px}
 .hero-text{flex:1;min-width:0}
 .hero-icon{flex:none;width:96px;height:96px}
+.hero-icon .ri-bg{fill:var(--blue-soft)}
+.hero-icon .ri-page{fill:var(--surface);stroke:var(--blue)}
+.hero-icon .ri-ink{fill:var(--blue)}
+.hero-icon .ri-dot{fill:var(--indigo)}
+.hero-icon .ri-flow{stroke:var(--indigo)}
+.hero-icon .ri-badge{fill:var(--blue);stroke:var(--bg)}
+.hero-icon .ri-check{stroke:var(--on-blue)}
 .kicker{margin:0 0 10px;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);overflow-wrap:anywhere}
 h1{font-size:clamp(30px,5vw,48px);line-height:1.12;margin:0 0 12px}
 h1 em{font-style:italic;color:var(--blue)}

@@ -12,7 +12,6 @@ import unicodedata
 
 LIMITS = {"eyebrow": 40, "title": 60, "node_title": 24, "node_sub": 30, "zone_label": 26,
           "link_label": 14, "link_sub": 18, "branch_title": 14, "branch_sub": 18}
-CHAR_WIDTH = {"t": 7, "s": 6}  # average SVG units per character that set LIMITS: 13 px titles and labels, 11 px sub-lines
 FONT = {key: "s" if key.endswith("_sub") else "t" for key in LIMITS}
 SIZE = {"t": 13, "s": 11}
 PAD = 10
@@ -36,6 +35,8 @@ STEP_TEXT_W = STEP_W - NUM_AREA  # width that holds step text, padding included
 TONE_RX = {"retry": 14, "stop": 3, "note": 8}
 PILL_RX = 12
 PAIR_SHIFT = 5  # a link and its reverse on one row run this far above and below the centre line
+# An elbow into a row that holds a pair arrives beyond the pair's arrowheads, still on the pill's straight edge.
+PAIRED_ARRIVAL = PAIR_SHIFT + HEAD + 1
 
 # Width each SVG text field may fill, inside its shape's padding. Link text stays between the
 # first elbow lanes (gap offsets 10 and 122) and their half stroke, so it spans at most 11-121.
@@ -55,6 +56,8 @@ GLYPH_CLASSES = {
 }
 GLYPH_EM = {char: em for em, chars in GLYPH_CLASSES.items() for char in chars}
 WIDE_EM = 1.0  # East Asian wide and full-width characters
+SYMBOL_EM = 1.3  # symbols and emoji (category So); Chromium draws them 0.84-1.25 em wide
+ZERO_WIDTH = ("Mn", "Me", "Cf")  # combining marks, variation selectors and joiners
 OTHER_EM = 0.8  # any other letter; measured averages are 0.56-0.71 em for Arabic, Hebrew, Greek and Cyrillic
 
 NODE_ID = re.compile(r"[a-z][a-z0-9-]{0,23}")
@@ -72,9 +75,12 @@ def text_units(value, font):
     """Estimate drawn width in SVG units: wide glyphs such as W or M count wider than i or l."""
     em = 0.0
     for char in value:
-        if unicodedata.east_asian_width(char) in ("W", "F"):
+        category = unicodedata.category(char)
+        if category == "So":
+            em += SYMBOL_EM
+        elif unicodedata.east_asian_width(char) in ("W", "F"):
             em += WIDE_EM
-        elif not unicodedata.combining(char):
+        elif category not in ZERO_WIDTH:
             em += GLYPH_EM.get(unicodedata.normalize("NFD", char)[0], OTHER_EM)
     return em * SIZE[font]
 
@@ -276,7 +282,8 @@ def zone_items(diagram):
         if source_row == target_row:
             items.append(arrow([(start, y), (tip, y)], cls, marker))
         else:
-            arrive = centre_line(target_row) + (-ELBOW_ARRIVAL if target_row > source_row else ELBOW_ARRIVAL)
+            offset = PAIRED_ARRIVAL if starts.count((start_key[0], target_row)) == 2 else ELBOW_ARRIVAL
+            arrive = centre_line(target_row) + (-offset if target_row > source_row else offset)
             lanes = [gap + offset for offset in (FORWARD_LANES if forward else BACKWARD_LANES)]
             elbows.append(([[(start, y), (lane, y), (lane, arrive), (tip, arrive)] for lane in lanes], cls, marker))
     # Every label, straight arrow and elbow arrowhead is known before any lane is chosen.

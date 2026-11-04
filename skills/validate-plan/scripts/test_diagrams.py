@@ -5,11 +5,15 @@ import html
 import re
 import unittest
 
-import diagrams
-from diagrams import (
-    BRANCH_W, CHAR_WIDTH, GAP, LIMITS, PAD, STEP_W, ZONE_W,
-    find_overlap, layout_boxes, render_diagram, validate_diagrams,
-)
+import sys
+
+from render_report import diagrams  # the one module object the renderer uses
+
+BRANCH_W, GAP, LIMITS, PAD, STEP_W, ZONE_W = (diagrams.BRANCH_W, diagrams.GAP, diagrams.LIMITS, diagrams.PAD,
+                                              diagrams.STEP_W, diagrams.ZONE_W)
+find_overlap, layout_boxes = diagrams.find_overlap, diagrams.layout_boxes
+render_diagram, validate_diagrams = diagrams.render_diagram, diagrams.validate_diagrams
+AVERAGE_WIDTH = {"t": 7, "s": 6}  # average SVG units per character that set LIMITS: 13 px and 11 px text
 
 
 ZONES = {
@@ -273,6 +277,41 @@ class DiagramValidationTests(unittest.TestCase):
         validate_diagrams([ZONES])
         self.assertIn('class="dg-w2"', render_diagram(ZONES, 1))
 
+    def test_pair_text_stays_with_its_own_line(self):
+        # Mirrored: forward text above its line, backward text below its line, label nearest, sub-label outside.
+        one_each = [{"label": "Client", "nodes": [node("a")]}, {"label": "Server", "nodes": [node("b")]}]
+        pair = [{"from": "a", "to": "b", "label": "request", "sub": "HTTPS"},
+                {"from": "b", "to": "a", "label": "result", "sub": "JSON"}]
+        _, items = diagrams.layout(zones(zones=one_each, links=pair))
+        text = {item["text"]: item["y"] for item in items if item["kind"] == "label" and item["cls"] in ("lb", "ls")}
+        forward, backward = [item["points"][0][1] for item in items if item["kind"] == "arrow"]
+        self.assertLess(forward, backward)
+        self.assertLess(text["HTTPS"], text["request"])
+        self.assertLess(text["request"], forward)
+        self.assertLess(backward, text["result"])
+        self.assertLess(text["result"], text["JSON"])
+
+    def test_elbow_reaches_a_row_that_holds_a_pair(self):
+        # The elbow must arrive clear of the pair's arrowheads instead of failing on coordinates.
+        rows = [{"label": "Left", "nodes": [node("a1"), node("a2")]}, {"label": "Right", "nodes": [node("b1"), node("b2")]}]
+        pair = [{"from": "a1", "to": "b1", "label": "request", "sub": "HTTPS"},
+                {"from": "b1", "to": "a1", "label": "result", "sub": "JSON"}]
+        for extra in ({"from": "b2", "to": "a1", "label": "late reply"}, {"from": "a2", "to": "b1", "label": "retry"}):
+            with self.subTest(extra=extra):
+                diagram = zones(zones=rows, links=pair + [extra])
+                validate_diagrams([diagram])
+                self.assertIsNone(find_overlap(layout_boxes(diagram)))
+        flipped = [{"from": "a2", "to": "b2", "label": "request"}, {"from": "b2", "to": "a2", "label": "result"}]
+        for extra in ({"from": "b1", "to": "a2", "label": "late reply"}, {"from": "a1", "to": "b2", "label": "retry"}):
+            with self.subTest(extra=extra):
+                validate_diagrams([zones(zones=rows, links=flipped + [extra])])
+
+    def test_renderer_and_tests_share_one_diagrams_module(self):
+        import render_report
+        self.assertIs(render_report.diagrams, sys.modules["_validate_plan_diagrams"])
+        self.assertIs(diagrams, render_report.diagrams)
+        self.assertFalse(hasattr(diagrams, "CHAR_WIDTH"))
+
     def test_wide_glyphs_must_fit_their_shape(self):
         one = lambda **fields: [{"label": fields.get("label", "One"), "nodes": [node("n1", title=fields.get("title", "Node"))]},  # noqa: E731
                                 {"label": "Two", "nodes": [node("n2")]}]
@@ -296,6 +335,15 @@ class DiagramValidationTests(unittest.TestCase):
         validate_diagrams([zones(zones=one(), links=link(label="returns result", sub="after a short wait"))])
         validate_diagrams([flow(branches=[{"from_step": 2, "title": "Retry the call", "sub": "waits, then tries",
                                            "tone": "retry"}])])
+
+    def test_symbols_and_emoji_count_wide(self):
+        # Chromium draws these at 0.84-1.25 em; a joiner and a variation selector draw nothing.
+        for symbol in ("\u2714", "\u26a0", "\u2764", "\u2605", "\u2705", "\U0001f680"):
+            self.assertGreaterEqual(diagrams.text_units(symbol, "t"), 1.25 * 13, symbol)
+        self.assertEqual(diagrams.text_units("\u2764\ufe0f", "t"), diagrams.text_units("\u2764", "t"))
+        self.assertEqual(diagrams.text_units("\u200d", "t"), 0)
+        self.rejects([zones(zones=[{"label": "One", "nodes": [node("n1", title="\u2705" * 12)]}], links=[])],
+                     "too wide")
 
     def test_tone_must_be_text(self):
         for tone in (["retry"], {"retry": 1}, None, 3):
@@ -365,7 +413,7 @@ class DiagramRenderTests(unittest.TestCase):
             font = "s" if key.endswith("_sub") else "t"
             self.assertEqual(diagrams.FONT[key], font)
             # Average text at the limit fits the room, and the room plus padding fits the shape.
-            self.assertLessEqual(LIMITS[key] * CHAR_WIDTH[font], diagrams.ROOM[key], key)
+            self.assertLessEqual(LIMITS[key] * AVERAGE_WIDTH[font], diagrams.ROOM[key], key)
             self.assertLessEqual(diagrams.ROOM[key] + 2 * PAD, width, key)
 
     def assert_clean(self, diagram, width):

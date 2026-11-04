@@ -697,8 +697,15 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         source, context = self.pending_d1(REPORT, self.modern_context())
         with self.assertRaisesRegex(ValueError, "Ready verdict"):
             render(source, context)
-        context["open_decisions"][0]["holds_back"] = " nothing "
-        render(source, context)
+        for nothing in (" nothing ", "Nothing.", "**Nothing**", "None", "`none`", "_Nothing_!"):
+            with self.subTest(holds_back=nothing):
+                context["open_decisions"][0]["holds_back"] = nothing
+                render(source, context)
+        for blocking in ("Nothing yet", "Phase 1", "None of phase 2 can start"):
+            with self.subTest(holds_back=blocking):
+                context["open_decisions"][0]["holds_back"] = blocking
+                with self.assertRaisesRegex(ValueError, "Ready verdict"):
+                    render(source, context)
         render(source.replace("**Ready.**", "**Ready after approvals.**"), self.pending_d1(REPORT, self.modern_context())[1])
 
     def test_v4_decision_ids_are_unique(self):
@@ -710,6 +717,10 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 context["open_decisions"] = [dict(decision, id="D1"), dict(decision, id=second)]
                 with self.assertRaisesRegex(ValueError, "unique"):
                     render(source, context)
+
+    def test_markdown_link_pattern_is_shared(self):
+        source = Path(render_report.__file__).read_text()
+        self.assertEqual(source.count(r"\[([^\]]+)\]\(([^\s)]+)\)"), 1)
 
     def test_v4_answer_hint_holds_no_link(self):
         # The count card is a button, and a link inside a button is invalid; the table keeps the link.
@@ -1275,6 +1286,18 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                      # A modified or non-primary click opens a new tab, so it must not switch this page's panel.
                      "event.button !== 0", "event.ctrlKey", "event.metaKey", "event.shiftKey", "event.altKey"):
             self.assertIn(text, js)
+        # Going back to the URL without a fragment returns to the first tab.
+        self.assertRegex(js, r'addEventListener\("hashchange", \(\) => \{\s*if \(window\.location\.hash\.length < 2\) activate\(start, false\);')
+
+    def test_v4_icon_follows_colour_tokens(self):
+        icon = (ASSETS / "report-icon.svg").read_text()
+        css = (ASSETS / "report-v4.css").read_text()
+        shapes = re.findall(r"<(?:rect|path|circle)\b[^>]*>", icon)
+        self.assertTrue(shapes)
+        for shape in shapes:
+            name = re.search(r'class="(ri-[a-z]+)"', shape)
+            self.assertIsNotNone(name, shape)
+            self.assertRegex(css, rf"\.hero-icon \.{name.group(1)}\{{[^}}]*var\(--")
 
     def test_v4_no_js_shows_everything(self):
         source = REPORT.replace("No blockers.", "Pending approvals D1.")

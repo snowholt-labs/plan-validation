@@ -24,11 +24,21 @@ from urllib.parse import urlsplit
 
 def load_sibling(name):
     """Load a module from this script's folder by path, so neither ``python -I`` nor an installed
-    package of the same name changes which file runs."""
+    package of the same name changes which file runs. It is registered under a private name, so
+    every importer of this renderer shares one module object."""
     path = Path(__file__).resolve().with_name(f"{name}.py")
-    spec = importlib.util.spec_from_file_location(f"_validate_plan_{name}", path)
+    key = f"_validate_plan_{name}"
+    loaded = sys.modules.get(key)
+    if loaded is not None and Path(loaded.__file__).resolve() == path:
+        return loaded
+    spec = importlib.util.spec_from_file_location(key, path)
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    sys.modules[key] = module
+    try:
+        spec.loader.exec_module(module)
+    except BaseException:
+        del sys.modules[key]
+        raise
     return module
 
 
@@ -81,9 +91,12 @@ def plain(value):
     return re.sub(r"[*`]", "", value).strip()
 
 
+MARKDOWN_LINK = r"\[([^\]]+)\]\(([^\s)]+)\)"  # groups: label, URL
+
+
 def inline(value):
     """Escape text before adding only our own markup, including inside links."""
-    pattern = r"(`+)(.+?)\1|\[([^\]]+)\]\(([^\s)]+)\)|\*\*(.+?)\*\*"
+    pattern = rf"(`+)(.+?)\1|{MARKDOWN_LINK}|\*\*(.+?)\*\*"
     out, pos = [], 0
     for match in re.finditer(pattern, value):
         out.append(escape(value[pos:match.start()]))
@@ -611,7 +624,9 @@ def count_card(tab, items, noun, nouns, label, empty, hint):
 
 
 def holds_back_work(item):
-    return item["holds_back"].strip().lower() != "nothing"
+    """Only "Nothing" or "None" (any case, emphasis or closing punctuation) holds back no work."""
+    value = re.sub(r"[*_`]", "", item["holds_back"]).strip().rstrip(".!;:").strip().casefold()
+    return value not in {"nothing", "none"}
 
 
 def answer_hint(decisions):
@@ -620,7 +635,7 @@ def answer_hint(decisions):
         first = "Nothing is held back"
     else:
         # The hint sits inside a button, which may hold no link, so Markdown links keep only their text.
-        text = plain(re.sub(r"\[([^\]]+)\]\(([^\s)]+)\)", r"\1", holding[0]["holds_back"]))
+        text = plain(re.sub(MARKDOWN_LINK, r"\1", holding[0]["holds_back"]))
         first = escape(holding[0]["id"]) + " holds back " + escape(text)
         if len(holding) > 1:
             first += f" · {len(holding) - 1} more hold back work"
