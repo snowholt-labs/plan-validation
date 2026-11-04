@@ -747,6 +747,10 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         two["validation_run"]["scope"] = "phases:1-2"
         with self.assertRaisesRegex(ValueError, "Validate only Phases 1-2"):
             render(source, self.rerun_yes(two))
+        # A saved prompt stays as its run wrote it.
+        saved = self.rerun_yes(copy.deepcopy(two))
+        saved["kind"] = "saved"
+        render(source, saved)
         render(source, self.rerun_yes(two, self.RERUN_PROMPT + " Validate only Phases 1-2."))
         one = self.modern_context()
         one["validation_run"]["scope"] = "phases:1-1"
@@ -927,6 +931,9 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                     # A Not ready yes runs after the remediation session, or it spends a run on an unfixed plan.
                     with self.assertRaisesRegex(ValueError, "after the remediation session"):
                         render(source, self.rerun_yes(self.modern_context()))
+                    saved = self.rerun_yes(self.modern_context())
+                    saved["kind"] = "saved"
+                    render(source, saved)
                     expected = self.RERUN_PROMPT + " Run this after the remediation session."
                 prompt = render(source, self.rerun_yes(self.modern_context(), expected))[3]
                 self.assertEqual(prompt, expected)

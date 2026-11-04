@@ -597,7 +597,9 @@ def rerun_check(context, verdict, confidence, plan_revised, spec_revised):
             raise ValueError("The rerun prompt must be at most 80 words; wrap paths in backticks")
         # The next run keeps this run's scope, or it would count under another scope.
         first, last = phases[0]["id"], phases[-1]["id"]
-        if scope != "full":
+        # Like the merge check, these sentences apply to new prompts; saved prompts stay as written.
+        new = context.get("kind") == "new"
+        if new and scope != "full":
             sentences = [f"Validate only Phases {first}-{last}."] + ([f"Validate only Phase {first}."] if first == last else [])
             # An en dash may join the range; the period must end the sentence, so Phase 1. is not Phase 1.5.
             forms = [rf"Validate only Phases {re.escape(first)}[-–]{re.escape(last)}"]
@@ -611,7 +613,7 @@ def rerun_check(context, verdict, confidence, plan_revised, spec_revised):
         # Quoted paths are names, not instructions, even when they contain the word.
         if IMPLEMENT_ANY.search(QUOTED_NAME.sub("path", prompt)):
             raise ValueError("The rerun prompt cannot contain an Implement instruction")
-        if verdict.lower() == "not ready" and "run this after the remediation session" not in prompt.lower():
+        if new and verdict.lower() == "not ready" and "run this after the remediation session" not in prompt.lower():
             raise ValueError("The rerun prompt of a Not ready report must say: Run this after the remediation session.")
         if "do not start dependent implementation" not in prompt.lower():
             raise ValueError("The rerun prompt must say: Do not start dependent implementation.")
