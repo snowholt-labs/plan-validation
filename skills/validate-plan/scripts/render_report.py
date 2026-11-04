@@ -10,6 +10,7 @@ import argparse
 import base64
 import hashlib
 import html
+import importlib.util
 import json
 import os
 import re
@@ -20,7 +21,19 @@ from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from diagrams import render_diagram, validate_diagrams
+
+def load_sibling(name):
+    """Load a module from this script's folder by path, so neither ``python -I`` nor an installed
+    package of the same name changes which file runs."""
+    path = Path(__file__).resolve().with_name(f"{name}.py")
+    spec = importlib.util.spec_from_file_location(f"_validate_plan_{name}", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+diagrams = load_sibling("diagrams")
+render_diagram, validate_diagrams = diagrams.render_diagram, diagrams.validate_diagrams
 
 
 ASSETS = Path(__file__).resolve().parents[1] / "assets"
@@ -459,12 +472,15 @@ def v4_fields(context, open_items):
     decisions = context.get("open_decisions")
     if not isinstance(decisions, list):
         raise ValueError("open_decisions must be a list; use [] when none")
-    text = plain(open_items)
+    text, seen = plain(open_items), set()
     for number, item in enumerate(decisions, 1):
         if not text_fields(item, ("id", "question", "recommendation", "holds_back")):
             raise ValueError(f"Open decision {number} needs id, question, recommendation, confidence and holds_back")
         if not PHASE_ID.fullmatch(item["id"]):
             raise ValueError(f"Open decision {number} id must be 1-16 letters, digits, dots or hyphens, starting with a letter or digit")
+        if item["id"].lower() in seen:
+            raise ValueError(f"Open decision {number} id {item['id']} must be unique")
+        seen.add(item["id"].lower())
         if item.get("confidence") not in CONFIDENCE_LEVELS:
             raise ValueError(f"Open decision {item['id']} confidence must be High, Medium or Low")
         # The same boundary rule as phase IDs: D1 is not D10, D1.2 or D1-b; a sentence-ending period is fine.
@@ -594,12 +610,18 @@ def count_card(tab, items, noun, nouns, label, empty, hint):
             f'<span>{noun if len(items) == 1 else nouns}</span><small>{hint}</small></button>')
 
 
+def holds_back_work(item):
+    return item["holds_back"].strip().lower() != "nothing"
+
+
 def answer_hint(decisions):
-    holding = [item for item in decisions if item["holds_back"].strip().lower() != "nothing"]
+    holding = [item for item in decisions if holds_back_work(item)]
     if not holding:
         first = "Nothing is held back"
     else:
-        first = escape(holding[0]["id"]) + " holds back " + inline(holding[0]["holds_back"])
+        # The hint sits inside a button, which may hold no link, so Markdown links keep only their text.
+        text = plain(re.sub(r"\[([^\]]+)\]\(([^\s)]+)\)", r"\1", holding[0]["holds_back"]))
+        first = escape(holding[0]["id"]) + " holds back " + escape(text)
         if len(holding) > 1:
             first += f" · {len(holding) - 1} more hold back work"
     return first + " · each has a recommendation"
@@ -775,6 +797,9 @@ def render(source, context):
         fields = v4_fields(context, parts[5][1])
         if verdict.lower() == "ready after approvals" and not fields["decisions"]:
             raise ValueError("A Ready after approvals verdict needs its pending approvals in open_decisions")
+        if verdict.lower() == "ready" and any(holds_back_work(item) for item in fields["decisions"]):
+            raise ValueError("A Ready verdict cannot have open decisions that hold back work; "
+                             "set holds_back to Nothing or use Ready after approvals")
     handoff = prompts[0][2]
     if context.get("handoff_status") not in {"current", "historical"}:
         raise ValueError("Set handoff_status to current or historical after checking Git state and approvals")

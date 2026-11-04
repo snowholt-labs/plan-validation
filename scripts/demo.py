@@ -153,8 +153,6 @@ Do not start dependent implementation. Report results and any defaults chosen, t
         "notes": [{"title": "Demonstration, not a benchmark", "body": "A deliberately planted defect and reference correction exercise the report. Agent effectiveness remains unmeasured."}],
     }
     module_path = ROOT / "skills/validate-plan/scripts/render_report.py"
-    # The renderer imports its sibling diagrams module.
-    sys.path.insert(0, str(module_path.parent))
     spec = importlib.util.spec_from_file_location("renderer", module_path)
     renderer = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(renderer)

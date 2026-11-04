@@ -693,6 +693,42 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         context["open_decisions"] = [decision]
         render(source, context)
 
+    def test_v4_ready_cannot_hold_back_work(self):
+        source, context = self.pending_d1(REPORT, self.modern_context())
+        with self.assertRaisesRegex(ValueError, "Ready verdict"):
+            render(source, context)
+        context["open_decisions"][0]["holds_back"] = " nothing "
+        render(source, context)
+        render(source.replace("**Ready.**", "**Ready after approvals.**"), self.pending_d1(REPORT, self.modern_context())[1])
+
+    def test_v4_decision_ids_are_unique(self):
+        source = REPORT.replace("No blockers.", "Pending approvals D1 and d1.")
+        decision = {"question": "Approve?", "recommendation": "Approve it.", "confidence": "High", "holds_back": "Nothing"}
+        for second in ("D1", "d1"):
+            with self.subTest(second=second):
+                context = self.modern_context()
+                context["open_decisions"] = [dict(decision, id="D1"), dict(decision, id=second)]
+                with self.assertRaisesRegex(ValueError, "unique"):
+                    render(source, context)
+
+    def test_v4_answer_hint_holds_no_link(self):
+        # The count card is a button, and a link inside a button is invalid; the table keeps the link.
+        source, context = self.pending_d1(REPORT.replace("**Ready.**", "**Ready after approvals.**"), self.modern_context())
+        context["open_decisions"][0]["holds_back"] = "[Phase 1](https://example.com/p1) and **tests**"
+        page, _, _ = render(source, context)
+        button = re.search(r'<button class="count" type="button" data-open-tab="answer">.*?</button>', page, re.S).group(0)
+        self.assertNotIn("<a", button)
+        self.assertIn("D1 holds back Phase 1 and tests", button)
+        self.assertIn('<a href="https://example.com/p1"', self.panel(page, "answer"))
+
+    def test_renderer_runs_with_isolated_python(self):
+        # -I drops the script folder from sys.path, so the sibling diagrams module must load by path.
+        script = Path(render_report.__file__).resolve()
+        result = subprocess.run([sys.executable, "-I", "-B", str(script), "--help"], capture_output=True, text=True,
+                                cwd=tempfile.gettempdir(), timeout=30)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("--report", result.stdout)
+
     def test_v4_watch_list(self):
         item = {"kind": "gap", "title": "No browser check", "body": "The page was not opened in a browser."}
         for bad in ("None", [dict(item, kind="bug")], [dict(item, title="x" * 61)], [dict(item, title="")],
@@ -718,7 +754,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         context = self.modern_context()
         context.update(project=probe, audience=probe, title=probe, title_accent="x")
         context["watch_list"] = [{"kind": "risk", "title": probe, "body": probe}]
-        source, context = self.pending_d1(REPORT, context)
+        source, context = self.pending_d1(REPORT.replace("**Ready.**", "**Ready after approvals.**"), context)
         context["open_decisions"][0].update(question=probe, recommendation=probe, holds_back=probe)
         page, _, _ = render(source, context)
         self.assertNotIn("<script>x", page)
@@ -1141,7 +1177,8 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         self.assertEqual(summary.count('<div class="count count-none"><strong>None</strong>'), 2)
         self.assertNotIn('<button class="count"', summary)
 
-        source = REPORT.replace("No blockers.", "Pending approvals D1 and D2.")
+        # D2 holds back work, which only a Ready after approvals verdict allows.
+        source = REPORT.replace("No blockers.", "Pending approvals D1 and D2.").replace("**Ready.**", "**Ready after approvals.**")
         context = self.modern_context()
         decision = {"question": "Approve?", "recommendation": "Approve it.", "confidence": "High", "holds_back": "Nothing"}
         context["open_decisions"] = [dict(decision, id="D1"), dict(decision, id="D2", holds_back="Phase 2")]
@@ -1234,7 +1271,9 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
 
     def test_v4_js_routes_hash_to_full_report(self):
         js = (ASSETS / "report-v4.js").read_text()
-        for text in ("hashchange", "aria-selected", "ArrowRight", "ArrowLeft", '"Home"', '"End"', "beforeprint", "afterprint"):
+        for text in ("hashchange", "aria-selected", "ArrowRight", "ArrowLeft", '"Home"', '"End"', "beforeprint", "afterprint",
+                     # A modified or non-primary click opens a new tab, so it must not switch this page's panel.
+                     "event.button !== 0", "event.ctrlKey", "event.metaKey", "event.shiftKey", "event.altKey"):
             self.assertIn(text, js)
 
     def test_v4_no_js_shows_everything(self):

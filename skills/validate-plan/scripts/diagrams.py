@@ -12,7 +12,7 @@ import unicodedata
 
 LIMITS = {"eyebrow": 40, "title": 60, "node_title": 24, "node_sub": 30, "zone_label": 26,
           "link_label": 14, "link_sub": 18, "branch_title": 14, "branch_sub": 18}
-CHAR_WIDTH = {"t": 7, "s": 6}  # SVG units per character: 13 px titles and labels, 11 px sub-lines
+CHAR_WIDTH = {"t": 7, "s": 6}  # average SVG units per character that set LIMITS: 13 px titles and labels, 11 px sub-lines
 FONT = {key: "s" if key.endswith("_sub") else "t" for key in LIMITS}
 SIZE = {"t": 13, "s": 11}
 PAD = 10
@@ -35,6 +35,27 @@ NUM_AREA = PAD + 2 * NUM_R
 STEP_TEXT_W = STEP_W - NUM_AREA  # width that holds step text, padding included
 TONE_RX = {"retry": 14, "stop": 3, "note": 8}
 PILL_RX = 12
+PAIR_SHIFT = 5  # a link and its reverse on one row run this far above and below the centre line
+
+# Width each SVG text field may fill, inside its shape's padding. Link text stays between the
+# first elbow lanes (gap offsets 10 and 122) and their half stroke, so it spans at most 11-121.
+LINK_TEXT_W = GAP - 2 * (BACKWARD_LANES[0] + 1)
+NODE_TEXT_W = min(ZONE_W, STEP_TEXT_W) - 2 * PAD  # node and step text share a key, so the narrower pill sets it
+ROOM = {"node_title": NODE_TEXT_W, "node_sub": NODE_TEXT_W, "zone_label": ZONE_W - 2 * PAD,
+        "link_label": LINK_TEXT_W, "link_sub": LINK_TEXT_W, "branch_title": BRANCH_W - 2 * PAD, "branch_sub": BRANCH_W - 2 * PAD}
+
+# Glyph advance widths in em, measured in headless Chromium with the report's system sans stack
+# (Noto Sans on Linux) at 13 px weight 600 and 11 px weight 400. Each glyph takes the wider of the
+# two sizes, rounded up to 0.05 em, so the estimate errs towards rejecting.
+GLYPH_CLASSES = {
+    0.25: "\u2019", 0.30: " !',.:;\u00b7", 0.35: "()-J[]ijl", 0.40: "I`f{}", 0.45: "/\\_t\u201c\u201d",
+    0.50: "\"?rsz\u2013", 0.55: "Fc", 0.60: "$*+0123456789<=>ELSTZ^evxy|~", 0.65: "#CPYabdgkopq",
+    0.70: "ABKRVXhnu", 0.75: "DG\u00df", 0.80: "&HOQU", 0.85: "N", 0.90: "@w\u2026", 0.95: "%M",
+    1.00: "Wm\u2192", 1.05: "\u2014",
+}
+GLYPH_EM = {char: em for em, chars in GLYPH_CLASSES.items() for char in chars}
+WIDE_EM = 1.0  # East Asian wide and full-width characters
+OTHER_EM = 0.8  # any other letter; measured averages are 0.56-0.71 em for Arabic, Hebrew, Greek and Cyrillic
 
 NODE_ID = re.compile(r"[a-z][a-z0-9-]{0,23}")
 MARKERS = (("ar", "ar"), ("fwd", "ar-fwd"), ("back", "ar-back"), ("dash", "ar-dash"))
@@ -45,6 +66,17 @@ TEXTS = ("text", "label")
 def text_width(value):
     """Count wide and full-width characters twice so wide scripts cannot overflow."""
     return sum(2 if unicodedata.east_asian_width(char) in ("W", "F") else 1 for char in value)
+
+
+def text_units(value, font):
+    """Estimate drawn width in SVG units: wide glyphs such as W or M count wider than i or l."""
+    em = 0.0
+    for char in value:
+        if unicodedata.east_asian_width(char) in ("W", "F"):
+            em += WIDE_EM
+        elif not unicodedata.combining(char):
+            em += GLYPH_EM.get(unicodedata.normalize("NFD", char)[0], OTHER_EM)
+    return em * SIZE[font]
 
 
 def is_int(value):
@@ -59,6 +91,8 @@ def check_text(record, key, where, number, limit=None, required=True):
         raise ValueError(f"Diagram {number}: {where}{key} must be nonempty text")
     if limit and text_width(value) > LIMITS[limit]:
         raise ValueError(f"Diagram {number}: {where}{key} is longer than {LIMITS[limit]} characters ({limit})")
+    if limit in ROOM and text_units(value, FONT[limit]) > ROOM[limit]:
+        raise ValueError(f"Diagram {number}: {where}{key} is too wide for its shape; shorten it")
 
 
 def sized_list(value, low, high, what, number):
@@ -87,7 +121,7 @@ def check_zones(diagram, number):
     links = diagram.get("links", [])
     if not isinstance(links, list) or not all(isinstance(link, dict) for link in links):
         raise ValueError(f"Diagram {number}: links must be a list of objects")
-    starts = {}  # (gap, source row) -> first link that leaves there
+    starts, paired = {}, set()  # (gap, source row) -> first link that leaves there; rows holding a link and its reverse
     for li, link in enumerate(links):
         where = f"links[{li}]."
         for end in ("from", "to"):
@@ -101,11 +135,16 @@ def check_zones(diagram, number):
         check_text(link, "label", where, number, "link_label")
         check_text(link, "sub", where, number, "link_sub", required=False)
         # A link runs along its source row, so two links leaving one row of one gap share a line.
+        # The one exception is a link and its reverse on one row: they run as two parallel lines.
         start = (min(source, target), row_of[link["from"]])
-        if start in starts:
-            raise ValueError(f"Diagram {number}: links[{li}] starts on the same row as links[{starts[start]}] "
-                             "in the same gap; put the nodes on different rows")
-        starts[start] = li
+        first = starts.get(start)
+        if first is not None:
+            other = links[first]
+            if start in paired or (other["from"], other["to"]) != (link["to"], link["from"]):
+                raise ValueError(f"Diagram {number}: links[{li}] starts on the same row as links[{first}] "
+                                 "in the same gap; put the nodes on different rows")
+            paired.add(start)
+        starts[start] = first if first is not None else li
 
 
 def check_flow(diagram, number):
@@ -124,7 +163,7 @@ def check_flow(diagram, number):
             raise ValueError(f"Diagram {number}: {where}from_step must be a step number from 1 to {len(steps)}")
         check_text(branch, "title", where, number, "branch_title")
         check_text(branch, "sub", where, number, "branch_sub", required=False)
-        if branch.get("tone") not in TONE_RX:
+        if not isinstance(branch.get("tone"), str) or branch["tone"] not in TONE_RX:
             raise ValueError(f"Diagram {number}: {where}tone must be retry, stop or note")
         back = branch.get("returns_to")
         if back is not None:
@@ -165,7 +204,7 @@ def validate_diagrams(value):
 # Layout. Items carry what rendering needs; layout_boxes projects them to boxes.
 
 def text_item(kind, value, cls, font, x, baseline, anchor="start", group=None):
-    width = text_width(value) * CHAR_WIDTH[font]
+    width = text_units(value, font)
     left = x - width / 2 if anchor == "middle" else x
     box = (left, baseline - 0.8 * SIZE[font], width, SIZE[font])
     return {"kind": kind, "box": box, "text": value, "cls": cls, "x": x, "y": baseline, "anchor": anchor, "group": group}
@@ -215,15 +254,22 @@ def zone_items(diagram):
                 centre = left + ZONE_W / 2
                 items.append(arrow([(centre, y - PILL_GAP), (centre, y - HEAD)], "ar", "ar", group))
     centre_line = lambda row: top + row * ROW + PILL_H / 2  # noqa: E731
-    elbows = []
-    for link in diagram.get("links", []):
+    elbows, links = [], diagram.get("links", [])
+    starts = [(min(place[link["from"]][0], place[link["to"]][0]), place[link["from"]][1]) for link in links]
+    for link, start_key in zip(links, starts):
         (source_zone, source_row), (target_zone, target_row) = place[link["from"]], place[link["to"]]
         forward = target_zone > source_zone
         gap = MARGIN + min(source_zone, target_zone) * (ZONE_W + GAP) + ZONE_W
         y = centre_line(source_row)
-        items.append(text_item("label", link["label"], "lb", "t", gap + GAP / 2, y - 8, "middle"))
+        if starts.count(start_key) == 2:
+            # A link and its reverse: forward runs above with its text over it, backward below with its text under it.
+            y += -PAIR_SHIFT if forward else PAIR_SHIFT
+            label_y, sub_y = (y - 8, y - 21) if forward else (y + 14, y + 26)
+        else:
+            label_y, sub_y = y - 8, y + 14
+        items.append(text_item("label", link["label"], "lb", "t", gap + GAP / 2, label_y, "middle"))
         if link.get("sub"):
-            items.append(text_item("label", link["sub"], "ls", "s", gap + GAP / 2, y + 14, "middle"))
+            items.append(text_item("label", link["sub"], "ls", "s", gap + GAP / 2, sub_y, "middle"))
         start, end = (gap, gap + GAP) if forward else (gap + GAP, gap)
         tip = end - HEAD if forward else end + HEAD
         cls, marker = ("ar ar-fwd", "fwd") if forward else ("ar ar-back", "back")

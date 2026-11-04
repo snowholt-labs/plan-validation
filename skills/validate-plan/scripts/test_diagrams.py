@@ -73,16 +73,27 @@ def node(node_id, title="Node", sub="sub line"):
 
 
 def text_widths(boxes):
-    return {round(box[3], 3) for box in boxes if box[0] in ("text", "label")}
+    return [box[3] for box in boxes if box[0] in ("text", "label")]
+
+
+def fill(key):
+    """The widest text that still passes: at most the limit in characters and the room in width."""
+    font, text = diagrams.FONT[key], ""
+    while len(text) < LIMITS[key]:
+        fits = [char for char in "WNHAxri." if diagrams.text_units(text + char, font) <= diagrams.ROOM[key]]
+        if not fits:
+            break
+        text += fits[0]
+    return text
 
 
 def worst_zones():
-    """Three full zones, every label at its limit, links both ways and elbows."""
+    """Three full zones, every label as wide as it may be, links both ways and elbows."""
     def full_node(zone, row):
-        return {"id": f"{zone}{row}", "title": "W" * LIMITS["node_title"], "sub": "W" * LIMITS["node_sub"]}
+        return {"id": f"{zone}{row}", "title": fill("node_title"), "sub": fill("node_sub")}
 
     def link(source, target):
-        return {"from": source, "to": target, "label": "W" * LIMITS["link_label"], "sub": "W" * LIMITS["link_sub"]}
+        return {"from": source, "to": target, "label": fill("link_label"), "sub": fill("link_sub")}
 
     return {
         "kind": "zones",
@@ -91,7 +102,7 @@ def worst_zones():
         "description": "Worst case.",
         "caption": "Worst case.",
         "zones": [
-            {"label": "W" * LIMITS["zone_label"], "nodes": [full_node(zone, row) for row in range(1, 6)], "chain": True}
+            {"label": fill("zone_label"), "nodes": [full_node(zone, row) for row in range(1, 6)], "chain": True}
             for zone in "abc"
         ],
         "links": [
@@ -108,9 +119,9 @@ def worst_flow(branches):
         "title": "W" * LIMITS["title"],
         "description": "Worst case.",
         "caption": "Worst case.",
-        "steps": [{"title": "W" * LIMITS["node_title"], "sub": "W" * LIMITS["node_sub"]} for _ in range(7)],
+        "steps": [{"title": fill("node_title"), "sub": fill("node_sub")} for _ in range(7)],
         "branches": [
-            dict(branch, title="W" * LIMITS["branch_title"], sub="W" * LIMITS["branch_sub"]) for branch in branches
+            dict(branch, title=fill("branch_title"), sub=fill("branch_sub")) for branch in branches
         ],
     }
 
@@ -167,7 +178,7 @@ class DiagramValidationTests(unittest.TestCase):
         validate_diagrams([zones(zones=[{"label": "One", "nodes": [node("n1", title="字" * 12)]}], links=[])])
         # 26, not 28: a 28-capital zone label ran past the viewBox in the third zone.
         self.rejects([zones(zones=[{"label": "x" * 27, "nodes": [node("n1")]}], links=[])], "zone_label")
-        validate_diagrams([zones(zones=[{"label": "x" * 26, "nodes": [node("n1")]}], links=[])])
+        validate_diagrams([zones(zones=[{"label": "s" * 26, "nodes": [node("n1")]}], links=[])])  # narrow letters
         self.rejects([zones(eyebrow="x" * 41)], "eyebrow")
         self.rejects([zones(title="x" * 61)], "title")
 
@@ -225,12 +236,13 @@ class DiagramValidationTests(unittest.TestCase):
                 self.rejects([wrong], key)
 
     def test_links_sharing_a_row_in_one_gap_are_explained(self):
-        # Both source pills sit on row 1 of the same gap, so their lines and labels would meet.
+        # Only a link and its reverse may share a row of one gap; a third link there is rejected.
         both_ways = [
             {"from": "caller", "to": "api", "label": "request"},
             {"from": "api", "to": "caller", "label": "response"},
+            {"from": "caller", "to": "api", "label": "again"},
         ]
-        self.rejects([zones(links=both_ways)], "links[1]", "same row", "links[0]", "different rows")
+        self.rejects([zones(links=both_ways)], "links[2]", "same row", "links[0]", "different rows")
         two = copy.deepcopy(ZONES["zones"])
         two[1]["nodes"].append(node("api2"))
         same_pill = [
@@ -238,6 +250,56 @@ class DiagramValidationTests(unittest.TestCase):
             {"from": "helper", "to": "api2", "label": "again"},
         ]
         self.rejects([zones(zones=two, links=same_pill)], "links[1]", "same row")
+
+    def test_link_and_its_reverse_share_a_row(self):
+        one_each = [{"label": "Client", "nodes": [node("a")]}, {"label": "Server", "nodes": [node("b")]}]
+        pair = [{"from": "a", "to": "b", "label": "request"}, {"from": "b", "to": "a", "label": "result"}]
+        diagram = zones(zones=one_each, links=pair)
+        validate_diagrams([diagram])
+        self.assertIsNone(find_overlap(layout_boxes(diagram)))
+        rows = [box for box in layout_boxes(diagram) if box[0] == "line" and box[4] == 0]
+        self.assertEqual(len({box[2] for box in rows}), 2)  # two parallel lines, not one shared line
+        self.assertEqual(render_diagram(diagram, 1).count("marker-end="), 2)
+        # Pairs on neighbouring rows, every label and sub-label as wide as it may be, still fit.
+        two_each = [{"label": "Client", "nodes": [node("a1"), node("a2")]},
+                    {"label": "Server", "nodes": [node("b1"), node("b2")]}]
+        full = {"label": fill("link_label"), "sub": fill("link_sub")}
+        stacked = [dict(full, **{"from": source, "to": target})
+                   for source, target in (("a1", "b1"), ("b1", "a1"), ("b2", "a2"), ("a2", "b2"))]
+        diagram = zones(zones=two_each, links=stacked)
+        validate_diagrams([diagram])
+        self.assertIsNone(find_overlap(layout_boxes(diagram)))
+        # The spec example (an elbow each way between different rows) still renders.
+        validate_diagrams([ZONES])
+        self.assertIn('class="dg-w2"', render_diagram(ZONES, 1))
+
+    def test_wide_glyphs_must_fit_their_shape(self):
+        one = lambda **fields: [{"label": fields.get("label", "One"), "nodes": [node("n1", title=fields.get("title", "Node"))]},  # noqa: E731
+                                {"label": "Two", "nodes": [node("n2")]}]
+        link = lambda **fields: [dict({"from": "n1", "to": "n2", "label": "ok"}, **fields)]  # noqa: E731
+        wide = "is too wide for its shape; shorten it"
+        self.rejects([zones(zones=one(title="W" * LIMITS["node_title"]), links=[])], "zones[0].nodes[0].title", wide)
+        self.rejects([zones(zones=one(label="W" * LIMITS["zone_label"]), links=[])], "zones[0].label", wide)
+        self.rejects([zones(zones=one(), links=link(label="W" * LIMITS["link_label"]))], "links[0].label", wide)
+        self.rejects([zones(zones=one(), links=link(sub="W" * LIMITS["link_sub"]))], "links[0].sub", wide)
+        self.rejects([flow(branches=[{"from_step": 2, "title": "W" * LIMITS["branch_title"], "tone": "note"}])],
+                     "branches[0].title", wide)
+        self.rejects([flow(steps=[{"title": "M" * LIMITS["node_title"]}, {"title": "Two"}], branches=[])],
+                     "steps[0].title", wide)
+        # Realistic capitals and mixed case at the limits still pass.
+        for title in ("PAYMENT SERVICE ADAPTERS", "Payment service adapters", "Remove unused migrations"):
+            self.assertEqual(len(title), LIMITS["node_title"])
+            validate_diagrams([zones(zones=one(title=title), links=[])])
+        for label in ("PAYMENT SERVICE ADAPTERS", "Payments and billing tools"):
+            validate_diagrams([zones(zones=one(label=label), links=[])])
+        self.assertEqual(len("Payments and billing tools"), LIMITS["zone_label"])
+        validate_diagrams([zones(zones=one(), links=link(label="returns result", sub="after a short wait"))])
+        validate_diagrams([flow(branches=[{"from_step": 2, "title": "Retry the call", "sub": "waits, then tries",
+                                           "tone": "retry"}])])
+
+    def test_tone_must_be_text(self):
+        for tone in (["retry"], {"retry": 1}, None, 3):
+            self.rejects([flow(branches=[{"from_step": 2, "title": "B", "tone": tone}])], "tone")
 
     def test_overlapping_returns_are_explained(self):
         steps = [{"title": f"Step {n}"} for n in range(1, 6)]
@@ -302,7 +364,9 @@ class DiagramRenderTests(unittest.TestCase):
         for key, width in holders.items():
             font = "s" if key.endswith("_sub") else "t"
             self.assertEqual(diagrams.FONT[key], font)
-            self.assertLessEqual(LIMITS[key] * CHAR_WIDTH[font] + 2 * PAD, width, key)
+            # Average text at the limit fits the room, and the room plus padding fits the shape.
+            self.assertLessEqual(LIMITS[key] * CHAR_WIDTH[font], diagrams.ROOM[key], key)
+            self.assertLessEqual(diagrams.ROOM[key] + 2 * PAD, width, key)
 
     def assert_clean(self, diagram, width):
         validate_diagrams([diagram])
@@ -314,11 +378,16 @@ class DiagramRenderTests(unittest.TestCase):
         self.assertIn(f'viewBox="{view}"', render_diagram(diagram, 1))
         return boxes
 
+    def assert_full(self, boxes, keys):
+        """The worst case really fills each field's room, to within one narrow letter."""
+        widths = text_widths(boxes)
+        for key in keys:
+            room = diagrams.ROOM[key]
+            self.assertTrue(any(room - 4 <= width <= room for width in widths), key)
+
     def test_layout_fits_and_never_overlaps(self):
         boxes = self.assert_clean(worst_zones(), 936)
-        expected = {LIMITS[key] * CHAR_WIDTH[diagrams.FONT[key]]
-                    for key in ("node_title", "node_sub", "zone_label", "link_label", "link_sub")}
-        self.assertLessEqual(expected, text_widths(boxes))
+        self.assert_full(boxes, ("node_title", "node_sub", "zone_label", "link_label", "link_sub"))
         self.assertGreaterEqual(sum(1 for box in boxes if box[0] == "line" and box[3] == 0), 6)  # elbow lanes
 
         both = worst_flow([
@@ -331,9 +400,7 @@ class DiagramRenderTests(unittest.TestCase):
         ])
         for diagram in (both, apart):
             boxes = self.assert_clean(diagram, 608)
-            expected = {LIMITS[key] * CHAR_WIDTH[diagrams.FONT[key]]
-                        for key in ("node_title", "node_sub", "branch_title", "branch_sub")}
-            self.assertLessEqual(expected, text_widths(boxes))
+            self.assert_full(boxes, ("node_title", "node_sub", "branch_title", "branch_sub"))
 
         for count in (1, 2):
             small = zones(zones=ZONES["zones"][:count], links=ZONES["links"] if count == 2 else [])
