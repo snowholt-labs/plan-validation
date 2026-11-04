@@ -91,6 +91,11 @@ Rules:
 - **Pending approvals** are never a trigger. Recording an answer stays the same-run
   re-render, or a phase-only validation after merges.
 
+In a Not ready report with `yes`, the section 8 remediation prompt comes first: it fixes
+the blocker, and a remediation session is not a validation run. The re-run prompt then
+validates the result as the next counted run, and it says so:
+`Run this after the remediation session.`
+
 Only `yes` has a `prompt`. It lives only in `context.json`, never in section 8, and
 the renderer writes it to `rerun.txt`. The prompt:
 
@@ -103,10 +108,11 @@ the renderer writes it to `rerun.txt`. The prompt:
   <first>-<last>.` (hyphen or en dash; `Validate only Phase <id>.` for one phase), so the next run
   counts under the same scope;
 - names what the run should focus on;
+- in a Not ready report, says `Run this after the remediation session.`;
 - has no `Implement` instruction and says `Do not start dependent implementation.`
 
 ```text
-/plan-validation:validate-plan PLAN: `[PLAN path]` SPEC: `[SPEC path]` FOCUS: Run validation again (run [n+1] of 3). Previous report: `[report.md path]`; read it and its context.json first. Focus on [what to fix]. [For a phase-only run: Validate only Phases [first]-[last].] Do not start dependent implementation.
+/plan-validation:validate-plan PLAN: `[PLAN path]` SPEC: `[SPEC path]` FOCUS: Run validation again (run [n+1] of 3). Previous report: `[report.md path]`; read it and its context.json first. [For Not ready: Run this after the remediation session.] Focus on [what to fix]. [For a phase-only run: Validate only Phases [first]-[last].] Do not start dependent implementation.
 ```
 
 When the plan or spec changes after review, the historical warning says to run

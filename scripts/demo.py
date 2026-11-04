@@ -172,7 +172,8 @@ Do not start dependent implementation. Report results and any defaults chosen, t
                         "No independent review ran yet; another run can add one."],
             "prompt": (f"/plan-validation:validate-plan PLAN: `{output / 'plan.md'}` SPEC: `{output / 'spec.md'}` "
                        f"FOCUS: Run validation again (run 2 of 3). Previous report: `{output / 'report.md'}`; "
-                       "read it and its context.json first. Focus on the missing delay cap and the independent review. "
+                       "read it and its context.json first. Run this after the remediation session. "
+                       "Focus on the missing delay cap and the independent review. "
                        "Do not start dependent implementation."),
         },
         "scope": {"explanation": "The same one-task fixture is retained; the corrected control adds no requirement.",
