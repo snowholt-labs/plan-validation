@@ -753,9 +753,14 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         for sentence in ("Validate only Phases 1-1.", "Validate only Phase 1."):
             with self.subTest(sentence=sentence):
                 render(REPORT, self.rerun_yes(one, self.RERUN_PROMPT + " " + sentence))
-        with self.assertRaisesRegex(ValueError, "Validate only Phase 1"):
-            render(REPORT, self.rerun_yes(one, self.RERUN_PROMPT + " Validate only Phase 10."))
+        # Phase IDs may hold dots, so Phase 1. must end the sentence, not start Phase 1.5.
+        for other in ("Validate only Phase 10.", "Validate only Phase 1.5.", "Validate only Phase 1.2 and 1.3."):
+            with self.subTest(other=other), self.assertRaisesRegex(ValueError, "Validate only Phase 1"):
+                render(REPORT, self.rerun_yes(one, self.RERUN_PROMPT + " " + other))
         render(REPORT, self.rerun_yes(self.modern_context()))
+        # A full run's prompt cannot narrow the next run, which would start a new count.
+        with self.assertRaisesRegex(ValueError, "full validation"):
+            render(REPORT, self.rerun_yes(self.modern_context(), self.RERUN_PROMPT + " Validate only Phase 1."))
 
     def test_v4_decision_ids_are_unique(self):
         source = REPORT.replace("No blockers.", "Pending approvals D1 and d1.")

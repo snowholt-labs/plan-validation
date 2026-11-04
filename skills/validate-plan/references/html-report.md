@@ -92,6 +92,8 @@ Versions 3 and 4 check the phase grouping. The renderer also checks that:
   both true, a security review has a `security_reason`, and a waiting phase names
   what it `waits_for`;
 - once a phase waits, every later phase waits, and a `Ready` verdict has no waiting phase;
+- in version 4, with a `Ready after approvals` verdict, the `waits_for` of a waiting
+  phase names each open decision that holds back work, by its exact ID;
 - section 8 has one fenced prompt per ready phase, in order, each within 80 words and
   saying `Stop at the end of Phase <id>` for its own phase only, never negated;
 - in a new report, each ready prompt after the first says `Confirm Phase <previous> is merged`
@@ -245,7 +247,7 @@ Version 4 fields:
   (`High`, `Medium` or `Low`) and `holds_back` (the phases or tasks it holds back, or
   `Nothing` or `None`, in any case, when it holds back no work; any other text counts as
   holding back work). A `Ready after approvals` verdict needs at least one item that holds
-  back work, and the `waits_for` of a waiting phase must name each such item's ID; a
+  back work, and the `waits_for` of a waiting phase must name each such item's exact ID; a
   `Ready` verdict must have none that does. In a phase-only validation, an
   approval that holds back only phases outside the selected scope is a separately scoped
   follow-up in section 6 and stays out of `open_decisions`.

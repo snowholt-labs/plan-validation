@@ -101,7 +101,7 @@ the renderer writes it to `rerun.txt`. The prompt:
 - says `run <n+1> of 3`, where `<n>` is this run's number;
 - for a phase-only validation, keeps this run's scope with `Validate only Phases
   <first>-<last>.` (or `Validate only Phase <id>.` for one phase), so the next run
-  counts under the same scope;
+  counts under the same scope; a full validation's prompt never says `Validate only`;
 - names what the run should focus on;
 - has no `Implement` instruction and says `Do not start dependent implementation.`
 
