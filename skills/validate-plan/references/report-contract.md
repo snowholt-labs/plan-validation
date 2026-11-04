@@ -113,7 +113,7 @@ the renderer writes it to `rerun.txt`. The prompt:
 - names what the run should focus on;
 - in a Not ready report, says `Run this after the remediation session.`; otherwise
   says `Run this before starting any phase.`;
-- has no `implement`, `implements` or `implementing`, except right after a word ending in `not` (such as `Do not implement` or `cannot implement`), `n't` (straight or curly apostrophe) or `never` on the same line, or inside a backtick-quoted absolute path, and says `Do not start dependent implementation.`
+- has no `implement`, `implements` or `implementing` (also with a `re` or `re-` prefix), except right after a word ending in `not` (such as `Do not implement` or `cannot implement`), `n't` (straight or curly apostrophe) or `never` on the same line, or inside a backtick-quoted absolute path, and says `Do not start dependent implementation.`
 
 ```text
 /plan-validation:validate-plan PLAN: `[PLAN path]` SPEC: `[SPEC path]` FOCUS: Run validation again (run [n+1] of 3). Previous report: `[report.md path]`; read it and its context.json first. [Run this after the remediation session. (Not ready) or Run this before starting any phase.] Focus on [what to fix]. [For a phase-only run: Validate only Phases [first]-[last].] Do not start dependent implementation.

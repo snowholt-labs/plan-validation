@@ -67,18 +67,19 @@ CONFIDENCE_LEVELS = ("High", "Medium", "Low")
 # Any "implement" instruction, except a negated one such as "Do not implement".
 IMPLEMENT = re.compile(r"(?<!not )(?<!n't )(?<!never )\bimplement\b", re.I)
 # The re-run prompt is written even for a historical page, so it also rejects the other verb forms
-# ("implements", "implementing"). Descriptive words such as "implemented" or "implementation" stay allowed.
-IMPLEMENT_ANY = re.compile(r"(?<!not )(?<!n't )(?<!n’t )(?<!never )\bimplement(?:s|ing)?\b", re.I)
+# ("implements", "implementing", "reimplement"). Descriptive words such as "implemented" or
+# "implementation" stay allowed.
+IMPLEMENT_ANY = re.compile(r"(?<!not )(?<!n't )(?<!n’t )(?<!never )\b(?:re-?)?implement(?:s|ing)?\b", re.I)
+# Only path-like spans are skipped: no whitespace, or ending in a file extension.
+QUOTED_NAME = re.compile(r"`(?:/|~/|[A-Za-z]:[\\/])(?:[^`\s]*|[^`\n]*\.[A-Za-z0-9]+)`")
 
 
 def implement_instruction(text):
-    """Any form of the verb outside a quoted path. Spaces and tabs join, but a line break still ends a
+    """Any form of the verb outside a quoted path. Other whitespace joins, but a line break still ends a
     negation, so a "not" closing one line cannot excuse an instruction on the next."""
-    return IMPLEMENT_ANY.search(re.sub(r"[ \t]+", " ", QUOTED_NAME.sub("path", text)))
+    return IMPLEMENT_ANY.search(re.sub(r"[^\S\n]+", " ", QUOTED_NAME.sub("path", text)))
 
 
-# Only path-like spans are skipped: no whitespace, or ending in a file extension.
-QUOTED_NAME = re.compile(r"`(?:/|~/|[A-Za-z]:[\\/])(?:[^`\s]*|[^`\n]*\.[A-Za-z0-9]+)`")
 MAX_RUNS = 3
 RERUN_RECOMMENDATIONS = ("yes", "no", "stop")
 WATCH_KINDS = ("gap", "limit", "risk", "fixed")
@@ -471,7 +472,7 @@ def handoff_prompts(section, version, verdict, context):
             # Every stop sentence names this phase, unnegated. "Phase 1.2", "Phase 1-b" and
             # "Phase 12" are other phases; a sentence-ending period is not.
             own = re.compile(rf"{re.escape(ready[index])}(?![A-Za-z0-9-]|\.[A-Za-z0-9])", re.I)
-            negated = re.compile(r"(?:\bnot|n['’]t|\bnever)\s+$", re.I)
+            negated = re.compile(r"(?:not|n['’]t|\bnever)\s+$", re.I)
             stops = list(re.finditer(r"\bstop\s+at\s+the\s+end\s+of\s+phase\s+", prompt, re.I))
             if not stops or any(not own.match(prompt, stop.end()) or negated.search(prompt[:stop.start()]) for stop in stops):
                 raise ValueError(f"Phase {ready[index]} prompt must say: Stop at the end of Phase {ready[index]}")
@@ -480,16 +481,17 @@ def handoff_prompts(section, version, verdict, context):
                 checks = list(re.finditer(rf"\bconfirm\s+phase\s+{re.escape(ready[index - 1])}\s+is\s+merged\b", prompt, re.I))
                 if all(negated.search(prompt[:check.start()]) for check in checks):
                     raise ValueError(f"Phase {ready[index]} prompt must say: Confirm Phase {ready[index - 1]} is merged")
-    first = prompts[0][2]
-    if version >= 4:
-        # Like the re-run prompt, for new and saved reports alike; the required sentence may wrap.
-        implement = implement_instruction(first)
-        first = re.sub(r"\s+", " ", first)
-    else:
-        implement = IMPLEMENT.search(first)
     # With no startable phase, a version 3 or later prompt is a remediation prompt even before Not ready.
-    if (verdict.lower() == "not ready" or (version >= 3 and not ready)) and (implement or "do not start dependent implementation" not in first.lower()):
-        raise ValueError("Not ready requires a remediation prompt stating: Do not start dependent implementation")
+    if verdict.lower() == "not ready" or (version >= 3 and not ready):
+        first = prompts[0][2]
+        if version >= 4:
+            # Like the re-run prompt, for new and saved reports alike; the required sentence may wrap.
+            implement = implement_instruction(first)
+            first = re.sub(r"\s+", " ", first)
+        else:
+            implement = IMPLEMENT.search(first)
+        if implement or "do not start dependent implementation" not in first.lower():
+            raise ValueError("Not ready requires a remediation prompt stating: Do not start dependent implementation")
     return prompts, list(zip(ready, (prompt for _, _, prompt in prompts)))
 
 

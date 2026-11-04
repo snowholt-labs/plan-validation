@@ -369,14 +369,16 @@ class ReportTests(unittest.TestCase):
     def test_v4_remediation_prompt_rejects_every_implement_form(self):
         not_ready = REPORT.replace("**Ready.**", "**Not ready.**")
         for instruction in ("Start implementing Phase 1.", "The fix implements Task 2.",
-                            "Fix `/repo/a\nStart implementing Phase 1 now.md`.", "Keep D1 or not\nImplement Phase 1."):
+                            "Fix `/repo/a\nStart implementing Phase 1 now.md`.", "Keep D1 or not\nImplement Phase 1.",
+                            "Reimplement Phase 1."):
             source = not_ready.replace("Implement the approved scope now.", instruction + " Do not start dependent implementation.")
             with self.subTest(instruction=instruction), self.assertRaisesRegex(ValueError, "remediation prompt"):
                 render(source, self.stop_rerun(self.modern_context()))
         # A quoted path, a curly or tabbed negation and a wrapped sentence are not instructions,
         # and a saved re-render accepts and rejects exactly what the new report did.
         source = not_ready.replace("Implement the approved scope now.",
-                                   "Fix `/repo/implementing/plan.md`. Don’t implement Task 2. Do not\timplement Task 3. Do not start dependent\n  implementation.")
+                                   "Fix `/repo/implementing/plan.md`. Don’t implement Task 2. Do not\timplement Task 3. "
+                                   "Do not\u00a0reimplement Task 4. Do not start dependent\n  implementation.")
         saved = self.stop_rerun(self.modern_context())
         saved["kind"] = "saved"
         for context in (self.stop_rerun(self.modern_context()), saved):
@@ -1237,6 +1239,8 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         # A curly apostrophe negates like a straight one.
         with self.assertRaisesRegex(ValueError, "Stop at the end of Phase 1"):
             render(source.replace("Stop at the end of Phase 1 and", "Don’t stop at the end of Phase 1 and"), context)
+        with self.assertRaisesRegex(ValueError, "Stop at the end of Phase 1"):
+            render(source.replace("Stop at the end of Phase 1 and", "You cannot stop at the end of Phase 1 and"), context)
 
     def test_later_prompt_must_confirm_the_previous_phase_is_merged(self):
         source, context = self.two_phase()

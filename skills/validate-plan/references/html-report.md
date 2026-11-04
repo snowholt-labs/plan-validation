@@ -102,7 +102,7 @@ Versions 3 and 4 check the phase grouping. The renderer also checks that:
   for the ready phase before it, never negated;
 - a Not ready report, or one whose first phase waits, has exactly one prompt that
   says `Do not start dependent implementation.` and has no `Implement` instruction
-  (in a version 4 report, no `implements` or `implementing` either; any of the three
+  (in a version 4 report, no `implements`, `implementing` or `reimplement` either; any of these
   forms may follow a word ending in `not`, `n't` (straight or curly) or `never` on the
   same line, or sit inside a backtick-quoted absolute path).
 
