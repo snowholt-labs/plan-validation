@@ -136,6 +136,28 @@ LEGACY_DIGESTS = {
 }
 
 
+ZONES_DIAGRAM = {
+    "kind": "zones",
+    "eyebrow": "Architecture · planned",
+    "title": "Who talks to whom",
+    "description": "The caller asks the retry helper, which sends requests to the remote API.",
+    "caption": "The helper waits between tries.",
+    "zones": [
+        {"label": "Your app", "nodes": [
+            {"id": "caller", "title": "Caller", "sub": "asks for a request"},
+            {"id": "helper", "title": "Retry helper", "sub": "waits, then tries again"},
+        ], "chain": True},
+        {"label": "Remote service", "nodes": [
+            {"id": "api", "title": "API endpoint", "sub": "may answer 503"},
+        ]},
+    ],
+    "links": [
+        {"from": "helper", "to": "api", "label": "request", "sub": "HTTPS"},
+        {"from": "api", "to": "helper", "label": "result"},
+    ],
+}
+
+
 def normalized(page, root):
     return re.sub(r"HTML generated \S+\.", "HTML generated X.", page.replace(root, "ROOT"))
 
@@ -164,23 +186,25 @@ class ReportTests(unittest.TestCase):
     def modern_context(self):
         context = copy.deepcopy(self.context)
         context.update({
-            "format_version": 3, "kind": "new",
+            "format_version": 4, "kind": "new",
+            "project": "plan-validation", "audience": "plan review for the maintainer", "title_accent": "Example",
             "task_inventory": ["1"],
             "phases": [{"id": "1", "title": "Example", "tasks": ["1"], "docs_only": False, "security_review": False, "status": "ready"}],
-            "feature": {
-                "summary": "A reader requests a document and sees the result.",
-                "steps": [
-                    {"title": "Choose a document", "description": "The reader selects a saved document."},
-                    {"title": "Check access", "description": "The application checks the reader's permission."},
-                    {"title": "Show the result", "description": "The document opens, or an explanation appears."},
-                ],
-            },
+            "diagrams": [copy.deepcopy(ZONES_DIAGRAM)],
+            "open_decisions": [],
+            "watch_list": [],
             "decisions_without_reply": [],
         })
         return context
 
+    def pending_d1(self, source, context):
+        """Name one pending decision, D1, in section 6 and the context."""
+        context["open_decisions"] = [{"id": "D1", "question": "Approve the paid service?", "recommendation": "Approve it.",
+                                      "confidence": "High", "holds_back": "Phase 1"}]
+        return source.replace("No blockers.", "Pending approval D1: adding a paid service."), context
+
     def test_feature_diagram_precedes_scores_without_replacing_evidence(self):
-        page, prompt, current = render(REPORT, self.modern_context())
+        page, prompt, current = render(REPORT, self.v3_saved_context())
         self.assertTrue(current)
         self.assertIn('aria-labelledby="feature-heading"', page)
         self.assertIn("Feature at a glance", page)
@@ -198,13 +222,13 @@ class ReportTests(unittest.TestCase):
                         {"summary": "Flow", "steps": [{"title": "A"}] * 3},
                         {"summary": "", "steps": [{"title": "A", "description": "B"}] * 3}):
             with self.subTest(feature=feature):
-                context = self.modern_context()
+                context = self.v3_saved_context()
                 context["feature"] = feature
                 with self.assertRaisesRegex(ValueError, "Feature"):
                     render(REPORT, context)
 
     def test_independent_feature_blocks_do_not_imply_a_sequence(self):
-        context = self.modern_context()
+        context = self.v3_saved_context()
         context["feature"]["layout"] = "blocks"
         page, _, _ = render(REPORT, context)
         overview = page[page.index('<section id="feature-overview"'):page.index('<section id="section-1"')]
@@ -214,7 +238,7 @@ class ReportTests(unittest.TestCase):
         self.assertIn("Check access", overview)
 
     def test_unknown_feature_layout_is_rejected(self):
-        context = self.modern_context()
+        context = self.v3_saved_context()
         context["feature"]["layout"] = "unknown"
         with self.assertRaisesRegex(ValueError, "layout"):
             render(REPORT, context)
@@ -275,7 +299,7 @@ class ReportTests(unittest.TestCase):
                 render(REPORT, context)
 
     def test_feature_and_decision_text_cannot_inject_markup(self):
-        context = self.modern_context()
+        context = self.v3_saved_context()
         payload = '<img src=x onerror="alert(1)"><script>alert(2)</script>'
         context["feature"]["summary"] = payload
         context["feature"]["steps"][0]["title"] = payload
@@ -368,7 +392,7 @@ class ReportTests(unittest.TestCase):
             render(source, self.modern_context())
 
     def test_long_feature_flow_stacks_vertically(self):
-        context = self.modern_context()
+        context = self.v3_saved_context()
         context["feature"]["steps"] = [{"title": f"Step {n}", "description": "Does one thing."} for n in range(7)]
         page, _, _ = render(REPORT, context)
         self.assertIn('<ol class="feature-flow vertical" role="list">', page)
@@ -611,13 +635,108 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 with self.assertRaisesRegex(ValueError, "Phase"):
                     phase_plan(context, "Ready")
 
-    def test_new_reports_require_version_three(self):
+    def test_new_reports_require_version_4(self):
         context = self.modern_context()
-        context["format_version"] = 2
+        context["format_version"] = 3
+        with self.assertRaisesRegex(ValueError, "format_version 4"):
+            render(REPORT, context)
+        context["format_version"] = 5
         with self.assertRaisesRegex(ValueError, "format_version"):
             render(REPORT, context)
-        context["kind"] = "saved"
+        render(REPORT, self.v3_saved_context())
+
+    def test_v4_rejects_feature(self):
+        context = self.modern_context()
+        context["feature"] = self.v3_saved_context()["feature"]
+        with self.assertRaisesRegex(ValueError, "feature"):
+            render(REPORT, context)
+
+    def test_v4_header_fields(self):
+        for field, limit in (("project", 40), ("audience", 60)):
+            for value in (None, 7, "", "   ", "x" * (limit + 1)):
+                with self.subTest(field=field, value=value):
+                    context = self.modern_context()
+                    context[field] = value
+                    with self.assertRaisesRegex(ValueError, field):
+                        render(REPORT, context)
+            context = self.modern_context()
+            context[field] = "x" * limit
+            render(REPORT, context)
+        for title, accent in (("Example", "Missing"), ("Example Example", "Example"), ("Example", ""), ("Example", None),
+                              ("Fish & chips", "amp")):
+            with self.subTest(title=title, accent=accent):
+                context = self.modern_context()
+                context.update(title=title, title_accent=accent)
+                with self.assertRaisesRegex(ValueError, "title_accent"):
+                    render(REPORT, context)
+
+    def test_v4_open_decisions(self):
+        decision = {"id": "D1", "question": "Approve the paid service?", "recommendation": "Approve it.",
+                    "confidence": "High", "holds_back": "Nothing"}
+        source = REPORT.replace("No blockers.", "Pending approval **D1**: adding a paid service.")
+        bad = [dict(decision, question="")] + [{k: v for k, v in decision.items() if k != key} for key in decision]
+        bad += [dict(decision, confidence="Very high"), dict(decision, id="D9"), dict(decision, id="D(1"), dict(decision, id=1), "D1"]
+        for item in bad:
+            with self.subTest(item=item):
+                context = self.modern_context()
+                context["open_decisions"] = [item]
+                with self.assertRaisesRegex(ValueError, "decision"):
+                    render(source, context)
+        context = self.modern_context()
+        context["open_decisions"] = [decision]
+        with self.assertRaisesRegex(ValueError, "D1"):
+            render(source.replace("**D1**", "D10"), context)
+        context["open_decisions"] = "None"
+        with self.assertRaisesRegex(ValueError, "open_decisions"):
+            render(source, context)
+        context["open_decisions"] = [decision]
+        render(source, context)
+
+    def test_v4_watch_list(self):
+        item = {"kind": "gap", "title": "No browser check", "body": "The page was not opened in a browser."}
+        for bad in ("None", [dict(item, kind="bug")], [dict(item, title="x" * 61)], [dict(item, title="")],
+                    [dict(item, body="")], [{"kind": "gap", "title": "No body"}], ["gap"]):
+            with self.subTest(bad=bad):
+                context = self.modern_context()
+                context["watch_list"] = bad
+                with self.assertRaisesRegex(ValueError, "watch_list"):
+                    render(REPORT, context)
+        context = self.modern_context()
+        context["watch_list"] = [dict(item, kind=kind, title="x" * 60) for kind in ("gap", "limit", "risk", "fixed")]
         render(REPORT, context)
+
+    def test_v4_pending_approvals_need_decisions(self):
+        source = REPORT.replace("**Ready.**", "**Ready after approvals.**")
+        with self.assertRaisesRegex(ValueError, "open_decisions"):
+            render(source, self.modern_context())
+        source, context = self.pending_d1(source, self.modern_context())
+        render(source, context)
+
+    def test_v4_text_fields_cannot_inject_markup(self):
+        probe = '<script>x</script>"&amp'
+        context = self.modern_context()
+        context.update(project=probe, audience=probe, title=probe, title_accent="x")
+        context["watch_list"] = [{"kind": "risk", "title": probe, "body": probe}]
+        source, context = self.pending_d1(REPORT, context)
+        context["open_decisions"][0].update(question=probe, recommendation=probe, holds_back=probe)
+        page, _, _ = render(source, context)
+        self.assertNotIn("<script>x", page)
+        self.assertNotIn('"&amp<', page)
+        self.assertEqual(page.count("<script>"), 1)
+        self.assertIn("&lt;script&gt;x&lt;/script&gt;&quot;&amp;amp", page)
+        # The accent is split from the raw title, so an entity can never be cut in two.
+        context = self.modern_context()
+        context.update(title="Fish & camp", title_accent="amp")
+        page, _, _ = render(REPORT, context)
+        self.assertIn("Fish &amp; c", page)
+        self.assertNotIn("&<", page)
+
+    def test_v4_phase_prompts_still_checked(self):
+        source, context = self.two_phase()
+        self.assertEqual(context["format_version"], 4)
+        self.assertEqual([pid for pid, _ in phase_handoffs(source, context)], ["1", "2"])
+        with self.assertRaisesRegex(ValueError, "Confirm Phase 1 is merged"):
+            render(source.replace("Confirm Phase 1 is merged.", ""), context)
 
     def two_phase(self):
         context = self.modern_context()
@@ -638,6 +757,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
     def test_prompt_count_must_match_ready_phases(self):
         source, context = self.two_phase()
         source = source.replace("**Ready.**", "**Ready after approvals.**")
+        source, context = self.pending_d1(source, context)
         context["phases"][1].update(status="waiting", waits_for="D1")
         with self.assertRaisesRegex(ValueError, "prompt"):
             render(source, context)
@@ -679,6 +799,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         for phase in context["phases"]:
             phase.update(status="waiting", waits_for="D1")
         source = source.replace("**Ready.**", "**Ready after approvals.**")
+        source, context = self.pending_d1(source, context)
         with self.assertRaisesRegex(ValueError, "one"):
             render(source, context)
         waiting = source.split("## 8.")[0] + "## 8. Fresh-session handoff\n```text\nRecord D1, then re-render the report. Do not start dependent implementation.\n```\n"
@@ -790,6 +911,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         context["phases"][0]["title"] = "<img src=x onerror=alert(1)>"
         context["phases"][1].update(status="waiting", waits_for="<script>alert(2)</script>")
         source = source.replace("**Ready.**", "**Ready after approvals.**").split("```text\nImplement Phase 2.")[0]
+        source, context = self.pending_d1(source, context)
         page, _, _ = render(source, context)
         self.assertNotIn("<img src=x", page)
         self.assertNotIn("<script>alert", page)
@@ -801,6 +923,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             phase.update(status="waiting", waits_for="D1")
         source = source.split("## 8.")[0].replace("**Ready.**", "**Ready after approvals.**") + (
             "## 8. Fresh-session handoff\n```text\nRecord D1, then re-render the report. Do not start dependent implementation.\n```\n")
+        source, context = self.pending_d1(source, context)
         page, _, _ = render(source, context)
         self.assertIn("Copy remediation prompt", page)
         self.assertNotIn("Copy implementation prompt", page)

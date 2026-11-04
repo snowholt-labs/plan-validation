@@ -20,6 +20,8 @@ from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from diagrams import validate_diagrams
+
 
 ASSETS = Path(__file__).resolve().parents[1] / "assets"
 READABLE_HEADINGS = (
@@ -33,6 +35,8 @@ SOURCE_HEADINGS = (
 HISTORICAL_PREFIX = "HISTORICAL PROMPT — DO NOT EXECUTE.\nDocument identity, Git state or approvals need revalidation before implementation.\n\n"
 # Phase IDs become file names, so they cannot contain path separators.
 PHASE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9.-]{0,15}\Z")
+CONFIDENCE_LEVELS = ("High", "Medium", "Low")
+WATCH_KINDS = ("gap", "limit", "risk", "fixed")
 
 
 def fenced_blocks(source):
@@ -389,7 +393,7 @@ def handoff_prompts(section, version, verdict, context):
     """Return validated (start, end, text) prompt spans and their (phase_id, prompt) pairs."""
     prompts = [(start, end, section[body_start:body_end].rstrip("\n")) for start, end, body_start, body_end in fenced_blocks(section)]
     ready = []
-    if version == 3 and verdict.lower() != "not ready":
+    if version >= 3 and verdict.lower() != "not ready":
         ready = [phase["id"] for phase in phase_plan(context, verdict) if phase["status"] == "ready"]
     if ready:
         if len(prompts) != len(ready):
@@ -401,7 +405,7 @@ def handoff_prompts(section, version, verdict, context):
             raise ValueError("Section 8 must contain one complete fenced handoff")
         if version >= 2 and word_count(prompt) > 80:
             raise ValueError("Fresh-session handoff must be at most 80 words; link to the plan, spec and report for details and wrap paths in backticks")
-        if version == 3:
+        if version >= 3:
             try:
                 fenced_blocks(prompt)
             except ValueError:
@@ -421,30 +425,74 @@ def handoff_prompts(section, version, verdict, context):
                     raise ValueError(f"Phase {ready[index]} prompt must say: Confirm Phase {ready[index - 1]} is merged")
     # Any "implement" instruction, except a negated one such as "Do not implement".
     implement = re.search(r"(?<!not )(?<!n't )(?<!never )\bimplement\b", prompts[0][2], re.I)
-    # With no startable phase, a version 3 prompt is a remediation prompt even before Not ready.
-    if (verdict.lower() == "not ready" or (version == 3 and not ready)) and (implement or "do not start dependent implementation" not in prompts[0][2].lower()):
+    # With no startable phase, a version 3 or later prompt is a remediation prompt even before Not ready.
+    if (verdict.lower() == "not ready" or (version >= 3 and not ready)) and (implement or "do not start dependent implementation" not in prompts[0][2].lower()):
         raise ValueError("Not ready requires a remediation prompt stating: Do not start dependent implementation")
     return prompts, list(zip(ready, (prompt for _, _, prompt in prompts)))
 
 
+def short_text(value, name, limit):
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{name} must be nonempty text")
+    if len(value) > limit:
+        raise ValueError(f"{name} must be at most {limit} characters")
+
+
+def v4_fields(context, open_items):
+    """Return the checked version 4 header, diagram, decision and watch-list data."""
+    if "feature" in context:
+        raise ValueError("Version 4 drops feature (Feature at a glance); describe the design in diagrams")
+    short_text(context.get("project"), "project", 40)
+    short_text(context.get("audience"), "audience", 60)
+    accent, title = context.get("title_accent"), context.get("title")
+    # Counted on the raw title: the page splits it around the accent before escaping each part.
+    if not isinstance(accent, str) or not accent or not isinstance(title, str) or title.count(accent) != 1:
+        raise ValueError("title_accent must be text that appears exactly once in title")
+    diagrams = validate_diagrams(context.get("diagrams"))
+    decisions = context.get("open_decisions")
+    if not isinstance(decisions, list):
+        raise ValueError("open_decisions must be a list; use [] when none")
+    text = plain(open_items)
+    for number, item in enumerate(decisions, 1):
+        if not text_fields(item, ("id", "question", "recommendation", "holds_back")):
+            raise ValueError(f"Open decision {number} needs id, question, recommendation, confidence and holds_back")
+        if not PHASE_ID.fullmatch(item["id"]):
+            raise ValueError(f"Open decision {number} id must be 1-16 letters, digits, dots or hyphens, starting with a letter or digit")
+        if item.get("confidence") not in CONFIDENCE_LEVELS:
+            raise ValueError(f"Open decision {item['id']} confidence must be High, Medium or Low")
+        # The same boundary rule as phase IDs: D1 is not D10, D1.2 or D1-b; a sentence-ending period is fine.
+        if not re.search(rf"(?<![A-Za-z0-9.-]){re.escape(item['id'])}(?![A-Za-z0-9-]|\.[A-Za-z0-9])", text):
+            raise ValueError(f"Open decision {item['id']} must also appear in section 6 (Open items)")
+    watch = context.get("watch_list")
+    if not isinstance(watch, list):
+        raise ValueError("watch_list must be a list; use [] when none")
+    for number, item in enumerate(watch, 1):
+        if not text_fields(item, ("title", "body")):
+            raise ValueError(f"watch_list item {number} needs kind, title and body")
+        if item.get("kind") not in WATCH_KINDS:
+            raise ValueError(f"watch_list item {number} kind must be gap, limit, risk or fixed")
+        short_text(item["title"], f"watch_list item {number} title", 60)
+    return {"diagrams": diagrams, "decisions": decisions, "watch": watch}
+
+
 def phase_handoffs(source, context):
-    """Return (phase_id, prompt) for each ready phase of a version 3 Ready report."""
+    """Return (phase_id, prompt) for each ready phase of a version 3 or 4 Ready report."""
     version = context.get("format_version", 1)
     parts = sections(source.replace("\r\n", "\n").replace("\r", "\n"))
     verdict_match = re.match(r"(Ready after approvals|Not ready|Ready)\b", plain(parts[0][1]), re.I)
-    if version != 3 or not verdict_match:
+    if type(version) is not int or version < 3 or not verdict_match:
         return []
     return handoff_prompts(parts[7][1], version, verdict_match.group(1), context)[1]
 
 
 def render(source, context):
     version = context.get("format_version", 1)
-    if type(version) is not int or version not in (1, 2, 3):
-        raise ValueError("format_version must be 1 (legacy), 2 or 3")
-    if context.get("kind") == "new" and version != 3:
-        raise ValueError("New reports require format_version 3; legacy rendering is for saved reports only")
+    if type(version) is not int or version not in (1, 2, 3, 4):
+        raise ValueError("format_version must be 1 (legacy), 2, 3 or 4")
+    if context.get("kind") == "new" and version != 4:
+        raise ValueError("New reports require format_version 4; earlier versions render saved reports only")
     source = source.replace("\r\n", "\n").replace("\r", "\n")
-    overview = feature_overview(context.get("feature")) if version >= 2 else ''
+    overview = feature_overview(context.get("feature")) if version in (2, 3) else ''
     defaults = defaulted_decisions(context.get("decisions_without_reply")) if version >= 2 else ''
     parts = sections(source)
     if any(not content for _, content in parts):
@@ -462,7 +510,7 @@ def render(source, context):
     if not verdict_match:
         raise ValueError("Section 1 must begin with Ready, Ready after approvals or Not ready")
     verdict = verdict_match.group(1)
-    if version == 3:
+    if version >= 3:
         phase_plan(context, verdict)
     if verdict.lower().startswith("ready") and context.get("review_status") != "complete":
         raise ValueError("A Ready report requires a completed cold read with findings dispositioned")
@@ -476,6 +524,11 @@ def render(source, context):
     if confidence != "Unknown" and (not 0 <= int(confidence[:-1]) <= 100 or int(confidence[:-1]) % 5):
         raise ValueError("Confidence must be Unknown or a percentage in steps of five")
     prompts, pairs = handoff_prompts(parts[7][1], version, verdict, context)
+    if version >= 4:
+        # Task 4 draws these; until then version 4 uses the version 3 page without the feature overview.
+        fields = v4_fields(context, parts[5][1])
+        if verdict.lower() == "ready after approvals" and not fields["decisions"]:
+            raise ValueError("A Ready after approvals verdict needs its pending approvals in open_decisions")
     handoff = prompts[0][2]
     if context.get("handoff_status") not in {"current", "historical"}:
         raise ValueError("Set handoff_status to current or historical after checking Git state and approvals")
@@ -509,7 +562,7 @@ def render(source, context):
                 intro = intro[:start] + intro[end:]
             warning = '<p class="warning">Document identity, Git state or approvals changed or could not be checked. This is a historical prompt. Revalidate the changed scope before using it.</p>'
             content_html = markdown(intro)
-            if version == 3:
+            if version >= 3:
                 content_html += phase_table(context["phases"], verdict, current)
             if pairs:
                 titles = {phase["id"]: phase["title"] for phase in context["phases"]}
