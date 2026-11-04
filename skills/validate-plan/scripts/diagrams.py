@@ -25,7 +25,6 @@ ROW = PILL_H + PILL_GAP
 # and arrowheads 0-8 and 124-132, so the first lane on each side always stays clear.
 FORWARD_LANES = (122, 116, 110, 104)
 BACKWARD_LANES = (10, 16, 22, 28)
-ELBOW_ARRIVAL = 10  # an elbow reaches its target this far off the centre line
 
 STEP_W, STEP_H, STEP_GAP, NUM_R = 260, 48, 22, 12
 BRANCH_W, BRANCH_GAP, BRANCH_SPACING = 130, 40, 24
@@ -33,10 +32,12 @@ FLOW_W = 608
 NUM_AREA = PAD + 2 * NUM_R
 STEP_TEXT_W = STEP_W - NUM_AREA  # width that holds step text, padding included
 TONE_RX = {"retry": 14, "stop": 3, "note": 8}
-PILL_RX = 12
+PILL_RX = 10
+# An arrowhead meets a pill on its straight side edge: at most this far off the centre line,
+# so the whole head (HEAD / 2 either side of its tip) faces the flat part, never a rounded corner.
+MAX_ARRIVAL = min(PILL_H, STEP_H) // 2 - PILL_RX - HEAD // 2
+ELBOW_ARRIVAL = MAX_ARRIVAL  # a flow return reaches its step this far below the centre line
 PAIR_SHIFT = 5  # a link and its reverse on one row run this far above and below the centre line
-# An elbow into a row that holds a pair arrives beyond the pair's arrowheads, still on the pill's straight edge.
-PAIRED_ARRIVAL = PAIR_SHIFT + HEAD + 1
 
 # Width each SVG text field may fill, inside its shape's padding. Link text stays between the
 # first elbow lanes (gap offsets 10 and 122) and their half stroke, so it spans at most 11-121.
@@ -58,7 +59,10 @@ GLYPH_EM = {char: em for em, chars in GLYPH_CLASSES.items() for char in chars}
 WIDE_EM = 1.0  # East Asian wide and full-width characters
 SYMBOL_EM = 1.3  # symbols and emoji (category So); Chromium draws them 0.84-1.25 em wide
 ZERO_WIDTH = ("Mn", "Me", "Cf")  # combining marks, variation selectors and joiners
-OTHER_EM = 0.8  # any other letter; measured averages are 0.56-0.71 em for Arabic, Hebrew, Greek and Cyrillic
+# Any character outside the calibrated table takes a conservative maximum, not an average:
+# measured maxima are Cyrillic 1.11 em (bold Щ), Arabic 0.98, Greek 0.94 and an em space 1.0.
+OTHER_EM = 1.15
+EMOJI_MARKS = ("\ufe0f", "\u20e3")  # VS16 and the keycap mark turn the character before into a colour emoji
 
 NODE_ID = re.compile(r"[a-z][a-z0-9-]{0,23}")
 MARKERS = (("ar", "ar"), ("fwd", "ar-fwd"), ("back", "ar-back"), ("dash", "ar-dash"))
@@ -73,15 +77,22 @@ def text_width(value):
 
 def text_units(value, font):
     """Estimate drawn width in SVG units: wide glyphs such as W or M count wider than i or l."""
-    em = 0.0
+    em = last = 0.0  # last: the width of the most recent visible character
     for char in value:
         category = unicodedata.category(char)
+        if char in EMOJI_MARKS:
+            em += max(last, SYMBOL_EM) - last
+            last = max(last, SYMBOL_EM)
+            continue
+        if category in ZERO_WIDTH:
+            continue
         if category == "So":
-            em += SYMBOL_EM
+            last = SYMBOL_EM
         elif unicodedata.east_asian_width(char) in ("W", "F"):
-            em += WIDE_EM
-        elif category not in ZERO_WIDTH:
-            em += GLYPH_EM.get(unicodedata.normalize("NFD", char)[0], OTHER_EM)
+            last = WIDE_EM
+        else:
+            last = GLYPH_EM.get(unicodedata.normalize("NFD", char)[0], OTHER_EM)
+        em += last
     return em * SIZE[font]
 
 
@@ -201,13 +212,21 @@ def validate_diagrams(value):
             check_flow(diagram, number)
         else:
             raise ValueError(f"Diagram {number}: kind must be zones or flow")
-        problem = find_overlap(layout_boxes(diagram))
+        try:
+            boxes, items = layout(diagram)
+        except LayoutError as error:
+            raise ValueError(f"Diagram {number}: {error}") from None
+        problem = find_overlap(boxes) or find_bad_arrival(items)
         if problem:
             raise ValueError(f"Diagram {number} overlaps: {problem}")
     return value
 
 
 # Layout. Items carry what rendering needs; layout_boxes projects them to boxes.
+
+class LayoutError(ValueError):
+    """Data that passes the field checks but has no layout; validate_diagrams adds the diagram number."""
+
 
 def text_item(kind, value, cls, font, x, baseline, anchor="start", group=None):
     width = text_units(value, font)
@@ -262,7 +281,7 @@ def zone_items(diagram):
     centre_line = lambda row: top + row * ROW + PILL_H / 2  # noqa: E731
     elbows, links = [], diagram.get("links", [])
     starts = [(min(place[link["from"]][0], place[link["to"]][0]), place[link["from"]][1]) for link in links]
-    for link, start_key in zip(links, starts):
+    for li, (link, start_key) in enumerate(zip(links, starts)):
         (source_zone, source_row), (target_zone, target_row) = place[link["from"]], place[link["to"]]
         forward = target_zone > source_zone
         gap = MARGIN + min(source_zone, target_zone) * (ZONE_W + GAP) + ZONE_W
@@ -273,30 +292,54 @@ def zone_items(diagram):
             label_y, sub_y = (y - 8, y - 21) if forward else (y + 14, y + 26)
         else:
             label_y, sub_y = y - 8, y + 14
-        items.append(text_item("label", link["label"], "lb", "t", gap + GAP / 2, label_y, "middle"))
+        texts = [text_item("label", link["label"], "lb", "t", gap + GAP / 2, label_y, "middle")]
         if link.get("sub"):
-            items.append(text_item("label", link["sub"], "ls", "s", gap + GAP / 2, sub_y, "middle"))
+            texts.append(text_item("label", link["sub"], "ls", "s", gap + GAP / 2, sub_y, "middle"))
         start, end = (gap, gap + GAP) if forward else (gap + GAP, gap)
         tip = end - HEAD if forward else end + HEAD
         cls, marker = ("ar ar-fwd", "fwd") if forward else ("ar ar-back", "back")
         if source_row == target_row:
-            items.append(arrow([(start, y), (tip, y)], cls, marker))
+            texts.append(arrow([(start, y), (tip, y)], cls, marker))
         else:
-            offset = PAIRED_ARRIVAL if starts.count((start_key[0], target_row)) == 2 else ELBOW_ARRIVAL
-            arrive = centre_line(target_row) + (-offset if target_row > source_row else offset)
             lanes = [gap + offset for offset in (FORWARD_LANES if forward else BACKWARD_LANES)]
-            elbows.append(([[(start, y), (lane, y), (lane, arrive), (tip, arrive)] for lane in lanes], cls, marker))
-    # Every label, straight arrow and elbow arrowhead is known before any lane is chosen.
-    known = [box for item in items for box in item_boxes(item)]
-    known += [arrow_boxes(arrow(options[0], cls, marker))[-1] for options, cls, marker in elbows]
-    for options, cls, marker in elbows:
+            elbows.append({"link": li, "node": link["to"], "start": (start, y), "tip": tip, "lanes": lanes,
+                           "centre": centre_line(target_row), "down": target_row > source_row, "cls": cls, "marker": marker})
+        for item in texts:
+            item["link"] = li
+        items += texts
+    # Labels, straight arrows and pills are placed first. Each elbow then takes the first free arrival on its
+    # target's straight edge, nearest the side it comes from; then the first free lane, as before.
+    known = [(box, item.get("link")) for item in items for box in item_boxes(item)]
+    for elbow in elbows:
+        offsets = range(-MAX_ARRIVAL, MAX_ARRIVAL + 1)
+        blockers = set()
+        for offset in (offsets if elbow["down"] else reversed(offsets)):
+            arrive = elbow["centre"] + offset
+            trial = arrow_boxes(arrow([(elbow["lanes"][0], arrive), (elbow["tip"], arrive)], "", ""))
+            hit = {owner for new in trial for old, owner in known if conflict(new, old)}
+            if not hit:
+                elbow["arrive"] = arrive
+                known.append((trial[-1], elbow["link"]))
+                break
+            blockers |= hit
+        else:
+            others = sorted(owner for owner in blockers if owner is not None and owner != elbow["link"])
+            if not others:
+                raise LayoutError(f"links[{elbow['link']}] has no free place to arrive at {elbow['node']!r}")
+            names = ", ".join(f"links[{owner}]" for owner in others)
+            raise LayoutError(f"links[{elbow['link']}] and {names} {'both' if len(others) == 1 else 'all'} arrive at "
+                              f"{elbow['node']!r} from the same side; link one of them to another node or row")
+    known = [box for box, _ in known]
+    for elbow in elbows:
+        (start, y), arrive, tip = elbow["start"], elbow["arrive"], elbow["tip"]
+        options = [[(start, y), (lane, y), (lane, arrive), (tip, arrive)] for lane in elbow["lanes"]]
         chosen = options[0]
         for points in options:
-            lines = arrow_boxes(arrow(points, cls, marker))[:-1]
+            lines = arrow_boxes(arrow(points, elbow["cls"], elbow["marker"]))[:-1]
             if not any(conflict(new, old) for new in lines for old in known):
                 chosen = points
                 break
-        items.append(arrow(chosen, cls, marker))
+        items.append(arrow(chosen, elbow["cls"], elbow["marker"]))
         known += arrow_boxes(items[-1])[:-1]
     return len(zones) * ZONE_W + (len(zones) - 1) * GAP + 2 * MARGIN, items
 
@@ -400,6 +443,29 @@ def find_overlap(boxes):
         for second in items[index + 1:]:
             if conflict(first, second):
                 return f"{describe(first)} and {describe(second)}"
+    return None
+
+
+def find_bad_arrival(items):
+    """Return a description of the first arrowhead that does not face a shape's straight edge, or None."""
+    pills = [item for item in items if item["kind"] == "pill"]
+    for item in items:
+        if item["kind"] != "arrow":
+            continue
+        (qx, qy), (px, py) = item["points"][-2:]
+        across = py == qy  # a horizontal arrow meets a side edge; a vertical one meets a top or bottom edge
+        tip = (px + (HEAD if px > qx else -HEAD), py) if across else (px, py + (HEAD if py > qy else -HEAD))
+        fits = False
+        for pill in pills:
+            x, y, w, h = pill["box"]
+            if across and min(abs(tip[0] - x), abs(tip[0] - x - w)) < 1e-6 and y <= tip[1] <= y + h:
+                fits = abs(tip[1] - (y + h / 2)) <= h / 2 - pill["rx"] - HEAD / 2
+            elif not across and min(abs(tip[1] - y), abs(tip[1] - y - h)) < 1e-6 and x <= tip[0] <= x + w:
+                fits = abs(tip[0] - (x + w / 2)) <= w / 2 - pill["rx"] - HEAD / 2
+            if fits:
+                break
+        if not fits:
+            return f"arrowhead at ({tip[0]:g}, {tip[1]:g}) does not meet a straight edge of a shape"
     return None
 
 

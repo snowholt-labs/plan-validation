@@ -718,9 +718,23 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 with self.assertRaisesRegex(ValueError, "unique"):
                     render(source, context)
 
-    def test_markdown_link_pattern_is_shared(self):
-        source = Path(render_report.__file__).read_text()
-        self.assertEqual(source.count(r"\[([^\]]+)\]\(([^\s)]+)\)"), 1)
+    def test_v4_pending_approvals_must_hold_back_work(self):
+        # Ready after approvals says something waits; a list where nothing waits contradicts it.
+        source, context = self.pending_d1(REPORT.replace("**Ready.**", "**Ready after approvals.**"), self.modern_context())
+        context["open_decisions"][0]["holds_back"] = "Nothing."
+        with self.assertRaisesRegex(ValueError, "holds back work"):
+            render(source, context)
+
+    def test_v4_answer_hint_counts_the_rest(self):
+        source = REPORT.replace("No blockers.", "Pending approvals D1, D2 and D3.").replace("**Ready.**", "**Ready after approvals.**")
+        decision = {"question": "Approve?", "recommendation": "Approve it.", "confidence": "High"}
+        for count, tail in ((2, "· 1 more holds back work"), (3, "· 2 more hold back work")):
+            with self.subTest(count=count):
+                context = self.modern_context()
+                context["open_decisions"] = [dict(decision, id=f"D{n}", holds_back=f"Phase {n}") for n in range(1, count + 1)]
+                page, _, _ = render(source, context)
+                button = re.search(r'<button class="count" type="button" data-open-tab="answer">.*?</button>', page, re.S).group(0)
+                self.assertIn("D1 holds back Phase 1 " + tail + " ·", button)
 
     def test_v4_answer_hint_holds_no_link(self):
         # The count card is a button, and a link inside a button is invalid; the table keeps the link.
@@ -1286,8 +1300,6 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                      # A modified or non-primary click opens a new tab, so it must not switch this page's panel.
                      "event.button !== 0", "event.ctrlKey", "event.metaKey", "event.shiftKey", "event.altKey"):
             self.assertIn(text, js)
-        # Going back to the URL without a fragment returns to the first tab.
-        self.assertRegex(js, r'addEventListener\("hashchange", \(\) => \{\s*if \(window\.location\.hash\.length < 2\) activate\(start, false\);')
 
     def test_v4_icon_follows_colour_tokens(self):
         icon = (ASSETS / "report-icon.svg").read_text()

@@ -44,7 +44,15 @@ if (tabs.length) {
   tablist.hidden = false;
   route();
 
-  tabs.forEach(tab => tab.addEventListener("click", () => activate(tab, true)));
+  // The tab the reader last chose. Hash links switch tabs without changing it, so going Back
+  // to the URL without a fragment returns to the tab in use before the link was followed.
+  let chosen = start;
+  const choose = tab => {
+    chosen = tab;
+    activate(tab, true);
+  };
+
+  tabs.forEach(tab => tab.addEventListener("click", () => choose(tab)));
   tablist.addEventListener("keydown", event => {
     if (event.altKey || event.ctrlKey || event.metaKey) return;
     const index = tabs.indexOf(document.activeElement);
@@ -57,13 +65,13 @@ if (tabs.length) {
     };
     if (!(event.key in moves)) return;
     event.preventDefault();
-    activate(tabs[moves[event.key]], true);
+    choose(tabs[moves[event.key]]);
   });
 
   document.querySelectorAll("[data-open-tab]").forEach(card => {
     card.addEventListener("click", () => {
       const tab = document.getElementById("tab-" + card.dataset.openTab);
-      if (tabs.includes(tab)) activate(tab, true);
+      if (tabs.includes(tab)) choose(tab);
     });
   });
 
@@ -75,9 +83,8 @@ if (tabs.length) {
     const link = event.target.closest?.('a[href^="#"]');
     if (link) openPanelFor(targetOf(link.getAttribute("href")));
   });
-  // Back to the URL without a fragment returns to the first tab; on load an empty hash keeps the default.
   window.addEventListener("hashchange", () => {
-    if (window.location.hash.length < 2) activate(start, false);
+    if (window.location.hash.length < 2) activate(chosen, false);
     else route();
   });
 }

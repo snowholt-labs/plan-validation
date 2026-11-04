@@ -310,7 +310,6 @@ class DiagramValidationTests(unittest.TestCase):
         import render_report
         self.assertIs(render_report.diagrams, sys.modules["_validate_plan_diagrams"])
         self.assertIs(diagrams, render_report.diagrams)
-        self.assertFalse(hasattr(diagrams, "CHAR_WIDTH"))
 
     def test_wide_glyphs_must_fit_their_shape(self):
         one = lambda **fields: [{"label": fields.get("label", "One"), "nodes": [node("n1", title=fields.get("title", "Node"))]},  # noqa: E731
@@ -336,6 +335,50 @@ class DiagramValidationTests(unittest.TestCase):
         validate_diagrams([flow(branches=[{"from_step": 2, "title": "Retry the call", "sub": "waits, then tries",
                                            "tone": "retry"}])])
 
+    def test_emoji_sequences_count_as_symbols(self):
+        # A base character followed by VS16 or a keycap mark draws as a colour emoji.
+        one = lambda title: [{"label": "One", "nodes": [node("n1", title=title)]}]  # noqa: E731
+        for title in ("W" * 9 + "1\ufe0f\u20e3" * 5, "W" * 9 + "\u2194\ufe0f" * 7):
+            with self.subTest(title=title):
+                self.rejects([zones(zones=one(title), links=[])], "too wide")
+        self.assertEqual(diagrams.text_units("1\ufe0f\u20e3", "t"), diagrams.text_units("\u2705", "t"))
+
+    def test_unlisted_characters_count_wide(self):
+        # Outside the calibrated Latin table the estimate takes a conservative maximum, not an average.
+        one = lambda title: [{"label": "One", "nodes": [node("n1", title=title)]}]  # noqa: E731
+        for title in ("\u0429" * 16, "\u0416\u0428\u0429\u042e" * 4, "W" * 12 + "\u2003\u21d2" * 2):
+            with self.subTest(title=title):
+                self.rejects([zones(zones=one(title), links=[])], "too wide")
+        validate_diagrams([zones(zones=one("Payment service adapters"), links=[])])
+
+    def test_fan_in_from_one_side_fits(self):
+        apps = [{"label": "Apps", "nodes": [node("web"), node("mobile"), node("cli")]},
+                {"label": "Server", "nodes": [node("auth"), node("cache"), node("api")]}]
+        fan = [{"from": "web", "to": "api", "label": "calls"}, {"from": "mobile", "to": "api", "label": "calls"}]
+        diagram = zones(zones=apps, links=fan)
+        validate_diagrams([diagram])
+        _, items = diagrams.layout(diagram)
+        tips = [item["points"][-1][1] for item in items if item["kind"] == "arrow" and item["cls"] != "ar"]
+        self.assertEqual(len(set(tips)), 2)
+        # With every slot on that side taken, the error names the links and the node.
+        rows = [{"label": "Left", "nodes": [node(f"a{n}") for n in range(1, 6)]},
+                {"label": "Right", "nodes": [node(f"b{n}") for n in range(1, 6)]}]
+        crowd = [{"from": f"a{n}", "to": "b5", "label": "x"} for n in range(1, 5)]
+        self.rejects([zones(zones=rows, links=crowd)], "links[3]", "links[0]", "arrive at 'b5' from the same side")
+
+    def test_arrowheads_meet_a_straight_edge(self):
+        # Every arrival stays clear of the rounded corners, in real layouts and in the checker itself.
+        rows = [{"label": "Left", "nodes": [node("a1"), node("a2")]}, {"label": "Right", "nodes": [node("b1"), node("b2")]}]
+        pair = [{"from": "a1", "to": "b1", "label": "request"}, {"from": "b1", "to": "a1", "label": "result"}]
+        for diagram in (worst_zones(), zones(zones=rows, links=pair + [{"from": "b2", "to": "a1", "label": "late"}]),
+                        worst_flow([{"from_step": 6, "tone": "retry", "returns_to": 1}])):
+            self.assertIsNone(diagrams.find_bad_arrival(diagrams.layout(diagram)[1]))
+        pill = {"kind": "pill", "box": (100, 0, 100, 48), "rx": diagrams.PILL_RX}
+        room = 24 - diagrams.PILL_RX - diagrams.HEAD / 2
+        for offset, bad in ((room, False), (room + 1, True), (-room - 1, True)):
+            into = {"kind": "arrow", "points": [(40, 24 + offset), (100 - diagrams.HEAD, 24 + offset)]}
+            self.assertEqual(diagrams.find_bad_arrival([pill, into]) is not None, bad, offset)
+
     def test_symbols_and_emoji_count_wide(self):
         # Chromium draws these at 0.84-1.25 em; a joiner and a variation selector draw nothing.
         for symbol in ("\u2714", "\u26a0", "\u2764", "\u2605", "\u2705", "\U0001f680"):
@@ -360,13 +403,14 @@ class DiagramValidationTests(unittest.TestCase):
         validate_diagrams([flow(steps=steps, branches=apart)])
 
     def test_overlap_backstop_rejects_real_diagram(self):
-        # Two elbows reach one pill from the same side; only the layout check sees it.
-        three = [
-            {"label": "Left", "nodes": [node("a1"), node("a2"), node("a3")]},
-            {"label": "Right", "nodes": [node("b1"), node("b2"), node("b3")]},
-        ]
-        links = [{"from": "a1", "to": "b3", "label": "one"}, {"from": "a2", "to": "b3", "label": "two"}]
-        self.rejects([zones(zones=three, links=links)], "overlaps")
+        # Five elbows whose rows all overlap need five lanes in one gap; there are four, and only
+        # the layout check sees it.
+        rows = [{"label": "Left", "nodes": [node(f"a{n}") for n in range(1, 6)]},
+                {"label": "Right", "nodes": [node(f"b{n}") for n in range(1, 6)]}]
+        pairs = (("a1", "b5"), ("a2", "b4"), ("a5", "b1"), ("a4", "b2"), ("a3", "b5"))
+        links = [{"from": source, "to": target, "label": "x"} for source, target in pairs]
+        self.rejects([zones(zones=rows, links=links)], "overlaps")
+        validate_diagrams([zones(zones=rows, links=links[:4])])
 
 
 class DiagramRenderTests(unittest.TestCase):

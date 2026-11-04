@@ -638,7 +638,8 @@ def answer_hint(decisions):
         text = plain(re.sub(MARKDOWN_LINK, r"\1", holding[0]["holds_back"]))
         first = escape(holding[0]["id"]) + " holds back " + escape(text)
         if len(holding) > 1:
-            first += f" · {len(holding) - 1} more hold back work"
+            rest = len(holding) - 1
+            first += f" · {rest} more {'holds' if rest == 1 else 'hold'} back work"
     return first + " · each has a recommendation"
 
 
@@ -810,8 +811,9 @@ def render(source, context):
     prompts, pairs = handoff_prompts(parts[7][1], version, verdict, context)
     if version >= 4:
         fields = v4_fields(context, parts[5][1])
-        if verdict.lower() == "ready after approvals" and not fields["decisions"]:
-            raise ValueError("A Ready after approvals verdict needs its pending approvals in open_decisions")
+        if verdict.lower() == "ready after approvals" and not any(holds_back_work(item) for item in fields["decisions"]):
+            raise ValueError("A Ready after approvals verdict needs its pending approvals in open_decisions, "
+                             "and at least one that holds back work")
         if verdict.lower() == "ready" and any(holds_back_work(item) for item in fields["decisions"]):
             raise ValueError("A Ready verdict cannot have open decisions that hold back work; "
                              "set holds_back to Nothing or use Ready after approvals")
