@@ -26,7 +26,8 @@ def main():
         errors.append("Marketplace source must point to the package root")
     if (ROOT / codex["skills"]).resolve() != ROOT / "skills":
         errors.append("Codex skills path does not resolve to the bundled skills")
-    publish = claude.get("userConfig", {}).get("publish_artifact")
+    user_config = claude.get("userConfig")
+    publish = user_config.get("publish_artifact") if isinstance(user_config, dict) else None
     if not (
         isinstance(publish, dict)
         and publish.get("type") == "boolean"
