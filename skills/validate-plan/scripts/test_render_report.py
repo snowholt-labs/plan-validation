@@ -72,6 +72,73 @@ Stop at the end of Phase 1; it is the last phase.
 ```
 """
 
+# Version 1-3 output is frozen: these digests must never be re-pinned in a later task.
+# A mismatch means legacy output changed and the renderer must be fixed instead.
+# The fixtures are literal on purpose: later tasks edit REPORT and the shared helpers.
+LEGACY_REPORT = """# Example validation
+
+## 1. Verdict
+**Ready.** Confidence: 75% (subjective, not a measured probability).
+
+## 2. PLAN comparison
+| Dimension | Original /10 | Revised /10 | Reason / evidence |
+|---|---|---|---|
+| Correctness and spec fit | 4 | 9 | Corrected interface. |
+| Security and privacy | 8 | 9 | Checked access boundary. |
+| Performance | 9 | 9 | Unchanged. |
+| Maintainability and complexity | 8 | 9 | Kept existing components. |
+| Execution and verification readiness | 2 | 9 | Fixed command. |
+| **Average /10** | **6.2** | **9.0** | |
+
+## 3. SPEC comparison
+| Dimension | Original /10 | Revised /10 | Reason / evidence |
+|---|---|---|---|
+| Clarity and testability | 7 | 9 | Clarified error. |
+| Correctness against the code | 8 | 9 | Verified reference. |
+| Security and privacy | 9 | 9 | Unchanged. |
+| Scope and simplicity | 9 | 9 | Unchanged. |
+| Rollout, rollback and measurement | 5 | 9 | Defined rollback. |
+| **Average /10** | **7.6** | **9.0** | |
+
+## 4. Decision confidence
+Subjective estimates, not measured probabilities.
+| Decision | Confidence | Evidence | Remaining uncertainty |
+|---|---|---|---|
+| Readiness | 75% | Recorded focused check | No browser check |
+
+## 5. Changes
+- A corrected assertion within Task 2.
+  - No new requirement.
+
+## 6. Open items
+No blockers. Browser verification runs during implementation.
+
+## 7. Verification and checkout
+Recorded focused check; no production run.
+
+## 8. Fresh-session handoff
+```text
+Implement the approved scope now.
+Keep Persian text: «سلام» and literal <code> & "quotes".
+Run /code-review and /security-review; fix confirmed findings before each PR.
+Squash into the plan branch after green checks. Ask before the normal main merge.
+Stop at the end of Phase 1; it is the last phase.
+```
+"""
+
+LEGACY_DIGESTS = {
+    "v1": "2d5c728c940bc6303005eaabfe0413369738017739c4c8038b84bea861b278c8",
+    "v2": "86d7e88a2693aac976f22ae5d4bcd60e636560ccb44fa5189a11611bdb460704",
+    "v3": "0c49b2b29f35381d345767851b829088bcd88db9837c22397403538af9875831",
+    "v3-two-phases": "e53737dd42ef4a46b72db044b176be6a1d3f3abcc2fdaf0658eff8fee43342c5",
+    "v3-remediation": "98343b82185019953506ff7d0f33465ee2dd7d1e6d4ba41776b0f397dc7a8773",
+    "v3-historical": "59722184cc8bf4408274819d760d3bece1eb94ddaf2ec99ffe4fbd809a6bc7f9",
+}
+
+
+def normalized(page, root):
+    return re.sub(r"HTML generated \S+\.", "HTML generated X.", page.replace(root, "ROOT"))
+
 
 class ReportTests(unittest.TestCase):
     def setUp(self):
@@ -897,6 +964,85 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                                 env=dict(os.environ, DISPLAY=":0"), timeout=5)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIs(json.loads(result.stdout)["opened"], True)
+
+
+    def legacy_documents(self):
+        root = Path(self.directory.name)
+        documents = []
+        for label in ("PLAN", "SPEC"):
+            path = root / f"{label}.md"
+            path.write_text(label)
+            documents.append({"label": label, "path": str(path), "sha256": hashlib.sha256(label.encode()).hexdigest()})
+        return documents
+
+    def v3_saved_context(self):
+        return {
+            "title": "Example", "validation_date": "2026-10-14", "kind": "saved",
+            "review_status": "complete", "handoff_status": "current", "summary": "The approved scope is ready.",
+            "freshness": "Branch and base checked; recorded tests were not repeated.",
+            "documents": self.legacy_documents(),
+            "scope": {"explanation": "Same scope.", "approval": "No expansion.", "rows": [
+                {"metric": "Delivery phases", "original": "1", "revised": "1", "reason": "Unchanged."},
+                {"metric": "Implementation tasks", "original": "1", "revised": "1", "reason": "Unchanged."},
+                {"metric": "Supporting tasks", "original": "1", "revised": "1", "reason": "Unchanged."},
+                {"metric": "Numbered tasks", "original": "1", "revised": "1", "reason": "Unchanged."},
+                {"metric": "Dependencies / services", "original": "1", "revised": "1", "reason": "Unchanged."},
+            ]},
+            "format_version": 3,
+            "task_inventory": ["1"],
+            "phases": [{"id": "1", "title": "Example", "tasks": ["1"], "docs_only": False, "security_review": False, "status": "ready"}],
+            "feature": {
+                "summary": "A reader requests a document and sees the result.",
+                "steps": [
+                    {"title": "Choose a document", "description": "The reader selects a saved document."},
+                    {"title": "Check access", "description": "The application checks the reader's permission."},
+                    {"title": "Show the result", "description": "The document opens, or an explanation appears."},
+                ],
+            },
+            "decisions_without_reply": [],
+        }
+
+    def legacy_cases(self):
+        v1 = self.v3_saved_context()
+        for key in ("format_version", "task_inventory", "phases", "feature", "decisions_without_reply"):
+            del v1[key]
+        v2 = self.v3_saved_context()
+        v2["format_version"] = 2
+        del v2["task_inventory"], v2["phases"]
+        two_phases = self.v3_saved_context()
+        two_phases["task_inventory"] = ["1", "2"]
+        two_phases["phases"] = [
+            {"id": "1", "title": "Example", "tasks": ["1"], "docs_only": False, "security_review": False, "status": "ready"},
+            {"id": "2", "title": "Example", "tasks": ["2"], "docs_only": False, "security_review": False, "status": "ready"},
+        ]
+        two_source = LEGACY_REPORT.split("## 8. Fresh-session handoff")[0] + "## 8. Fresh-session handoff\n" + (
+            "```text\nImplement Phase 1. Stop at the end of Phase 1 and print the Phase 2 prompt from the report; do not start it.\n```\n"
+            "```text\nImplement Phase 2. Confirm Phase 1 is merged. Stop at the end of Phase 2; it is the last phase.\n```\n")
+        remediation = self.v3_saved_context()
+        remediation["task_inventory"] = ["1", "2"]
+        remediation["phases"] = [
+            {"id": "1", "title": "Example", "tasks": ["1"], "docs_only": False, "security_review": False, "status": "waiting", "waits_for": "D1"},
+            {"id": "2", "title": "Example", "tasks": ["2"], "docs_only": False, "security_review": False, "status": "waiting", "waits_for": "D1"},
+        ]
+        remediation_source = LEGACY_REPORT.split("## 8.")[0].replace("**Ready.**", "**Ready after approvals.**") + (
+            "## 8. Fresh-session handoff\n```text\nRecord D1, then re-render the report. Do not start dependent implementation.\n```\n")
+        historical = self.v3_saved_context()
+        historical["handoff_status"] = "historical"
+        return {
+            "v1": (LEGACY_REPORT, v1),
+            "v2": (LEGACY_REPORT, v2),
+            "v3": (LEGACY_REPORT, self.v3_saved_context()),
+            "v3-two-phases": (two_source, two_phases),
+            "v3-remediation": (remediation_source, remediation),
+            "v3-historical": (LEGACY_REPORT, historical),
+        }
+
+    def test_legacy_output_is_frozen(self):
+        actual = {
+            key: hashlib.sha256(normalized(render(source, context)[0], self.directory.name).encode()).hexdigest()
+            for key, (source, context) in self.legacy_cases().items()
+        }
+        self.assertEqual(actual, LEGACY_DIGESTS)
 
 
 if __name__ == "__main__":
