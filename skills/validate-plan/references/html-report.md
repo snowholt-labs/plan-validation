@@ -306,7 +306,7 @@ say in one line that publishing is unavailable and deliver the report locally wi
 `--open`. Never copy report files into the repository or another working directory to
 publish them. Publish a `kind: saved` report only when the user asks. If the user asks to publish
 while the line is not exactly `true`, say in one line that publishing is off and
-can be turned on in `/config`, then start a new session.
+that the user can turn it on in `/config` and start a new session.
 
 1. Render without `--open`.
 2. Create a new folder in the session scratchpad. Copy `report.html`, `report.md`,
