@@ -107,7 +107,10 @@ Do not start dependent implementation. Report results and any defaults chosen, t
 ```
 '''
     context = {
-        "format_version": 3,
+        "format_version": 4,
+        "project": "retry example",
+        "audience": "plan review for the maintainer",
+        "title_accent": "a missing boundary",
         "task_inventory": ["1"],
         "phases": [{"id": "1", "title": "Retry delay cap", "tasks": ["1"], "docs_only": False, "security_review": False,
                     "status": "waiting", "waits_for": "Remediation of the missing delay cap"}],
@@ -118,15 +121,28 @@ Do not start dependent implementation. Report results and any defaults chosen, t
         "freshness": "Fixture copies checked at rendering. No repository or implementation approval is represented.",
         "provenance": "scripts/demo.py; authored public fixture, not an agent benchmark.",
         "documents": documents,
-        "feature": {
-            "summary": "Proposed behavior: retry an unsuccessful action with a longer wait each time, capped at 30 seconds.",
-            "steps": [
-                {"title": "Try the action", "description": "An unsuccessful attempt may need another try."},
-                {"title": "Choose the wait", "description": "Later attempts wait longer."},
-                {"title": "Apply the limit", "description": "The wait never exceeds 30 seconds. This is the missing rule."},
-                {"title": "Retry", "description": "Try again after the limited wait."},
+        "diagrams": [{
+            "kind": "zones",
+            "eyebrow": "Architecture · planned",
+            "title": "Who talks to whom",
+            "description": "The caller asks the retry helper, which sends requests to the remote API.",
+            "caption": "The helper waits between tries, never more than 30 seconds.",
+            "zones": [
+                {"label": "Your app", "nodes": [
+                    {"id": "caller", "title": "Caller", "sub": "asks for a request"},
+                    {"id": "helper", "title": "Retry helper", "sub": "waits, then tries again"},
+                ], "chain": True},
+                {"label": "Remote service", "nodes": [
+                    {"id": "api", "title": "API endpoint", "sub": "may answer 503"},
+                ]},
             ],
-        },
+            "links": [
+                {"from": "helper", "to": "api", "label": "request", "sub": "HTTPS"},
+                {"from": "api", "to": "helper", "label": "result"},
+            ],
+        }],
+        "open_decisions": [],
+        "watch_list": [],
         "decisions_without_reply": [],
         "scope": {"explanation": "The same one-task fixture is retained; the corrected control adds no requirement.",
                   "approval": "Teaching example only. No real implementation or external-action authorization.",
