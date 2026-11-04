@@ -9,7 +9,7 @@ The report is a durable record of one validation, not a live monitor. It lives u
 
 New reports open with a header card (the verdict, phase and task counts, and a Historical label when the handoff is out of date) and a score strip with both averages and the confidence estimate. Below them are four tabs:
 
-- **Summary:** 1–3 diagrams of the planned design, a count of decisions that need your answer and of watch-list items, and the next session's phases with the first prompt and its copy button.
+- **Summary:** 1–3 diagrams of the planned design, a count of decisions that need your answer and of watch-list items, and the next session's phases with the first prompt and its copy button (or the historical warning when the handoff is out of date).
 - **Needs your answer:** each pending decision with its recommendation, confidence and what it holds back, linked to the full option menu in Open items.
 - **Watch list:** gaps, limits, risks and items fixed in the plan, each labelled with a word, not only a colour.
 - **Full report:** the eight evidence sections below, then the defaults record and the document identity.

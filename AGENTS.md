@@ -4,7 +4,7 @@ Guidance for coding agents (Codex, Claude Code and others) working in this repos
 
 ## What this is
 
-A dual-host agent plugin (Claude Code plugin + Codex skills) shipping three skills: `validate-plan`, `validation-args` and `revise-prompt`. Most of the product is Markdown instructions in `skills/*/SKILL.md` and `skills/validate-plan/references/`. The executable product code is the stdlib-only report renderer, `skills/validate-plan/scripts/render_report.py`, and `skills/validate-plan/assets/report.js`, which is inlined as a script into every generated report.
+A dual-host agent plugin (Claude Code plugin + Codex skills) shipping three skills: `validate-plan`, `validation-args` and `revise-prompt`. Most of the product is Markdown instructions in `skills/*/SKILL.md` and `skills/validate-plan/references/`. The executable product code is the stdlib-only report renderer, `skills/validate-plan/scripts/render_report.py` with its diagram module `diagrams.py`, and the scripts inlined into generated reports: `skills/validate-plan/assets/report.js` (versions 1–3) and `report-v4.js` (version 4).
 
 ## Commands
 
@@ -37,7 +37,7 @@ If Claude Code is installed, also run `claude plugin validate .` and `claude plu
 ## Conventions
 
 - Skill text is behavioral contract: changes to permissions, research approval, evidence labels or report semantics affect agent behavior. Check them against `docs/evaluation.md`. Renderer tests do not validate agent behavior.
-- For renderer or `report.js` changes, add a regression for the observable failure. Do not test wording for its own sake.
+- For renderer, `diagrams.py`, `report.js` or `report-v4.js` changes, add a regression for the observable failure. Do not test wording for its own sake.
 - Do not add runtime dependencies without maintainer agreement.
 - User documentation lives in `site/src/content/docs/` and is published as the documentation site. `docs/` still holds `evaluation.md` and `verification.md`. Root files (`CHANGELOG.md`, `SECURITY.md`, `CONTRIBUTING.md`, `examples/README.md`, `examples/safety-cases.md`) are synced into the site at build time; edit them at the root, not in the synced copies. `dist/` and other gitignored folders are local material, not part of the package.
 

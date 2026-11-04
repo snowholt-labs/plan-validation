@@ -135,7 +135,7 @@ Do not start dependent implementation. Report results and any defaults chosen, t
                 ],
                 "branches": [
                     {"from_step": 3, "title": "Retry", "sub": "next attempt", "tone": "retry", "returns_to": 1},
-                    {"from_step": 3, "title": "Give up", "sub": "attempts run out", "tone": "stop"},
+                    {"from_step": 2, "title": "Give up", "sub": "attempts run out", "tone": "stop"},
                 ],
             },
             {

@@ -3,7 +3,8 @@
 Read this when creating the baseline or publishing/repeating a validation result.
 The HTML is the full report, not an abridged alternative. The chat response gives
 the verdict, the report link and any immediate blocker in at most three bullets.
-If the user explicitly asks for the full report in chat, print all eight sections too.
+If the user explicitly asks for the full report in chat, print all eight sections too,
+with the diagram descriptions, open decisions, watch list and defaulted decisions.
 
 ## Files and rendering
 
@@ -205,7 +206,7 @@ Version 4 fields:
     2 `branches`. A branch has `from_step` (a step number, counting from 1), a `title` (14), an optional `sub` (18) and a
     `tone` of `retry`, `stop` or `note`. `returns_to` (an earlier step number) draws a dashed
     arrow back; when two branches leave one step, only the first may return, and two
-    return paths may not cover the same steps.
+    return paths may not overlap (they may share an end step).
   - The limits count a wide or full-width (East Asian) character as 2. The renderer also
     estimates each label's drawn width, with wide letters such as `W` and `M`, symbols
     and emoji counting wider, so a label within its limit can still be too wide. It then
@@ -215,12 +216,15 @@ Version 4 fields:
   - Node `id`s only resolve links; they never become page IDs. All text is escaped; the
     agent never writes SVG or HTML.
 - `open_decisions`: a list, `[]` when none. It mirrors section 6's pending approvals. Each
-  item has `id` (1–16 letters, digits, dots or hyphens, unique, and present in section 6
+  item has `id` (1–16 letters, digits, dots or hyphens, starting with a letter or digit,
+  unique ignoring case, and present in section 6
   as a whole word: `D1` does not match `D10`), `question`, `recommendation`, `confidence`
   (`High`, `Medium` or `Low`) and `holds_back` (the phases or tasks it holds back, or
-  exactly `Nothing` or `None` when it holds back no work; any other text counts as holding
-  back work). A `Ready after approvals` verdict needs at least one item that holds back
-  work; a `Ready` verdict must have none that does.
+  `Nothing` or `None`, in any case, when it holds back no work; any other text counts as
+  holding back work). A `Ready after approvals` verdict needs at least one item that holds
+  back work; a `Ready` verdict must have none that does. In a phase-only validation, an
+  approval that holds back only phases outside the selected scope is a separately scoped
+  follow-up in section 6 and stays out of `open_decisions`.
 - `watch_list`: a list, `[]` when none. Each item has `kind` (`gap`, `limit`, `risk` or
   `fixed`), a `title` (at most 60 characters) and a one- or two-sentence `body`.
 - `feature` is rejected in version 4; diagrams replace it.
