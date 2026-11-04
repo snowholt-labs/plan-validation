@@ -39,11 +39,11 @@ Between phases, the plan branch moves on purpose: earlier phases are merged and 
 
 ## Reviewing a validated spec and plan
 
-The workflow above needs only CI for docs-only PRs. Some repositories also review docs PRs. The plan-validation repository is one: its own `AGENTS.md` asks for a code review and a security review on every PR into `main` or a plan branch, docs-only PRs included, and sets its own review rounds. On a spec and plan that already have a validation report, open-ended review rounds tend to redesign the documents inside the PR. If your repository reviews such a docs PR, this rule is recommended:
+The workflow above needs only CI for docs-only PRs. Some repositories also review docs PRs. The plan-validation repository is one: its own `AGENTS.md` asks for a code review and a security review on every PR into `main` or a plan branch, docs-only PRs included. On a spec and plan that already have a validation report, open-ended review rounds tend to redesign the documents inside the PR. If your repository reviews such a docs PR, this rule is recommended:
 
 - **Review fixes only local defects:** a wrong path or command, a contradiction between two sections or with the code, or wording that is wrong or misleading.
-- **Design gaps go back to validation.** A finding that would add or change requirements, design, phases, tasks or scope is not fixed in the PR. Review stops, and the maintainer runs validation again in a fresh session. That run counts toward the limit of 3 validation runs; if the limit is already reached, the maintainer decides the next step, and a fourth run needs the maintainer's explicit reset. Once the revised documents are pushed, review restarts on the new head, from round 1.
-- **At most 3 code review rounds.** If High or Medium findings remain after round 3, stop: validate again, or ask the maintainer. The security review still runs once, after the code review rounds.
+- **Design gaps go back to validation.** A finding that would add or change requirements, design, phases, tasks or scope is not fixed in the PR. Review stops, and the maintainer runs validation again in a fresh session. That run counts toward the limit of 3 validation runs; if the limit is already reached, the maintainer decides the next step, and a fourth run needs the maintainer's explicit reset. Once the revised documents are pushed, review restarts on the new head.
+- **At most 3 code review rounds on the PR.** If High or Medium findings remain after round 3, stop: validate again, or ask the maintainer. The security review still runs once, after the code review rounds.
 - **Low findings (style and nitpicks) are listed, not fixed**, in the code review summary, unless a High or Medium fix touches the same line.
 
 Other PRs keep their usual review rounds.
