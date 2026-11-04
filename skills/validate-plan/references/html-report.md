@@ -251,8 +251,9 @@ Version 4 fields:
   `fixed`), a `title` (at most 60 characters) and a one- or two-sentence `body`.
 - `feature` is rejected in version 4; diagrams replace it.
 - `validation_run`: `number` (1–3), `plan_key` (the PLAN path relative to the
-  repository root, never absolute or with a `..` segment; the PLAN document's `path`
-  must end with `/` and this key), `scope` (`full`, or `phases:<first>-<last>` for a
+  repository root, never absolute or with a `..` segment, or the PLAN's file name when
+  the PLAN is outside the repository; the PLAN document's `path` must end with `/` and
+  this key), `scope` (`full`, or `phases:<first>-<last>` for a
   phase-only validation, with the first and last phase IDs in `phases`, compared as one
   string), `previous_report` (the absolute path of the previous run's `report.md`,
   required from run 2) and `reset` (`true` only on run 1 after the user's explicit
@@ -312,7 +313,9 @@ Count runs in workflow step 1, before validating:
   `decisions_without_reply`. Later counts ignore matching runs whose folder timestamp
   is older than the latest matching run with `reset: true`.
 - A re-render never counts: it keeps the `validation_run` already recorded in that run
-  directory's `context.json` and does not search again.
+  directory's `context.json` and does not search again. When the re-render follows a
+  recorded answer, update `rerun` for the new verdict, confidence and scores, so a
+  stale `yes` and its reasons do not survive.
 - A phase-only validation counts separately, because its `scope` differs. It keeps the
   earlier report's phase IDs, so its `scope` string stays the same across its runs
   until another phase merges; a new first phase then starts a new count, as the spec
