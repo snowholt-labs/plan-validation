@@ -206,9 +206,10 @@ Version 4 fields:
     `tone` of `retry`, `stop` or `note`. `returns_to` (an earlier step) draws a dashed
     arrow back; when two branches leave one step, only the first may return, and two
     return paths may not cover the same steps.
-  - Limits count characters by their drawn width: a wide (East Asian) character counts
-    as about 2, and symbols and emoji more. The renderer then checks every shape, label
-    and line for overlap. It rejects a label that does not fit or a layout that collides,
+  - The limits count a wide or full-width (East Asian) character as 2. The renderer also
+    estimates each label's drawn width, with wide letters such as `W` and `M`, symbols
+    and emoji counting wider, so a label within its limit can still be too wide. It then
+    checks every shape, label and line for overlap. It rejects a label that does not fit or a layout that collides,
     naming the field or link; it never cuts or moves text. Links are routed in the order
     given, so reordering links or nodes can fix a rejected layout.
   - Node `id`s only resolve links; they never become page IDs. All text is escaped; the
@@ -218,7 +219,7 @@ Version 4 fields:
   as a whole word: `D1` does not match `D10`), `question`, `recommendation`, `confidence`
   (`High`, `Medium` or `Low`) and `holds_back` (the phases or tasks it holds back, or
   `Nothing`). A `Ready after approvals` verdict needs at least one item that holds back
-  work; a `Ready` verdict may have none that does.
+  work; a `Ready` verdict must have none that does.
 - `watch_list`: a list, `[]` when none. Each item has `kind` (`gap`, `limit`, `risk` or
   `fixed`), a `title` (at most 60 characters) and a one- or two-sentence `body`.
 - `feature` is rejected in version 4; diagrams replace it.
