@@ -32,6 +32,8 @@ After the first phase, the plan branch has moved: earlier phases are merged into
 
 The implementing session reads the report, not this template, so in section 8 put this one-line note before the prompts when there is more than one phase: `Between phases, earlier phases merged into the plan branch and ticked task checkboxes are expected; compare the plan and spec with revised-plan.md and revised-spec.md in this run directory and reconcile any other change first.`
 
+When a Ready or Ready after approvals report recommends running validation again (`yes`), also put this line before the prompts: `Run validation again first, with the re-run prompt in the Summary; start a phase only after that run.`
+
 When an approval is recorded before any phase has merged, apply it and re-render the report as usual. Once earlier phases have merged, do not re-render the old report: the live plan no longer matches its recorded hash, and its merged phases would get prompts again. Instead, validate the remaining phases as a phase-only validation in a new run directory, so the new report groups and prompts only the phases still to build. Keep the earlier report's phase IDs for those phases, so `Confirm Phase [previous] is merged` names a phase the maintainer knows.
 
 ## Ready after approvals and Not ready

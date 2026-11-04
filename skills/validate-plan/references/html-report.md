@@ -268,7 +268,7 @@ Version 4 fields:
   strings) and, only for `yes`, `prompt`. The rules are in report-contract.md, "Run
   validation again". The renderer computes the triggers and rejects a `no` that a
   trigger forbids, a `yes` at run 3, and a prompt that breaks the prompt rules (a
-  `kind: saved` report keeps its scope and remediation sentences as its run wrote them). The
+  `kind: saved` report keeps its scope and order sentences as its run wrote them). The
   page shows the recommendation as a header pill and a Summary card with the run
   number and reasons; only `yes` has a copy button. A saved or historical page labels the
   recommendation "Recorded", because it predates the change.
