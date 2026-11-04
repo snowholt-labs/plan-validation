@@ -61,7 +61,7 @@ Leave out `--open` when re-rendering a report (a saved report, or the same run a
 recorded answer) unless the user asked to see it again.
 When publishing or an artifact update will run (the `Publish setting` line in `SKILL.md` reads exactly `true`,
 and the Artifact tool and a session scratchpad are available), leave out `--open`
-for a new run, and for an update even when the user asked to see it, and follow "Private artifact (Claude Code, opt-in)" below.
+for a new run, and for an update or a publish on request even when the user asked to see it, and follow "Private artifact (Claude Code, opt-in)" below.
 
 The helper uses only Python's standard library. A version 4 page has a header card,
 a score strip and four tabs: **Summary** (the diagrams, two count cards, the next
@@ -367,15 +367,17 @@ install or Codex leaves: keep the report local.
 Publish a new validation run when the line reads exactly `true`, the Artifact tool is
 available in this session (a deferred tool that can be loaded counts) and the session
 has a scratchpad directory; check all three before rendering, for a new run and for
-an update below. If the line reads `true` but the tool or the scratchpad is missing,
+an update or a publish on request below. If the line reads `true` but the tool or the scratchpad is missing,
 say in one line that publishing is unavailable and deliver the report locally: with
-`--open` for a new run, and for an update only when the user asked to see it. Never copy report files into the repository or another working directory to
+`--open` for a new run, and for an update or a publish on request only when the user
+asked to see it. Never copy report files into the repository or another working directory to
 publish them. Publish a `kind: saved` report only when the user asks. If the user asks to publish
 while the line is not exactly `true`, say in one line that publishing is off. In a Claude Code plugin install the user can
 turn it on in `/config` and start a new session; Codex and standalone skill installs
 cannot publish.
 
-1. Render without `--open`, and complete the Delivery checks on the local page first.
+1. Render without `--open`, and complete the Delivery checks by reading the local files,
+   without opening a browser or starting a preview.
    Fix any problem and render again here, before anything is uploaded.
 2. Create a new folder in the session scratchpad. Copy `report.html`, `report.md`,
    `handoff.txt` and each `handoff-phase-<id>.txt` into it. The Artifact tool accepts
@@ -429,7 +431,8 @@ local report.
 If a step before the upload, or the upload itself, fails, say so in one line, do not
 retry the same call and do not write `artifact.json`. Then deliver the report locally
 and give the local link: for a new run, run the same render command again with
-`--open`; for an update, add `--open` only when the user asked to see the report. If
+`--open`; for an update or a publish on request, add `--open` only when the user asked
+to see the report. If
 the upload succeeded but a later step failed, still give the artifact link first and
 the local link second, and say in one line which step failed. If `artifact.json` was
 not written, say so and keep the artifact URL in the reply. If the user later asks to

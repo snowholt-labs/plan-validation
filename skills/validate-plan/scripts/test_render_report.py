@@ -922,8 +922,14 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 with self.assertRaisesRegex(ValueError, "Run validation again"):
                     render(source, self.modern_context())
                 render(source, self.stop_rerun(self.modern_context()))
-                prompt = render(source, self.rerun_yes(self.modern_context()))[3]
-                self.assertEqual(prompt, self.RERUN_PROMPT)
+                expected = self.RERUN_PROMPT
+                if name == "Not ready":
+                    # A Not ready yes runs after the remediation session, or it spends a run on an unfixed plan.
+                    with self.assertRaisesRegex(ValueError, "after the remediation session"):
+                        render(source, self.rerun_yes(self.modern_context()))
+                    expected = self.RERUN_PROMPT + " Run this after the remediation session."
+                prompt = render(source, self.rerun_yes(self.modern_context(), expected))[3]
+                self.assertEqual(prompt, expected)
         # 70% and an average of exactly 8.0 are not below the thresholds.
         render(REPORT.replace("Confidence: 75%", "Confidence: 70%"), self.modern_context())
 

@@ -611,6 +611,8 @@ def rerun_check(context, verdict, confidence, plan_revised, spec_revised):
         # Quoted paths are names, not instructions, even when they contain the word.
         if IMPLEMENT_ANY.search(QUOTED_NAME.sub("path", prompt)):
             raise ValueError("The rerun prompt cannot contain an Implement instruction")
+        if verdict.lower() == "not ready" and "run this after the remediation session" not in prompt.lower():
+            raise ValueError("The rerun prompt of a Not ready report must say: Run this after the remediation session.")
         if "do not start dependent implementation" not in prompt.lower():
             raise ValueError("The rerun prompt must say: Do not start dependent implementation.")
     return {"number": number, "recommendation": recommendation, "reasons": reasons,
