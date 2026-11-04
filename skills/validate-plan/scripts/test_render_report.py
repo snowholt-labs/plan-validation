@@ -862,7 +862,8 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             render(source.replace("Confirm Phase 1 is merged.", ""), context)
 
     RERUN_PROMPT = ("Run validation again (run 2 of 3) for `/repo/PLAN.md` and `/repo/SPEC.md`. Previous report: "
-                    "`/data/run-1/report.md`. Focus on the delay cap. Do not start dependent implementation.")
+                    "`/data/run-1/report.md`. Run this before starting any phase. Focus on the delay cap. "
+                    "Do not start dependent implementation.")
 
     def rerun_yes(self, context, prompt=None):
         context["rerun"] = {"recommendation": "yes", "reasons": ["The delay cap is still open."],
@@ -934,9 +935,13 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                     saved = self.rerun_yes(self.modern_context())
                     saved["kind"] = "saved"
                     render(source, saved)
-                    expected = self.RERUN_PROMPT + " Run this after the remediation session."
+                    expected = self.RERUN_PROMPT.replace("before starting any phase", "after the remediation session")
                 prompt = render(source, self.rerun_yes(self.modern_context(), expected))[3]
                 self.assertEqual(prompt, expected)
+        # A Ready report's phase prompts wait for the re-run, or a phase starts on a plan the run may change.
+        with self.assertRaisesRegex(ValueError, "before starting any phase"):
+            render(REPORT.replace("Confidence: 75%", "Confidence: 65%"),
+                   self.rerun_yes(self.modern_context(), self.RERUN_PROMPT.replace(" Run this before starting any phase.", "")))
         # 70% and an average of exactly 8.0 are not below the thresholds.
         render(REPORT.replace("Confidence: 75%", "Confidence: 70%"), self.modern_context())
 

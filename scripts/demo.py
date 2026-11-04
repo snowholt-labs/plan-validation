@@ -101,7 +101,7 @@ Actual captured outputs are saved in evidence.json. No agent evaluation, Git reh
 ```text
 Work in `{ROOT}`. Fix the retry-delay fixture documents `{output / 'plan.md'}` and `{output / 'spec.md'}`.
 
-Read `{output / 'report.md'}`, its context.json, and repository instructions first. Confirm the saved evidence still applies. Add the missing 30-second delay cap (R3) within recorded permissions; rerun the three acceptance checks. Do not validate again; the re-run prompt does that.
+Read `{output / 'report.md'}`, its context.json, and repository instructions first. Confirm the saved evidence still applies. Revise Task 1 to include the 30-second delay cap (R3) and its attempt-6 boundary assertion, within recorded permissions. Do not edit the implementation files or validate again; the re-run prompt does that.
 
 Do not start dependent implementation. Report results and any defaults chosen, then stop.
 ```

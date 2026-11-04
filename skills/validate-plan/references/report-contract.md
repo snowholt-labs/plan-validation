@@ -97,6 +97,7 @@ validates the result as the next counted run, and it says so:
 `Run this after the remediation session.`
 In a Ready or Ready after approvals report with `yes`, run validation again before
 starting any phase: another run is likely to change the plan the phase prompts build.
+The re-run prompt says so: `Run this before starting any phase.`
 
 Only `yes` has a `prompt`. It lives only in `context.json`, never in section 8, and
 the renderer writes it to `rerun.txt`. The prompt:
@@ -110,11 +111,12 @@ the renderer writes it to `rerun.txt`. The prompt:
   <first>-<last>.` (hyphen or en dash; `Validate only Phase <id>.` for one phase), so the next run
   counts under the same scope;
 - names what the run should focus on;
-- in a Not ready report, says `Run this after the remediation session.`;
+- in a Not ready report, says `Run this after the remediation session.`; otherwise
+  says `Run this before starting any phase.`;
 - has no `Implement` instruction and says `Do not start dependent implementation.`
 
 ```text
-/plan-validation:validate-plan PLAN: `[PLAN path]` SPEC: `[SPEC path]` FOCUS: Run validation again (run [n+1] of 3). Previous report: `[report.md path]`; read it and its context.json first. [For Not ready: Run this after the remediation session.] Focus on [what to fix]. [For a phase-only run: Validate only Phases [first]-[last].] Do not start dependent implementation.
+/plan-validation:validate-plan PLAN: `[PLAN path]` SPEC: `[SPEC path]` FOCUS: Run validation again (run [n+1] of 3). Previous report: `[report.md path]`; read it and its context.json first. [Run this after the remediation session. (Not ready) or Run this before starting any phase.] Focus on [what to fix]. [For a phase-only run: Validate only Phases [first]-[last].] Do not start dependent implementation.
 ```
 
 When the plan or spec changes after review, the historical warning says to run
