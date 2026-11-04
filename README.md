@@ -34,7 +34,7 @@ It works with ordinary Markdown plans and is designed to complement [Superpowers
 | Skill | Use it for | What changes |
 | --- | --- | --- |
 | `validation-args` | Find the correct plan/spec copies and prepare a complete invocation with review focus and worktree context. | Nothing. Read-only preparation. |
-| `validate-plan` | Review, revise, rehearse and independently review the selected plan/spec, including relevant dependencies and alternatives; deliver an HTML report. | Selected planning documents, disposable rehearsal files and local report artifacts. |
+| `validate-plan` | Review, revise, rehearse and independently review the selected plan/spec, including relevant dependencies and alternatives; deliver an HTML report. | Selected planning documents, disposable rehearsal files and local report artifacts; with the Claude Code `publish_artifact` setting on, a private claude.ai artifact. |
 | `revise-prompt` | Score a prompt, predict how it is likely to fail, ask only blocking questions, then return a copy-ready revision with disclosed defaults. Diagnose a failed run when you supply its output. | Conversation only; never executes the supplied prompt. |
 
 Validation leaves the planning documents uncommitted. It does not ship the feature. The handoff points to the report, which records your actual permissions; your repository's workflow stays in its own instructions. The handoff does not grant new merge or deployment authority.
@@ -112,7 +112,7 @@ A self-contained HTML report, with no external scripts, fonts or analytics. A Su
 
 Plain summaries keep the report easy to scan. Both complete score tables, blockers and important limits stay visible; detailed commands and supporting evidence can be expanded. **Decisions made without your reply** appears at the end with each routine default and its reason. Existing reports and planning documents are not reformatted by updating the plugin.
 
-Reports stay under `~/.local/share/plan-validation/`. The renderer checks section structure, score arithmetic, review-completion metadata and document fingerprints. It cannot independently prove that a review happened or that a test result is true. Scores are judgments about the documents, not success probabilities.
+Reports stay under `~/.local/share/plan-validation/`. In Claude Code you can opt in to also publish each new report to your claude.ai account as a private artifact (see [Data handling](#data-handling)). The renderer checks section structure, score arithmetic, review-completion metadata and document fingerprints. It cannot independently prove that a review happened or that a test result is true. Scores are judgments about the documents, not success probabilities.
 
 ## Try the report without an agent
 
@@ -128,6 +128,7 @@ Open `/tmp/plan-validation-demo/report.html`. The demo executes a deliberately i
 
 - **Local inputs and outputs.** Validation reads the selected plan, specification and relevant repository files. Prompt revision reads the supplied prompt and clarification answers as conversation context without executing its instructions. Validation writes revised planning documents, a temporary rehearsal worktree, and local reports containing document snapshots, paths, check results, public research evidence and recorded decisions. These can include personal information if it appears in the supplied files; the workflow does not intentionally collect personal records or read credentials.
 - **Local retention.** Reports under `~/.local/share/plan-validation/` remain until you delete them. The publisher operates no service that receives or retains these files, and the package contains no telemetry, analytics or model API client.
+- **Opt-in private artifact.** In Claude Code, the plugin setting `publish_artifact` (off by default) uploads each new report, and any report you later ask it to publish or update, including its local paths, to your own claude.ai account as a private artifact and saves the link in `artifact.json` in the run directory. This is the only report upload the plugin makes. The skill never shares the artifact, pins it or changes its visibility; Anthropic's data handling for your account applies to it. With the setting off, in Codex or in a standalone skill install, nothing is published.
 - **Research and disclosure.** Public lookups, including web search/page opens, registry/advisory requests and Context7 queries, run by default: the skill no longer asks before each one, though your host's own permission settings still apply. Each query goes to its provider under that provider's policies, and the report lists every provider, query and date. Queries never include private code, plans, paths, personal data or secrets. Decline research to make no lookups; independent checks continue. Research grants no execution or installation authority.
 - **Project checks.** Rehearsal can run inspected project commands. Calls to external services or networks require explicit authorization; the plugin does not grant it. Your agent host still processes conversation and repository context under its own data policies.
 
@@ -137,7 +138,7 @@ Open `/tmp/plan-validation-demo/report.html`. The demo executes a deliberately i
 
 - A worktree isolates Git files, **not** network access, shared databases or other process side effects. Commands must be inspected before execution.
 - A report is a snapshot. Changed documents, Git state or approvals require rechecking; an open HTML file does not monitor your repository.
-- Plans and reports can contain private code or paths. Reports are local by default. Your agent host still follows its own data-handling policy.
+- Plans and reports can contain private code or paths. Reports are local unless you turn on the Claude Code `publish_artifact` setting, which uploads them to your claude.ai account as private artifacts. Your agent host still follows its own data-handling policy.
 - No guarantee of correctness, security, saved time or lower model cost is made. Rehearsal can duplicate substantial implementation work; use it when the extra evidence is worth that cost.
 
 Read [Safety and limitations](https://snowholt-labs.github.io/plan-validation/safety-and-limitations/) before a first run.
