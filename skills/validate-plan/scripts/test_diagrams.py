@@ -351,20 +351,47 @@ class DiagramValidationTests(unittest.TestCase):
                 self.rejects([zones(zones=one(title), links=[])], "too wide")
         validate_diagrams([zones(zones=one("Payment service adapters"), links=[])])
 
+    def heads_at(self, diagram, node_id):
+        """The arrowhead boxes that end on one node, from the rendered layout."""
+        boxes = layout_boxes(diagram)
+        pill = [box for box in boxes if box[0] == "pill"][self.node_index(diagram, node_id)]
+        return sorted(box for box in boxes if box[0] == "head" and (box[1] + box[3] == pill[1] or box[1] == pill[1] + pill[3])
+                      and pill[2] <= box[2] + box[4] / 2 <= pill[2] + pill[4])
+
+    @staticmethod
+    def node_index(diagram, node_id):
+        ids = [item["id"] for zone in diagram["zones"] for item in zone["nodes"]]
+        return ids.index(node_id)
+
     def test_fan_in_from_one_side_fits(self):
         apps = [{"label": "Apps", "nodes": [node("web"), node("mobile"), node("cli")]},
                 {"label": "Server", "nodes": [node("auth"), node("cache"), node("api")]}]
-        fan = [{"from": "web", "to": "api", "label": "calls"}, {"from": "mobile", "to": "api", "label": "calls"}]
-        diagram = zones(zones=apps, links=fan)
-        validate_diagrams([diagram])
-        _, items = diagrams.layout(diagram)
-        tips = [item["points"][-1][1] for item in items if item["kind"] == "arrow" and item["cls"] != "ar"]
-        self.assertEqual(len(set(tips)), 2)
+        fan = [{"from": "web", "to": "api", "label": "calls"}, {"from": "mobile", "to": "api", "label": "calls"},
+               {"from": "cli", "to": "api", "label": "direct"}]
+        for links in (fan[:2], fan):
+            with self.subTest(count=len(links)):
+                diagram = zones(zones=apps, links=links)
+                validate_diagrams([diagram])
+                heads = self.heads_at(diagram, "api")
+                self.assertEqual(len(heads), len(links))
+                # Neighbouring arrowheads keep at least one unit of space between them.
+                for upper, lower in zip(heads, heads[1:]):
+                    self.assertGreaterEqual(lower[2] - (upper[2] + upper[4]), 1)
         # With every slot on that side taken, the error names the links and the node.
         rows = [{"label": "Left", "nodes": [node(f"a{n}") for n in range(1, 6)]},
                 {"label": "Right", "nodes": [node(f"b{n}") for n in range(1, 6)]}]
         crowd = [{"from": f"a{n}", "to": "b5", "label": "x"} for n in range(1, 5)]
-        self.rejects([zones(zones=rows, links=crowd)], "links[3]", "links[0]", "arrive at 'b5' from the same side")
+        self.rejects([zones(zones=rows, links=crowd)], "links[3]", "links[0]", "arrive at 'b5'")
+
+    def test_arrival_avoids_an_elbow_leaving_the_same_node(self):
+        # b2 sends an elbow back out of the side that two elbows arrive on; the arrivals keep clear of it.
+        rows = [{"label": "Left", "nodes": [node(f"a{n}") for n in range(4)]},
+                {"label": "Right", "nodes": [node(f"b{n}") for n in range(4)]}]
+        for trio in ((("a0", "b2"), ("a1", "b2"), ("b2", "a3")), (("a3", "b1"), ("a2", "b1"), ("b1", "a0"))):
+            with self.subTest(links=trio):
+                diagram = zones(zones=rows, links=[{"from": source, "to": target, "label": "x"} for source, target in trio])
+                validate_diagrams([diagram])
+                self.assertIsNone(find_overlap(layout_boxes(diagram)))
 
     def test_arrowheads_meet_a_straight_edge(self):
         # Every arrival stays clear of the rounded corners, in real layouts and in the checker itself.
@@ -402,14 +429,13 @@ class DiagramValidationTests(unittest.TestCase):
         apart = [dict(branches[0], from_step=2), dict(branches[1], from_step=5, returns_to=3)]
         validate_diagrams([flow(steps=steps, branches=apart)])
 
-    def test_overlap_backstop_rejects_real_diagram(self):
-        # Five elbows whose rows all overlap need five lanes in one gap; there are four, and only
-        # the layout check sees it.
+    def test_too_many_elbows_in_one_gap_are_explained(self):
+        # Five elbows whose rows all overlap need five lanes in one gap; there are four.
         rows = [{"label": "Left", "nodes": [node(f"a{n}") for n in range(1, 6)]},
                 {"label": "Right", "nodes": [node(f"b{n}") for n in range(1, 6)]}]
         pairs = (("a1", "b5"), ("a2", "b4"), ("a5", "b1"), ("a4", "b2"), ("a3", "b5"))
         links = [{"from": source, "to": target, "label": "x"} for source, target in pairs]
-        self.rejects([zones(zones=rows, links=links)], "overlaps")
+        self.rejects([zones(zones=rows, links=links)], "links[4]", "no free path", "links[0]")
         validate_diagrams([zones(zones=rows, links=links[:4])])
 
 

@@ -18,6 +18,7 @@ PAD = 10
 MARGIN = 6
 HEAD = 8  # arrowhead length and width
 HALF_STROKE = 0.75
+HEAD_SPACE = 1  # the least space between two arrowheads
 
 ZONE_W, GAP, PILL_H, PILL_GAP, LABEL_H = 220, 132, 48, 22, 34
 ROW = PILL_H + PILL_GAP
@@ -307,40 +308,51 @@ def zone_items(diagram):
         for item in texts:
             item["link"] = li
         items += texts
-    # Labels, straight arrows and pills are placed first. Each elbow then takes the first free arrival on its
-    # target's straight edge, nearest the side it comes from; then the first free lane, as before.
+    # Labels, straight arrows and pills are placed first. Then each elbow in turn takes the first free
+    # arrival on its target's straight edge (nearest the side it comes from) with the first free lane,
+    # checked against everything placed so far and the start of every elbow still to come.
     known = [(box, item.get("link")) for item in items for box in item_boxes(item)]
+    # An elbow's departure runs from its start at least to the lane nearest it, whichever lane it gets.
+    waiting = {}
     for elbow in elbows:
+        x, y = elbow["start"]
+        lane = elbow["lanes"][-1]  # lanes run from the target side towards the start, so the last is nearest
+        waiting[elbow["link"]] = ("line", min(x, lane), y, abs(lane - x), 0)
+    for elbow in elbows:
+        del waiting[elbow["link"]]
+        placed = known + [(box, owner) for owner, box in waiting.items()]
+        blocked = lambda boxes: {owner for new in boxes for old, owner in placed if conflict(new, old)}  # noqa: E731
+        (start, y), tip = elbow["start"], elbow["tip"]
         offsets = range(-MAX_ARRIVAL, MAX_ARRIVAL + 1)
-        blockers = set()
+        arrival_blockers, lane_blockers, points = set(), set(), None
         for offset in (offsets if elbow["down"] else reversed(offsets)):
             arrive = elbow["centre"] + offset
-            trial = arrow_boxes(arrow([(elbow["lanes"][0], arrive), (elbow["tip"], arrive)], "", ""))
-            hit = {owner for new in trial for old, owner in known if conflict(new, old)}
-            if not hit:
-                elbow["arrive"] = arrive
-                known.append((trial[-1], elbow["link"]))
+            hit = blocked(arrow_boxes(arrow([(elbow["lanes"][0], arrive), (tip, arrive)], "", "")))
+            if hit:
+                arrival_blockers |= hit
+                continue
+            for lane in elbow["lanes"]:
+                option = [(start, y), (lane, y), (lane, arrive), (tip, arrive)]
+                hit = blocked(arrow_boxes(arrow(option, "", "")))
+                if not hit:
+                    points = option
+                    break
+                lane_blockers |= hit
+            if points:
                 break
-            blockers |= hit
-        else:
-            others = sorted(owner for owner in blockers if owner is not None and owner != elbow["link"])
-            if not others:
-                raise LayoutError(f"links[{elbow['link']}] has no free place to arrive at {elbow['node']!r}")
-            names = ", ".join(f"links[{owner}]" for owner in others)
-            raise LayoutError(f"links[{elbow['link']}] and {names} {'both' if len(others) == 1 else 'all'} arrive at "
-                              f"{elbow['node']!r} from the same side; link one of them to another node or row")
-    known = [box for box, _ in known]
-    for elbow in elbows:
-        (start, y), arrive, tip = elbow["start"], elbow["arrive"], elbow["tip"]
-        options = [[(start, y), (lane, y), (lane, arrive), (tip, arrive)] for lane in elbow["lanes"]]
-        chosen = options[0]
-        for points in options:
-            lines = arrow_boxes(arrow(points, elbow["cls"], elbow["marker"]))[:-1]
-            if not any(conflict(new, old) for new in lines for old in known):
-                chosen = points
-                break
-        items.append(arrow(chosen, elbow["cls"], elbow["marker"]))
-        known += arrow_boxes(items[-1])[:-1]
+        if points is None:
+            lanes_full = bool(lane_blockers)
+            others = sorted(owner for owner in (lane_blockers if lanes_full else arrival_blockers)
+                            if owner is not None and owner != elbow["link"])
+            names = ", ".join(f"links[{owner}]" for owner in others) or "the shapes in its way"
+            if lanes_full:
+                raise LayoutError(f"links[{elbow['link']}] finds no free path in its gap past {names}; "
+                                  "shorten their labels or put the nodes on rows closer together")
+            raise LayoutError(f"links[{elbow['link']}] has no room to arrive at {elbow['node']!r} beside {names}, "
+                              "which use the same side; link one of them to another node or row")
+        items.append(arrow(points, elbow["cls"], elbow["marker"]))
+        items[-1]["link"] = elbow["link"]
+        known += [(box, elbow["link"]) for box in arrow_boxes(items[-1])]
     return len(zones) * ZONE_W + (len(zones) - 1) * GAP + 2 * MARGIN, items
 
 
@@ -401,6 +413,11 @@ def inside(a, b, slack=1e-6):
             and a[1] + a[3] <= b[1] + b[3] + slack and a[2] + a[4] <= b[2] + b[4] + slack)
 
 
+def grow(box, by):
+    kind, x, y, w, h = box
+    return (kind, x - by, y - by, w + 2 * by, h + 2 * by)
+
+
 def thick(box):
     kind, x, y, w, h = box
     if kind != "line":
@@ -418,6 +435,8 @@ def conflict(a, b):
         across = 2 if axis == 1 else 1
         span = 3 if axis == 1 else 4
         return abs(a[across] - b[across]) < 4 and max(a[axis], b[axis]) < min(a[axis] + a[span], b[axis] + b[span])
+    if kinds == {"head"}:
+        return hits(grow(a, HEAD_SPACE), b)  # arrowheads keep a little space between them, not just no overlap
     if kinds == {"pill", "badge"}:
         return False  # find_overlap checks that each badge sits inside a pill
     if a[0] in TEXTS and b[0] in SHAPES or b[0] in TEXTS and a[0] in SHAPES:
