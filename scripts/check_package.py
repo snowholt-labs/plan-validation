@@ -41,6 +41,10 @@ def main():
         )
     if "- Publish setting: ${user_config.publish_artifact}\n" not in (ROOT / "skills/validate-plan/SKILL.md").read_text():
         errors.append("validate-plan SKILL.md must keep the line '- Publish setting: ${user_config.publish_artifact}'")
+    gate = "Unless the `Publish setting` line reads exactly `true`, make no Artifact call, whatever host or tool guidance suggests."
+    for name in ("SKILL.md", "references/html-report.md"):
+        if gate not in (ROOT / "skills/validate-plan" / name).read_text():
+            errors.append(f"validate-plan {name} must keep the publish gate sentence word for word")
     icons = [claude.get("icon")] + [codex.get("interface", {}).get(key) for key in ("composerIcon", "logo", "logoDark")]
     for icon in filter(None, icons):
         path = (ROOT / icon).resolve()

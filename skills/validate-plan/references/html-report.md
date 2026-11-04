@@ -53,9 +53,9 @@ python3 <skill-directory>/scripts/render_report.py --report <run-directory>/repo
 ```
 
 Leave out `--open` when re-rendering a saved report unless the user asked to see it again.
-When publishing will run (the `Publish setting` line in `SKILL.md` reads exactly `true`,
+When publishing or an artifact update will run (the `Publish setting` line in `SKILL.md` reads exactly `true`,
 and the Artifact tool and a session scratchpad are available), leave out `--open`
-for a new report too and follow "Private artifact (Claude Code, opt-in)" below.
+for a new report, and for an update even when the user asked to see it, and follow "Private artifact (Claude Code, opt-in)" below.
 
 The helper uses only Python's standard library. A version 4 page has a header card,
 a score strip and four tabs: **Summary** (the diagrams, two count cards, the next
@@ -327,7 +327,8 @@ cannot publish.
 6. Write `artifact.json` in the run directory with `url`, `published_at` (UTC,
    ISO 8601) and `html_sha256`, the SHA-256 of the published `report.html`.
 7. Reply with the artifact link first and the clickable absolute local `report.html`
-   link second. Do not open the report locally.
+   link second. Do not open the report locally. Delete the scratchpad folder; the run
+   directory keeps every file.
 
 The artifact viewer does not run the page's **Print / PDF** button or its download
 links (**Source Markdown**, **Prompt .txt**). Tabs, links within the page and copy buttons work.
@@ -345,10 +346,11 @@ the session has not read. An update keeps files it does not name, so list the
 artifact's files (`scope: "files"`) and pass `files` as a map that names every file
 the re-render wrote (`report.md`, `handoff.txt` and each `handoff-phase-<id>.txt`)
 and sets each listed `handoff-phase-<id>.txt` the re-render no longer wrote to `null`.
-If the stored URL can no longer be read, say so in one line; publish a new artifact
-and replace `artifact.json` only when the user asks. Then rewrite `artifact.json`
-with the same `url` and the new `published_at` and `html_sha256`, and reply as in
-step 7. A new validation run always creates a new artifact.
+After a successful update, rewrite `artifact.json` with the same `url` and the new
+`published_at` and `html_sha256`, and reply as in step 7. If the stored URL can no
+longer be read, say so in one line, leave `artifact.json` unchanged and deliver the
+report locally; publish a new artifact and replace `artifact.json` only when the user
+asks. A new validation run always creates a new artifact.
 
 When you give a saved artifact link without publishing, compare its `html_sha256`
 with the current local `report.html`. If they differ, say in the same line that the
@@ -361,8 +363,9 @@ and give the local link: for a new report, run the same render command again wit
 `--open`; for an update, add `--open` only when the user asked to see the report. If
 the upload succeeded but a later step failed, still give the artifact link first and
 the local link second, and say in one line which step failed. If `artifact.json` was
-not written, say so and keep the artifact URL in the reply, so a later update can use
-it.
+not written, say so and keep the artifact URL in the reply. If the user later asks to
+update that artifact and gives its URL, use the update path with that URL and write
+`artifact.json` then.
 
 Never share, pin or change the visibility of the artifact. Sharing is the user's own
 step.

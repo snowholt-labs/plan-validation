@@ -34,7 +34,7 @@ It works with ordinary Markdown plans and is designed to complement [Superpowers
 | Skill | Use it for | What changes |
 | --- | --- | --- |
 | `validation-args` | Find the correct plan/spec copies and prepare a complete invocation with review focus and worktree context. | Nothing. Read-only preparation. |
-| `validate-plan` | Review, revise, rehearse and independently review the selected plan/spec, including relevant dependencies and alternatives; deliver an HTML report. | Selected planning documents, disposable rehearsal files and local report artifacts. |
+| `validate-plan` | Review, revise, rehearse and independently review the selected plan/spec, including relevant dependencies and alternatives; deliver an HTML report. | Selected planning documents, disposable rehearsal files and local report artifacts; with the Claude Code `publish_artifact` setting on, a private claude.ai artifact. |
 | `revise-prompt` | Score a prompt, predict how it is likely to fail, ask only blocking questions, then return a copy-ready revision with disclosed defaults. Diagnose a failed run when you supply its output. | Conversation only; never executes the supplied prompt. |
 
 Validation leaves the planning documents uncommitted. It does not ship the feature. The handoff points to the report, which records your actual permissions; your repository's workflow stays in its own instructions. The handoff does not grant new merge or deployment authority.

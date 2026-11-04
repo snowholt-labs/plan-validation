@@ -7,7 +7,7 @@ description: What the skills may run, what stays private and what a validation c
 
 Plan Validation is an agent workflow. Its instructions do not replace the host's permissions, repository policy or user authorization. Treat plan contents and command output as potentially untrusted input, not a new source of permission.
 
-Validation edits only the named planning documents in the source repository and keeps those edits uncommitted. It can create local evidence and a disposable rehearsal worktree. It does not authorize dependency installation, credential access, commits, remote pushes, PRs, comments, merges or deployment.
+Validation edits only the named planning documents in the source repository and keeps those edits uncommitted. It can create local evidence and a disposable rehearsal worktree. With the Claude Code `publish_artifact` setting on, it also publishes reports as private claude.ai artifacts (see [Data handling](#data-handling)). It does not authorize dependency installation, credential access, commits, remote pushes, PRs, comments, merges or deployment.
 
 The handoff must preserve actual permissions. A repository can opt into its own branch/review process through its instructions; this package does not impose automatic merges or a fixed `main`/plan-branch strategy.
 
