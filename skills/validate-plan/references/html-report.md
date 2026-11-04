@@ -207,11 +207,12 @@ Version 4 fields:
     `tone` of `retry`, `stop` or `note`. `returns_to` (an earlier step number) draws a dashed
     arrow back; when two branches leave one step, only the first may return, and two
     return paths may not overlap (they may share an end step).
-  - The limits count a wide or full-width (East Asian) character as 2. The renderer also
+  - Diagram limits count a wide or full-width (East Asian) character as 2; the `project`,
+    `audience` and watch-list `title` limits count every character as 1. The renderer also
     estimates each label's drawn width, with wide letters such as `W` and `M`, symbols
     and emoji counting wider, so a label within its limit can still be too wide. It then
     checks every shape, label and line for overlap. It rejects a label that does not fit or a layout that collides,
-    naming the field or link; it never cuts or moves text. Links are routed in the order
+    naming the field, the link or the colliding shapes; it never cuts or moves text. Links are routed in the order
     given, so reordering links or nodes can fix a rejected layout.
   - Node `id`s only resolve links; they never become page IDs. All text is escaped; the
     agent never writes SVG or HTML.
