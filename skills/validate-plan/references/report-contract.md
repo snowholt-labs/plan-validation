@@ -33,7 +33,7 @@ Score the original and revised versions separately, with the revised score taken
   - A primary source verifies what it actually documents; it does not prove this repository's runtime behavior. A future production approval gate alone does not lower confidence in starting the approved implementation.
 - **Verdict:**
   - **Not ready:** any blocker remains in either document, whatever the score.
-  - **Ready after approvals:** no blocker remains, and the open items are only non-blocking user approvals, at least one of which holds back dependent work in the named scope. An approval that holds back nothing leaves the verdict Ready.
+  - **Ready after approvals:** no blocker remains, and the open items are only non-blocking user approvals, at least one of which holds back dependent work in the named scope. Each phase with such work waits, and a waiting phase names each such decision ID in `waits_for`. An approval that holds back nothing leaves the verdict Ready.
   - **Ready:** no blocker, and no unresolved approval that holds back work in the named implementation scope. Recorded limitations and separately scoped follow-ups are not automatically blockers.
   - Approval gates that PLAN already has for production, rollout, secrets or infrastructure do not lower the verdict. The handoff stops before them.
 
@@ -99,11 +99,14 @@ the renderer writes it to `rerun.txt`. The prompt:
   or `$validate-plan`), because the skill runs only when invoked explicitly;
 - names the PLAN, the SPEC and this run's `report.md` as the previous report;
 - says `run <n+1> of 3`, where `<n>` is this run's number;
+- for a phase-only validation, keeps this run's scope with `Validate only Phases
+  <first>-<last>.` (hyphen or en dash; `Validate only Phase <id>.` for one phase), so the next run
+  counts under the same scope;
 - names what the run should focus on;
 - has no `Implement` instruction and says `Do not start dependent implementation.`
 
 ```text
-/plan-validation:validate-plan PLAN: `[PLAN path]` SPEC: `[SPEC path]` FOCUS: Run validation again (run [n+1] of 3). Previous report: `[report.md path]`; read it and its context.json first. Focus on [what to fix]. Do not start dependent implementation.
+/plan-validation:validate-plan PLAN: `[PLAN path]` SPEC: `[SPEC path]` FOCUS: Run validation again (run [n+1] of 3). Previous report: `[report.md path]`; read it and its context.json first. Focus on [what to fix]. [For a phase-only run: Validate only Phases [first]-[last].] Do not start dependent implementation.
 ```
 
 When the plan or spec changes after review, the historical warning says to run

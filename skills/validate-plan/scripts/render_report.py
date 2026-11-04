@@ -483,6 +483,14 @@ def short_text(value, name, limit):
         raise ValueError(f"{name} must be at most {limit} characters")
 
 
+def names_id(identifier, text):
+    """Whether text names a decision ID as a whole word.
+
+    The same boundary rule as phase IDs: D1 is not D10, D1.2 or D1-b; a sentence-ending period is fine.
+    """
+    return re.search(rf"(?<![A-Za-z0-9.-]){re.escape(identifier)}(?![A-Za-z0-9-]|\.[A-Za-z0-9])", text) is not None
+
+
 def v4_fields(context, open_items):
     """Return the checked version 4 header, diagram, decision and watch-list data."""
     if "feature" in context:
@@ -508,8 +516,7 @@ def v4_fields(context, open_items):
         seen.add(item["id"].lower())
         if item.get("confidence") not in CONFIDENCE_LEVELS:
             raise ValueError(f"Open decision {item['id']} confidence must be High, Medium or Low")
-        # The same boundary rule as phase IDs: D1 is not D10, D1.2 or D1-b; a sentence-ending period is fine.
-        if not re.search(rf"(?<![A-Za-z0-9.-]){re.escape(item['id'])}(?![A-Za-z0-9-]|\.[A-Za-z0-9])", text):
+        if not names_id(item["id"], text):
             raise ValueError(f"Open decision {item['id']} must also appear in section 6 (Open items)")
     watch = context.get("watch_list")
     if not isinstance(watch, list):
@@ -588,6 +595,16 @@ def rerun_check(context, verdict, confidence, plan_revised, spec_revised):
             raise ValueError("A yes rerun recommendation needs a prompt")
         if word_count(prompt) > 80:
             raise ValueError("The rerun prompt must be at most 80 words; wrap paths in backticks")
+        # The next run keeps this run's scope, or it would count under another scope.
+        first, last = phases[0]["id"], phases[-1]["id"]
+        if scope != "full":
+            sentences = [f"Validate only Phases {first}-{last}."] + ([f"Validate only Phase {first}."] if first == last else [])
+            # An en dash may join the range; the period must end the sentence, so Phase 1. is not Phase 1.5.
+            forms = [rf"Validate only Phases {re.escape(first)}[-–]{re.escape(last)}"]
+            if first == last:
+                forms.append(rf"Validate only Phase {re.escape(first)}")
+            if not re.search(rf"(?<![A-Za-z0-9])(?:{'|'.join(forms)})\.(?![A-Za-z0-9])", prompt, re.I):
+                raise ValueError("The rerun prompt of a phase-only validation must say: " + " or ".join(sentences))
         label = f"run {number + 1} of {MAX_RUNS}"
         if not re.search(rf"\b{label}\b", prompt, re.I):
             raise ValueError(f"The rerun prompt must say {label}")
@@ -941,6 +958,12 @@ def render(source, context):
         if verdict.lower() == "ready after approvals" and not any(holds_back_work(item) for item in fields["decisions"]):
             raise ValueError("A Ready after approvals verdict needs its pending approvals in open_decisions, "
                              "and at least one that holds back work")
+        if verdict.lower() == "ready after approvals":
+            # A phase held back by a decision must wait for it, or it would get an implementation prompt.
+            waits_for = [phase["waits_for"] for phase in context["phases"] if phase["status"] == "waiting"]
+            for item in fields["decisions"]:
+                if holds_back_work(item) and not any(names_id(item["id"], text) for text in waits_for):
+                    raise ValueError(f"Open decision {item['id']} holds back work, so a waiting phase must name it in waits_for")
         if verdict.lower() == "ready" and any(holds_back_work(item) for item in fields["decisions"]):
             raise ValueError("A Ready verdict cannot have open decisions that hold back work; "
                              "set holds_back to Nothing or use Ready after approvals")
