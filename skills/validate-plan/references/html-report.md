@@ -107,10 +107,11 @@ handoff is not current. A re-render first deletes every `handoff-phase-*.txt` in
 run directory, so an earlier phase prompt never survives a changed verdict.
 For a version 4 report whose `rerun` recommendation is `yes`, the renderer also writes
 the re-run prompt to `rerun.txt`, even when the handoff is historical, because running
-validation again is the answer to drift. A `kind: saved` re-render shows the prompt
-without a copy button and writes no `rerun.txt`, because later runs may exist. A re-render first deletes any `rerun.txt`, so
-a `no` or `stop` report leaves none. The renderer's JSON output names it under `rerun`
-(`null` when there is none).
+validation again is the answer to drift. A new report's re-render first deletes any
+`rerun.txt`, so a `no` or `stop` report leaves none. A `kind: saved` re-render shows the
+prompt without a copy button, writes no `rerun.txt` and leaves the one its run wrote,
+because later runs may exist; its drift warning names no run number. The renderer's
+JSON output names the file it wrote under `rerun` (`null` when it wrote none).
 
 Example context shape (replace every example value; do not invent a review):
 

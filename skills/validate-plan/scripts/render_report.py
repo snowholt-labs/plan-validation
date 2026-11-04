@@ -349,9 +349,12 @@ def decision_table(source):
     return next((table for table in tables if plain(table[0][0]).lower() == "decision"), [])
 
 
+QUOTED_PATH = re.compile(r"`(?:/|~/|[A-Za-z]:[\\/])[^`\n]*`")
+
+
 def word_count(handoff):
     # A backtick-quoted absolute path is one word, even when it contains spaces.
-    return len(re.sub(r"`(?:/|~/|[A-Za-z]:[\\/])[^`\n]*`", "path", handoff).split())
+    return len(QUOTED_PATH.sub("path", handoff).split())
 
 
 def section_content(source, number):
@@ -587,7 +590,8 @@ def rerun_check(context, verdict, confidence, plan_revised, spec_revised):
         label = f"run {number + 1} of {MAX_RUNS}"
         if not re.search(rf"\b{label}\b", prompt, re.I):
             raise ValueError(f"The rerun prompt must say {label}")
-        if IMPLEMENT_ANY.search(NO_DEPENDENT_IMPLEMENTATION.sub("", prompt)):
+        # Quoted paths are names, not instructions, even when they contain the word.
+        if IMPLEMENT_ANY.search(NO_DEPENDENT_IMPLEMENTATION.sub("", QUOTED_PATH.sub("path", prompt))):
             raise ValueError("The rerun prompt cannot contain an Implement instruction")
         if "do not start dependent implementation" not in prompt.lower():
             raise ValueError("The rerun prompt must say: Do not start dependent implementation.")
@@ -740,11 +744,14 @@ def watch_hint(watch):
 RERUN_STYLE = {"yes": ("chip-wait", "diamond"), "no": ("chip-ok", "circle"), "stop": ("chip-stop", "triangle")}
 
 
-def historical_warning_v4(rerun, fingerprints_match):
+def historical_warning_v4(rerun, fingerprints_match, saved):
     """The historical warning; when the plan or spec changed, it names the re-run instead of more review."""
     if fingerprints_match:
         return HISTORICAL_WARNING
-    if rerun["number"] < MAX_RUNS:
+    if saved:
+        # Later runs may exist, so a saved report names no run number.
+        advice = "Run validation again instead of more review rounds, if the 3-run limit allows."
+    elif rerun["number"] < MAX_RUNS:
         advice = f"Run validation again (run {rerun['number'] + 1} of {MAX_RUNS}) instead of more review rounds."
     else:
         advice = "Do not run more review rounds: the run limit is reached; decide the next step yourself."
@@ -779,7 +786,7 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
     icon = (ASSETS / "report-icon.svg").read_text().strip().replace("<svg ", '<svg class="hero-icon" aria-hidden="true" focusable="false" ', 1)
     decisions, watch, phases, rerun = fields["decisions"], fields["watch"], context["phases"], fields["rerun"]
     fingerprints_match = all(matches for _, matches in checks)
-    warning = historical_warning_v4(rerun, fingerprints_match)
+    warning = historical_warning_v4(rerun, fingerprints_match, context["kind"] == "saved")
 
     # Header card. The accent is split from the raw title, then each part is escaped.
     before, accent, after = context["title"].partition(context["title_accent"])
@@ -1041,7 +1048,9 @@ def main():
         args.output.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         # Delete the old re-run prompt before any write, so a failed render never leaves it beside a new page.
         rerun_path = args.output.with_name("rerun.txt")
-        rerun_path.unlink(missing_ok=True)
+        # A saved re-render writes no re-run prompt and keeps the one its run wrote.
+        if context.get("kind") != "saved":
+            rerun_path.unlink(missing_ok=True)
         if args.report.resolve() != args.output.with_suffix(".md").resolve():
             args.output.with_suffix(".md").write_text(source, encoding="utf-8")
         args.output.write_text(page, encoding="utf-8")

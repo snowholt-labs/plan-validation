@@ -926,6 +926,9 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                     render(REPORT, context)
         # A negated mention, with a typographic apostrophe too, is not an instruction.
         render(REPORT, self.rerun_yes(self.modern_context(), self.RERUN_PROMPT + " Don’t implement anything."))
+        # Paths are names, not instructions, even when they contain the word.
+        render(REPORT, self.rerun_yes(self.modern_context(), self.RERUN_PROMPT.replace(
+            "`/repo/PLAN.md`", "`/repo/docs/implementation plan.md`")))
         # Only yes carries a prompt, so rerun.txt exists only for yes.
         context = self.modern_context()
         context["rerun"]["prompt"] = self.RERUN_PROMPT
@@ -1012,6 +1015,28 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         result = self.run_renderer(out, REPORT, self.rerun_yes(self.modern_context(), "Run it again."))
         self.assertNotEqual(result.returncode, 0)
         self.assertTrue((out / "rerun.txt").exists())
+
+    def test_saved_rerender_keeps_the_latest_rerun_file(self):
+        out = Path(self.directory.name) / "rerun-saved"
+        out.mkdir()
+        context = self.rerun_yes(self.modern_context())
+        code, _, err = self.run_main(out, REPORT, context)
+        self.assertEqual(code, 0, err)
+        context["kind"] = "saved"
+        code, stdout, err = self.run_main(out, REPORT, context)
+        self.assertEqual(code, 0, err)
+        self.assertIsNone(json.loads(stdout)["rerun"])
+        self.assertEqual((out / "rerun.txt").read_text(encoding="utf-8"), self.RERUN_PROMPT + "\n")
+
+    def test_saved_drift_warning_names_no_run_number(self):
+        context = self.modern_context()
+        context["kind"] = "saved"
+        plan = Path(context["documents"][0]["path"])
+        plan.write_text("Changed")
+        self.addCleanup(plan.write_text, "PLAN")
+        page, _, _, _ = render(REPORT, context)
+        self.assertNotIn("(run 2 of 3)", page)
+        self.assertIn("Run validation again instead of more review rounds", page)
 
     def test_failed_write_never_leaves_an_old_rerun_prompt(self):
         out = Path(self.directory.name) / "rerun-fail"
