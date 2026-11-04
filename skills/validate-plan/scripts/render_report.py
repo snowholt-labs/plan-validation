@@ -426,12 +426,6 @@ def phase_status(phase, verdict, current, rerun_first=False):
     return "Run validation again first" if rerun_first else "Can start"
 
 
-def rerun_first(context, verdict):
-    """Whether a version 4 report recommends another validation run before any phase starts."""
-    rerun = context.get("rerun")
-    return isinstance(rerun, dict) and rerun.get("recommendation") == "yes" and verdict.lower() != "not ready"
-
-
 def phase_table(phases, verdict, current, first=False):
     def status(phase):
         return phase_status(phase, verdict, current, first)
@@ -643,7 +637,8 @@ def scope_section(context):
     return '<aside id="scope" class="scope"><h3>Scope &amp; complexity</h3><p>' + inline(scope["explanation"]) + '</p>' + scope_table + '<p><strong>Approval basis.</strong> ' + inline(scope["approval"]) + '</p></aside>'
 
 
-def report_sections(parts, version, verdict, prompts, pairs, context, current, marks=None, warning=HISTORICAL_WARNING):
+def report_sections(parts, version, verdict, prompts, pairs, context, current, marks=None, warning=HISTORICAL_WARNING,
+                    rerun_first=False):
     """Return the eight report sections; section 8 holds the prompts and their copy buttons."""
     handoff = prompts[0][2]
     scope_html = scope_section(context)
@@ -659,7 +654,7 @@ def report_sections(parts, version, verdict, prompts, pairs, context, current, m
                 intro = intro[:start] + intro[end:]
             content_html = markdown(intro)
             if version >= 3:
-                content_html += phase_table(context["phases"], verdict, current, version >= 4 and rerun_first(context, verdict))
+                content_html += phase_table(context["phases"], verdict, current, rerun_first)
             if pairs:
                 titles = {phase["id"]: phase["title"] for phase in context["phases"]}
                 for phase_id, prompt in pairs:
@@ -819,6 +814,8 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
     script_hash = base64.b64encode(hashlib.sha256(js.encode()).digest()).decode()
     icon = (ASSETS / "report-icon.svg").read_text().strip().replace("<svg ", '<svg class="hero-icon" aria-hidden="true" focusable="false" ', 1)
     decisions, watch, phases, rerun = fields["decisions"], fields["watch"], context["phases"], fields["rerun"]
+    # A yes outside Not ready asks for another run before any phase starts.
+    rerun_first = rerun["recommendation"] == "yes" and verdict.lower() != "not ready"
     fingerprints_match = all(matches for _, matches in checks)
     warning = historical_warning_v4(rerun, fingerprints_match, context["kind"] == "saved")
 
@@ -873,7 +870,7 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
               + "</div>")
     cards = []
     for phase in phases:
-        state = phase_status(phase, verdict, current, rerun_first(context, verdict))
+        state = phase_status(phase, verdict, current, rerun_first)
         style = ("chip-ok", "circle") if state == "Can start" else ("chip-wait", "diamond")
         flags = [chip(*style, "Ready" if state == "Can start" else state)]
         if phase["docs_only"]:
@@ -914,7 +911,7 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
         panels.append(panel("watch", "Watch list", f'<div class="watch-grid">{items}</div>'))
 
     marks = [mark(SECTION_SHAPES[index % len(SECTION_SHAPES)]) for index in range(8)]
-    sections_html = "".join(report_sections(parts, 4, verdict, prompts, pairs, context, current, marks, warning))
+    sections_html = "".join(report_sections(parts, 4, verdict, prompts, pairs, context, current, marks, warning, rerun_first))
     panels.append(panel("full", "Full report", sections_html + defaulted_decisions(context["decisions_without_reply"]) + identity_details(checks, context)))
 
     return f'''<!doctype html>
