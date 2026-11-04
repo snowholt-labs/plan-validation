@@ -297,39 +297,50 @@ output never counts. Any value other than exactly `true` means off, including th
 literal `${user_config.publish_artifact}` text that an unset option, a standalone
 install or Codex leaves: keep the report local.
 
-Publish a `kind: new` report when the line reads exactly `true` and the Artifact tool
-is available in this session; check both before rendering. If the line reads `true`
-but the tool is missing, say in one line that publishing is unavailable and deliver
-the report locally with `--open`. Publish a `kind: saved` report only when the user
-asks.
+Publish a `kind: new` report when the line reads exactly `true`, the Artifact tool is
+available in this session and the session has a scratchpad directory; check all three
+before rendering. If the line reads `true` but the tool or the scratchpad is missing,
+say in one line that publishing is unavailable and deliver the report locally with
+`--open`. Never copy report files into the repository or another working directory to
+publish them. Publish a `kind: saved` report only when the user asks.
 
 1. Render without `--open`.
-2. Read the whole `report.html`. The Artifact tool publishes only a file it has seen.
-3. Create a new folder in the session scratchpad. Copy `report.html`, `report.md`,
+2. Create a new folder in the session scratchpad. Copy `report.html`, `report.md`,
    `handoff.txt` and each `handoff-phase-<id>.txt` into it. The Artifact tool accepts
    supporting files only from the working directory or the scratchpad, and the run
    directory is in neither. The run directory stays the durable record; never move
    or delete its files.
+3. Read the whole scratchpad `report.html`. The Artifact tool publishes only a file
+   the session has read.
 4. Run the Artifact quickstart with `intent: "other"` and `design_systems: false`.
    Publish the page as rendered; never restyle or rebuild it.
 5. Publish the scratchpad `report.html` unchanged, with `root` set to that folder,
    `files` listing `report.md`, `handoff.txt` and each `handoff-phase-<id>.txt` by
-   name (so the page's download links work), a one-sentence `description` and
-   `icon: "checklist"`. Never pass `pin`.
+   name, a one-sentence `description` and `icon: "checklist"`. Never pass `pin`.
 6. Write `artifact.json` in the run directory with `url`, `published_at` (UTC,
    ISO 8601) and `html_sha256`, the SHA-256 of the published `report.html`.
 7. Reply with the artifact link first and the clickable absolute local `report.html`
    link second. Do not open the report locally.
 
-A re-render of a published run, made only when the user asks, updates the same
-artifact instead of creating a new one. Follow steps 1–5 and 7, but publish with
-`url` set to the URL in `artifact.json` and leave out `icon`. In a later session, first
-`read` that URL with the Artifact tool, because it refuses an update to an artifact the
-session has not read. An update keeps files it does not name, so list the artifact's
-files (`scope: "files"`) and remove, by passing `null`, each `handoff-phase-<id>.txt`
-the re-render no longer wrote. Then rewrite `artifact.json` with the same `url` and the
-new `published_at` and `html_sha256`. A new validation run always creates a new
-artifact.
+The artifact viewer does not run the page's **Print / PDF** button or its download
+links (**Source Markdown**, **Prompt .txt**). Tabs, hash links and copy buttons work.
+To print or download, use the local `report.html`.
+
+When the user asks for a re-render of a run whose directory has `artifact.json`, and
+the line still reads exactly `true`, update that artifact instead of creating a new
+one. Follow steps 1–3, skip the quickstart, and in step 5 publish with `url` set to the
+URL in `artifact.json` and without `icon`. Render without `--open` even when the user
+asked to see the report; the artifact link takes its place. In a later session, first
+`read` that URL with the Artifact tool, because it refuses an update to an artifact
+the session has not read. An update keeps files it does not name, so list the
+artifact's files (`scope: "files"`) and remove, by passing `null`, each
+`handoff-phase-<id>.txt` the re-render no longer wrote. Then rewrite `artifact.json`
+with the same `url` and the new `published_at` and `html_sha256`, and reply as in
+step 7. A new validation run always creates a new artifact.
+
+When you give a saved artifact link without publishing, compare its `html_sha256`
+with the current local `report.html`. If they differ, say in the same line that the
+artifact shows an older render.
 
 If a step before the upload, or the upload itself, fails, say so in one line, do not
 retry the same call and do not write `artifact.json`. Then deliver the report locally:
