@@ -4,7 +4,8 @@ Read this when creating the baseline or publishing/repeating a validation result
 The HTML is the full report, not an abridged alternative. The chat response gives
 the verdict, the report link and any immediate blocker in at most three bullets.
 If the user explicitly asks for the full report in chat, print all eight sections too,
-with the diagram descriptions, open decisions, watch list and defaulted decisions.
+with the diagram descriptions, open decisions, watch list, defaulted decisions and
+the re-run recommendation (run number, answer, reasons and any re-run prompt).
 
 ## Files and rendering
 
@@ -91,6 +92,9 @@ Versions 3 and 4 check the phase grouping. The renderer also checks that:
   both true, a security review has a `security_reason`, and a waiting phase names
   what it `waits_for`;
 - once a phase waits, every later phase waits, and a `Ready` verdict has no waiting phase;
+- in version 4, with a `Ready after approvals` verdict, the `waits_for` of a waiting
+  phase names each open decision that holds back work, by its exact ID (list each
+  ID, never a range such as `D1-D3`);
 - section 8 has one fenced prompt per ready phase, in order, each within 80 words and
   saying `Stop at the end of Phase <id>` for its own phase only, never negated;
 - in a new report, each ready prompt after the first says `Confirm Phase <previous> is merged`
@@ -244,7 +248,8 @@ Version 4 fields:
   (`High`, `Medium` or `Low`) and `holds_back` (the phases or tasks it holds back, or
   `Nothing` or `None`, in any case, when it holds back no work; any other text counts as
   holding back work). A `Ready after approvals` verdict needs at least one item that holds
-  back work; a `Ready` verdict must have none that does. In a phase-only validation, an
+  back work, and the `waits_for` of a waiting phase must name each such item's exact ID; a
+  `Ready` verdict must have none that does. In a phase-only validation, an
   approval that holds back only phases outside the selected scope is a separately scoped
   follow-up in section 6 and stays out of `open_decisions`.
 - `watch_list`: a list, `[]` when none. Each item has `kind` (`gap`, `limit`, `risk` or
@@ -331,7 +336,9 @@ evidence and the final defaults record. Confirm both five-row tables and average
 confidence/evidence, scope comparison, limits and the entire prompt are present.
 Confirm applicable dependency/alternative tables and recorded choices are inside
 the report, and that the copied prompt references their complete saved record.
-Check that each copied prompt matches `handoff.txt` or its `handoff-phase-<id>.txt`. Provide a clickable absolute link
+Check that each copied prompt matches `handoff.txt` or its `handoff-phase-<id>.txt`.
+Confirm the Run validation again card shows this run's number and answer, and for
+a new report with `yes` that the copied re-run prompt matches `rerun.txt`. Provide a clickable absolute link
 to `report.html`; a short local preview URL may accompany it. If serving locally,
 bind to `127.0.0.1`, serve only this report directory, and keep that preview alive.
 No dependency install or external hosting is needed. Render new reports with `--open`,
