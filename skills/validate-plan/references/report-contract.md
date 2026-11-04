@@ -108,10 +108,11 @@ the renderer writes it to `rerun.txt`. The prompt:
   <first>-<last>.` (hyphen or en dash; `Validate only Phase <id>.` for one phase), so the next run
   counts under the same scope;
 - names what the run should focus on;
+- in a Not ready report, says `Run this after the remediation session.`;
 - has no `Implement` instruction and says `Do not start dependent implementation.`
 
 ```text
-/plan-validation:validate-plan PLAN: `[PLAN path]` SPEC: `[SPEC path]` FOCUS: Run validation again (run [n+1] of 3). Previous report: `[report.md path]`; read it and its context.json first. Focus on [what to fix]. [For a phase-only run: Validate only Phases [first]-[last].] Do not start dependent implementation.
+/plan-validation:validate-plan PLAN: `[PLAN path]` SPEC: `[SPEC path]` FOCUS: Run validation again (run [n+1] of 3). Previous report: `[report.md path]`; read it and its context.json first. [For Not ready: Run this after the remediation session.] Focus on [what to fix]. [For a phase-only run: Validate only Phases [first]-[last].] Do not start dependent implementation.
 ```
 
 When the plan or spec changes after review, the historical warning says to run

@@ -367,8 +367,7 @@ install or Codex leaves: keep the report local.
 Publish a new validation run when the line reads exactly `true`, the Artifact tool is
 available in this session (a deferred tool that can be loaded counts) and the session
 has a scratchpad directory; check all three before rendering, for a new run and for
-an update below. A corrective render before the reply, for example after Delivery's
-checks find a wrong path, updates that artifact through the update path below. If the line reads `true` but the tool or the scratchpad is missing,
+an update below. If the line reads `true` but the tool or the scratchpad is missing,
 say in one line that publishing is unavailable and deliver the report locally: with
 `--open` for a new run, and for an update only when the user asked to see it. Never copy report files into the repository or another working directory to
 publish them. Publish a `kind: saved` report only when the user asks. If the user asks to publish
@@ -376,7 +375,8 @@ while the line is not exactly `true`, say in one line that publishing is off. In
 turn it on in `/config` and start a new session; Codex and standalone skill installs
 cannot publish.
 
-1. Render without `--open`.
+1. Render without `--open`, and complete the Delivery checks on the local page first.
+   Fix any problem and render again here, before anything is uploaded.
 2. Create a new folder in the session scratchpad. Copy `report.html`, `report.md`,
    `handoff.txt` and each `handoff-phase-<id>.txt` into it. The Artifact tool accepts
    supporting files only from the working directory or the scratchpad, and the run
@@ -404,9 +404,8 @@ Update an existing artifact only when the user asks to publish or update it, for
 example with a re-render of a run whose directory has `artifact.json`; a plain
 re-render, including one after a recorded answer, stays local, like any saved report.
 When asked, and the line still reads exactly `true`, update that artifact instead of
-creating a new one. If the run was never published (no `artifact.json` and no artifact
-URL kept from a failed `artifact.json` write), follow steps 1–7 as a first publish
-instead. For an update, follow steps 1–3,
+creating a new one. If the run has no `artifact.json` and the user gives no artifact
+URL, follow steps 1–7 as a first publish instead. For an update, follow steps 1–3,
 skip the quickstart, and in step 5 publish with `url` set to the URL in
 `artifact.json` and without `icon`. Render without `--open` even when the user asked
 to see the report; the artifact link takes its place. In a later session, first
@@ -421,9 +420,9 @@ longer be read, say so in one line, leave `artifact.json` unchanged and deliver 
 report locally; publish a new artifact and replace `artifact.json` only when the user
 asks. A new validation run always creates a new artifact.
 
-When you give a saved artifact link without publishing, including after a re-render of
-a run that has `artifact.json`, compare its `html_sha256`
-with the current local `report.html`. If they differ, say in the same line that the
+When you give a saved artifact link without publishing, compare its `html_sha256`
+with the current local `report.html`. After a re-render of a run that has
+`artifact.json`, always give that link with this check. If they differ, say in the same line that the
 artifact shows an older render whose prompts may be out of date, and point to the
 local report.
 
