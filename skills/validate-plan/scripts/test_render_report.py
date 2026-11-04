@@ -1232,6 +1232,25 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         self.assertLessEqual(set(re.findall(r"<([a-z]+)", icon)), {"svg", "rect", "path", "circle"})
         self.assertNotRegex(icon.lower(), r"href|url\(|script|style|\sid=")
 
+    def test_v4_js_routes_hash_to_full_report(self):
+        js = (ASSETS / "report-v4.js").read_text()
+        for text in ("hashchange", "aria-selected", "ArrowRight", "ArrowLeft", '"Home"', '"End"', "beforeprint", "afterprint"):
+            self.assertIn(text, js)
+
+    def test_v4_no_js_shows_everything(self):
+        source = REPORT.replace("No blockers.", "Pending approvals D1.")
+        context = self.modern_context()
+        context["open_decisions"] = [{"id": "D1", "question": "Approve?", "recommendation": "Approve it.",
+                                      "confidence": "High", "holds_back": "Nothing"}]
+        context["watch_list"] = [{"kind": "gap", "title": "Gap item", "body": "Body."}]
+        page, _, _ = render(source, context)
+        panels = re.findall(r'<section [^>]*role="tabpanel"[^>]*>', page)
+        self.assertEqual(len(panels), 4)
+        for tag in panels:
+            self.assertNotRegex(tag, r"\shidden(?:[\s=>])")
+        tablist = re.search(r'<div role="tablist"[^>]*>', page).group(0)
+        self.assertRegex(tablist, r"\shidden(?:[\s=>])")
+
     def test_v4_css_scrolls_diagrams_not_page(self):
         css = (ASSETS / "report-v4.css").read_text()
         for text in (".dg-wrap{overflow-x:auto", ".fig{min-width:0", "[hidden]{display:none!important}",
@@ -1252,6 +1271,9 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         self.assertRegex(css, r"\.s,\.ls\{[^}]*font-size:11px")
         self.assertIn("marker path{stroke:none", css)
         self.assertNotRegex(css, r"(?<![\]\w-])\.ar-dash\{[^}]*dasharray")
+        # In print a wide diagram scales down to the page width instead of being clipped.
+        print_css = css[css.index("@media print"):]
+        self.assertRegex(print_css, r"\.dg-wrap svg\{[^}]*min-width:0[^}]*max-width:100%")
 
     def legacy_documents(self):
         root = Path(self.directory.name)

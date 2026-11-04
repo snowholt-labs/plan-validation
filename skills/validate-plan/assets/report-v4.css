@@ -161,6 +161,7 @@ main{max-width:none;padding:0}
 .hero,.score,.card,.fig,.count,.watch,#panel-full>section,.decisions{border-radius:8px}
 .fig,.score,.count,.watch,.phase-card{break-inside:avoid}
 .dg-wrap,.table-scroll{overflow:visible}
+.dg-wrap svg{min-width:0;max-width:100%}
 table{min-width:0;table-layout:fixed}
 th{white-space:normal}
 thead{display:table-header-group}
