@@ -165,6 +165,16 @@ Do not start dependent implementation. Report results and any defaults chosen, t
              "body": "Task 1 returns 2 ** attempt with no limit, so attempt 6 waits 64 seconds instead of 30 (SPEC R3)."},
         ],
         "decisions_without_reply": [],
+        "validation_run": {"number": 1, "plan_key": "plan.md", "scope": "full"},
+        "rerun": {
+            "recommendation": "yes",
+            "reasons": ["The verdict is Not ready: the plan has no 30-second delay cap (R3).",
+                        "No independent review ran yet; another run can add one."],
+            "prompt": (f"/plan-validation:validate-plan PLAN: `{output / 'plan.md'}` SPEC: `{output / 'spec.md'}` "
+                       f"FOCUS: Run validation again (run 2 of 3). Previous report: `{output / 'report.md'}`; "
+                       "read it and its context.json first. Focus on the missing delay cap and the independent review. "
+                       "Do not start dependent implementation."),
+        },
         "scope": {"explanation": "The same one-task fixture is retained; the corrected control adds no requirement.",
                   "approval": "Teaching example only. No real implementation or external-action authorization.",
                   "rows": [{"metric": metric, "original": count, "revised": count, "reason": "Same fixture scope; no plan revision claimed."}
@@ -177,13 +187,16 @@ Do not start dependent implementation. Report results and any defaults chosen, t
     spec = importlib.util.spec_from_file_location("renderer", module_path)
     renderer = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(renderer)
-    page, prompt, current = renderer.render(report, context)
+    page, prompt, current, rerun_prompt = renderer.render(report, context)
     if not current:
         raise SystemExit("Demo document identity check failed")
     for name, content in (("report.md", report), ("report.html", page), ("handoff.txt", prompt + "\n"),
                           ("context.json", json.dumps(context, indent=2) + "\n"),
                           ("evidence.json", json.dumps(evidence, indent=2) + "\n")):
         (output / name).write_text(content, encoding="utf-8")
+    # The demo writes its own files instead of calling the renderer's main, so it writes rerun.txt too.
+    if rerun_prompt is not None:
+        (output / "rerun.txt").write_text(rerun_prompt + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":
