@@ -61,7 +61,7 @@ Keep the eight evidence sections below in this order. Add the unnumbered **Summa
 5. **Changes:** begin with a scope/complexity comparison: `Measure | Original | Revised | Reason / evidence`. Include delivery phases, unique numbered tasks, implementation/supporting tasks and dependencies/services; add PR count or repeated checks when they change. Explain task mappings, real added work versus regrouping, and the precise approval basis. Then give short groups for bugs fixed, PLAN changes, and SPEC changes with section and reason. Write `None` for an empty group; use `Unknown` for an unrecovered baseline.
 6. **Open items:** distinguish implementation blockers, pending approvals, accepted limitations and separately scoped follow-ups. Record actual authorized actions and remaining research limits, installation, service and external-action gates here, with their approval basis or repository instruction reference. State `None` when appropriate; do not call the same unresolved item both blocking and ready. Never infer permissions from a recommendation or an unanswered question.
 7. **Verification and checkout:** actual dry-run commands/results, reviewed versus executed checks, checks not run, tested SHA, changed files, commit status and worktree cleanup. Never replace an actual test count with an inferred new total.
-8. **Fresh-session handoff:** a one-line suggested effort covering all phases, then one fenced launch prompt per ready phase, in phase order, following `../handoff-template.md`. The renderer adds the phase table from `context.json` above the prompts and a heading for each prompt, and shows all other section 8 text above the table, so write only the effort line, the between-phases note from the template and the fenced prompts. Each prompt targets 50–80 words with an 80-word maximum, names one phase and its tasks, and says `Stop at the end of Phase <id>` for its own phase. Reference verified plan/spec/report/context paths; keep full decisions, permissions and evidence in those sources. For **Ready after approvals**, give prompts only for ready phases before the first waiting phase and name the waiting decision; if the first phase waits, give one prompt that names what to resolve and says `Do not start dependent implementation.` For **Not ready**, use one short remediation prompt naming the blocker and explicitly prohibiting dependent implementation; no phase prompts.
+8. **Fresh-session handoff:** a one-line suggested effort covering all phases, then one fenced launch prompt per ready phase, in phase order, following `../handoff-template.md`. The renderer adds the phase table from `context.json` above the prompts and a heading for each prompt, and shows all other section 8 text above the table, so write only the effort line, the between-phases note and, for a Ready or Ready after approvals `yes`, the run-again-first note from the template and the fenced prompts. Each prompt targets 50–80 words with an 80-word maximum, names one phase and its tasks, and says `Stop at the end of Phase <id>` for its own phase. Reference verified plan/spec/report/context paths; keep full decisions, permissions and evidence in those sources. For **Ready after approvals**, give prompts only for ready phases before the first waiting phase and name the waiting decision; if the first phase waits, give one prompt that names what to resolve and says `Do not start dependent implementation.` For **Not ready**, use one short remediation prompt naming the blocker and explicitly prohibiting dependent implementation; no phase prompts.
 
 ## Run validation again
 
@@ -95,6 +95,9 @@ In a Not ready report with `yes`, the section 8 remediation prompt comes first: 
 the blocker, and a remediation session is not a validation run. The re-run prompt then
 validates the result as the next counted run, and it says so:
 `Run this after the remediation session.`
+In a Ready or Ready after approvals report with `yes`, run validation again before
+starting any phase: another run is likely to change the plan the phase prompts build.
+The re-run prompt says so: `Run this before starting any phase.`
 
 Only `yes` has a `prompt`. It lives only in `context.json`, never in section 8, and
 the renderer writes it to `rerun.txt`. The prompt:
@@ -108,11 +111,12 @@ the renderer writes it to `rerun.txt`. The prompt:
   <first>-<last>.` (hyphen or en dash; `Validate only Phase <id>.` for one phase), so the next run
   counts under the same scope;
 - names what the run should focus on;
-- in a Not ready report, says `Run this after the remediation session.`;
+- in a Not ready report, says `Run this after the remediation session.`; otherwise
+  says `Run this before starting any phase.`;
 - has no `Implement` instruction and says `Do not start dependent implementation.`
 
 ```text
-/plan-validation:validate-plan PLAN: `[PLAN path]` SPEC: `[SPEC path]` FOCUS: Run validation again (run [n+1] of 3). Previous report: `[report.md path]`; read it and its context.json first. [For Not ready: Run this after the remediation session.] Focus on [what to fix]. [For a phase-only run: Validate only Phases [first]-[last].] Do not start dependent implementation.
+/plan-validation:validate-plan PLAN: `[PLAN path]` SPEC: `[SPEC path]` FOCUS: Run validation again (run [n+1] of 3). Previous report: `[report.md path]`; read it and its context.json first. [Run this after the remediation session. (Not ready) or Run this before starting any phase.] Focus on [what to fix]. [For a phase-only run: Validate only Phases [first]-[last].] Do not start dependent implementation.
 ```
 
 When the plan or spec changes after review, the historical warning says to run
