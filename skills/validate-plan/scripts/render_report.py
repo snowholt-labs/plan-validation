@@ -941,6 +941,8 @@ def render(source, context):
         if verdict.lower() == "ready after approvals" and not any(holds_back_work(item) for item in fields["decisions"]):
             raise ValueError("A Ready after approvals verdict needs its pending approvals in open_decisions, "
                              "and at least one that holds back work")
+        if verdict.lower() == "ready after approvals" and not any(phase["status"] == "waiting" for phase in context["phases"]):
+            raise ValueError("A Ready after approvals verdict needs a waiting phase that names the decision it waits for")
         if verdict.lower() == "ready" and any(holds_back_work(item) for item in fields["decisions"]):
             raise ValueError("A Ready verdict cannot have open decisions that hold back work; "
                              "set holds_back to Nothing or use Ready after approvals")

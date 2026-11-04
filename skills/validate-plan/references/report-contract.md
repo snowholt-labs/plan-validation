@@ -99,11 +99,13 @@ the renderer writes it to `rerun.txt`. The prompt:
   or `$validate-plan`), because the skill runs only when invoked explicitly;
 - names the PLAN, the SPEC and this run's `report.md` as the previous report;
 - says `run <n+1> of 3`, where `<n>` is this run's number;
+- for a phase-only validation, keeps this run's scope with `Validate only Phases
+  <first>-<last>.`, so the next run counts under the same scope;
 - names what the run should focus on;
 - has no `Implement` instruction and says `Do not start dependent implementation.`
 
 ```text
-/plan-validation:validate-plan PLAN: `[PLAN path]` SPEC: `[SPEC path]` FOCUS: Run validation again (run [n+1] of 3). Previous report: `[report.md path]`; read it and its context.json first. Focus on [what to fix]. Do not start dependent implementation.
+/plan-validation:validate-plan PLAN: `[PLAN path]` SPEC: `[SPEC path]` FOCUS: Run validation again (run [n+1] of 3). Previous report: `[report.md path]`; read it and its context.json first. Focus on [what to fix]. [For a phase-only run: Validate only Phases [first]-[last].] Do not start dependent implementation.
 ```
 
 When the plan or spec changes after review, the historical warning says to run
