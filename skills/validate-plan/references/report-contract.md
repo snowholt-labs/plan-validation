@@ -91,6 +91,10 @@ Rules:
 - **Pending approvals** are never a trigger. Recording an answer stays the same-run
   re-render, or a phase-only validation after merges.
 
+In a Not ready report with `yes`, the section 8 remediation prompt comes first: it fixes
+the blocker, and a remediation session is not a validation run. The re-run prompt then
+validates the result as the next counted run.
+
 Only `yes` has a `prompt`. It lives only in `context.json`, never in section 8, and
 the renderer writes it to `rerun.txt`. The prompt:
 

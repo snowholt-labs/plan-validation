@@ -363,7 +363,7 @@ output never counts. Any value other than exactly `true` means off, including th
 literal `${user_config.publish_artifact}` text that an unset option, a standalone
 install or Codex leaves: keep the report local.
 
-Publish a `kind: new` report when the line reads exactly `true`, the Artifact tool is
+Publish a new run's first `kind: new` render when the line reads exactly `true`, the Artifact tool is
 available in this session (a deferred tool that can be loaded counts) and the session
 has a scratchpad directory; check all three before rendering, for a new report and for
 an update below. If the line reads `true` but the tool or the scratchpad is missing,
@@ -400,7 +400,7 @@ To print or download, use the local `report.html`.
 
 Update an existing artifact only when the user asks to publish or update it, for
 example with a re-render of a run whose directory has `artifact.json`; a plain
-re-render stays local, like any saved report. When asked, and the line still reads
+re-render, including one after a recorded answer, stays local, like any saved report. When asked, and the line still reads
 exactly `true`, update that artifact instead of creating a new one. Follow steps 1–3,
 skip the quickstart, and in step 5 publish with `url` set to the URL in
 `artifact.json` and without `icon`. Render without `--open` even when the user asked
