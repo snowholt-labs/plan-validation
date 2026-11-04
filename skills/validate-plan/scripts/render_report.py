@@ -59,6 +59,8 @@ HISTORICAL_PREFIX = "HISTORICAL PROMPT — DO NOT EXECUTE.\nDocument identity, G
 HISTORICAL_TEXT = ("Document identity, Git state or approvals changed or could not be checked. "
                    "This is a historical prompt. Revalidate the changed scope before using it.")
 HISTORICAL_WARNING = f'<p class="warning">{HISTORICAL_TEXT}</p>'
+RUN_FIRST_NOTE = ('<p class="warning">Run validation again first, with the re-run prompt in the Summary; '
+                  'start a phase only after that run.</p>')
 # Phase IDs become file names, so they cannot contain path separators.
 PHASE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9.-]{0,15}\Z")
 CONFIDENCE_LEVELS = ("High", "Medium", "Low")
@@ -427,13 +429,11 @@ def phase_status(phase, verdict, current, rerun_first=False):
 
 
 def phase_table(phases, verdict, current, first=False):
-    def status(phase):
-        return phase_status(phase, verdict, current, first)
     rows = ''.join('<tr>' + ''.join(f'<td>{cell}</td>' for cell in (
         escape(phase["id"]) + ': ' + inline(phase["title"]), escape(", ".join(phase["tasks"])),
         "Docs only" if phase["docs_only"] else "Code",
         "Yes — " + inline(phase["security_reason"]) if phase["security_review"] else "No",
-        status(phase))) + '</tr>' for phase in phases)
+        phase_status(phase, verdict, current, first))) + '</tr>' for phase in phases)
     head = ''.join(f'<th scope="col">{title}</th>' for title in ("Phase", "Tasks", "Kind", "Security review", "Status"))
     return f'<div class="table-scroll" role="region" aria-label="Phase plan" tabindex="0"><table><thead><tr>{head}</tr></thead><tbody>{rows}</tbody></table></div>'
 
@@ -472,9 +472,15 @@ def handoff_prompts(section, version, verdict, context):
                 checks = list(re.finditer(rf"\bconfirm\s+phase\s+{re.escape(ready[index - 1])}\s+is\s+merged\b", prompt, re.I))
                 if all(negated.search(prompt[:check.start()]) for check in checks):
                     raise ValueError(f"Phase {ready[index]} prompt must say: Confirm Phase {ready[index - 1]} is merged")
-    implement = IMPLEMENT.search(prompts[0][2])
+    first = prompts[0][2]
+    if version >= 4 and context.get("kind") == "new":
+        # Like the re-run prompt: any form of the word, quoted paths excepted, wrapped lines joined.
+        first = re.sub(r"\s+", " ", first)
+        implement = IMPLEMENT_ANY.search(QUOTED_NAME.sub("path", first))
+    else:
+        implement = IMPLEMENT.search(first)
     # With no startable phase, a version 3 or later prompt is a remediation prompt even before Not ready.
-    if (verdict.lower() == "not ready" or (version >= 3 and not ready)) and (implement or "do not start dependent implementation" not in prompts[0][2].lower()):
+    if (verdict.lower() == "not ready" or (version >= 3 and not ready)) and (implement or "do not start dependent implementation" not in first.lower()):
         raise ValueError("Not ready requires a remediation prompt stating: Do not start dependent implementation")
     return prompts, list(zip(ready, (prompt for _, _, prompt in prompts)))
 
@@ -598,6 +604,8 @@ def rerun_check(context, verdict, confidence, plan_revised, spec_revised):
             raise ValueError("A yes rerun recommendation needs a prompt")
         if word_count(prompt) > 80:
             raise ValueError("The rerun prompt must be at most 80 words; wrap paths in backticks")
+        # Compare with single spaces, so a wrapped prompt still says each sentence.
+        spaced = re.sub(r"\s+", " ", prompt)
         # The next run keeps this run's scope, or it would count under another scope.
         first, last = phases[0]["id"], phases[-1]["id"]
         # Like the merge check, these sentences apply to new prompts; saved prompts stay as written.
@@ -608,20 +616,18 @@ def rerun_check(context, verdict, confidence, plan_revised, spec_revised):
             forms = [rf"Validate only Phases {re.escape(first)}[-–]{re.escape(last)}"]
             if first == last:
                 forms.append(rf"Validate only Phase {re.escape(first)}")
-            if not re.search(rf"(?<![A-Za-z0-9])(?:{'|'.join(forms)})\.(?![A-Za-z0-9])", prompt, re.I):
+            if not re.search(rf"(?<![A-Za-z0-9])(?:{'|'.join(forms)})\.(?![A-Za-z0-9])", spaced, re.I):
                 raise ValueError("The rerun prompt of a phase-only validation must say: " + " or ".join(sentences))
         label = f"run {number + 1} of {MAX_RUNS}"
-        if not re.search(rf"\b{label}\b", prompt, re.I):
+        if not re.search(rf"\b{label}\b", spaced, re.I):
             raise ValueError(f"The rerun prompt must say {label}")
         # Quoted paths are names, not instructions, even when they contain the word.
-        if IMPLEMENT_ANY.search(QUOTED_NAME.sub("path", prompt)):
+        if IMPLEMENT_ANY.search(QUOTED_NAME.sub("path", spaced)):
             raise ValueError("The rerun prompt cannot contain an Implement instruction")
         order = "Run this after the remediation session." if verdict.lower() == "not ready" else "Run this before starting any phase."
-        # Compare with single spaces, so a wrapped prompt still says the sentence.
-        spaced = re.sub(r"\s+", " ", prompt).lower()
-        if new and order.lower()[:-1] not in spaced:
+        if new and order.lower()[:-1] not in spaced.lower():
             raise ValueError(f"The rerun prompt of a {verdict} report must say: {order}")
-        if "do not start dependent implementation" not in prompt.lower():
+        if "do not start dependent implementation" not in spaced.lower():
             raise ValueError("The rerun prompt must say: Do not start dependent implementation.")
     return {"number": number, "recommendation": recommendation, "reasons": reasons,
             "prompt": prompt if recommendation == "yes" else None, "triggers": triggers}
@@ -661,6 +667,8 @@ def report_sections(parts, version, verdict, prompts, pairs, context, current, m
                     target = escape("handoff-" + phase_id)
                     toolbar = (f'<button class="copy-prompt" type="button" data-copy-target="{target}">Copy Phase {escape(phase_id)} prompt</button>'
                                '<span class="copy-status" role="status" aria-live="polite"></span>') if current else warning
+                    if current and rerun_first:
+                        toolbar = RUN_FIRST_NOTE
                     content_html += (f'<h3>Phase {escape(phase_id)}: {inline(titles[phase_id])}</h3><div class="prompt-toolbar">' + toolbar
                                      + f'</div><pre id="{target}" tabindex="0">' + escape(prompt) + '</pre>')
             else:
@@ -866,7 +874,7 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
     figures = '<div class="figs">' + "".join(render_diagram(diagram, index) for index, diagram in enumerate(fields["diagrams"], 1)) + "</div>"
     counts = ('<div class="counts">'
               + count_card("answer", decisions, "needs your answer", "need your answer", "Decisions", "No approvals are pending", answer_hint(decisions))
-              + count_card("watch", watch, "gap on the watch list", "gaps on the watch list", "Watch list", "No gaps, limits or risks recorded", watch_hint(watch))
+              + count_card("watch", watch, "item on the watch list", "items on the watch list", "Watch list", "No gaps, limits or risks recorded", watch_hint(watch))
               + "</div>")
     cards = []
     for phase in phases:
@@ -887,11 +895,16 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
         prompt, target, action, prompt_title = prompts[0][2], "summary-handoff", "Copy remediation prompt", "Remediation prompt"
     toolbar = (f'<button class="copy-prompt" type="button" data-copy-target="{escape(target)}">{action}</button>'
                '<span class="copy-status" role="status" aria-live="polite"></span>') if current else warning
+    if current and rerun_first and pairs:
+        # A phase prompt waits for the re-run, so the re-run card comes first and the prompt has no copy button.
+        toolbar = RUN_FIRST_NOTE
     next_session = (f'<div class="card next"><h3>Next session</h3><ul class="phase-cards" role="list">{"".join(cards)}</ul>'
                     f'<h4 class="prompt-title">{prompt_title}</h4><div class="prompt-toolbar">{toolbar}</div>'
                     f'<pre id="{escape(target)}" tabindex="0">{escape(prompt)}</pre>'
                     '<p><a href="#section-8">All prompts: Full report, section 8</a></p></div>')
-    panels = [panel("summary", "Summary", figures + counts + next_session + rerun_card(rerun, recorded, context["kind"] == "new"))]
+    rerun_html = rerun_card(rerun, recorded, context["kind"] == "new")
+    ordered = rerun_html + next_session if current and rerun_first and pairs else next_session + rerun_html
+    panels = [panel("summary", "Summary", figures + counts + ordered)]
 
     if decisions:
         head = "".join(f'<th scope="col">{title}</th>' for title in ("ID", "Question", "Recommendation", "Confidence", "Holds back"))

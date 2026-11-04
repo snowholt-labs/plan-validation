@@ -366,6 +366,20 @@ class ReportTests(unittest.TestCase):
             "Implement the approved scope now.", "Do not implement Task 2. Do not start dependent implementation.")
         self.assertIn("Copy remediation prompt", render(source, self.stop_rerun(self.modern_context()))[0])
 
+    def test_v4_remediation_prompt_rejects_every_implement_form(self):
+        not_ready = REPORT.replace("**Ready.**", "**Not ready.**")
+        for instruction in ("Start implementing Phase 1.", "The fix implements Task 2."):
+            source = not_ready.replace("Implement the approved scope now.", instruction + " Do not start dependent implementation.")
+            with self.subTest(instruction=instruction), self.assertRaisesRegex(ValueError, "remediation prompt"):
+                render(source, self.stop_rerun(self.modern_context()))
+        # A quoted path and a wrapped sentence are not instructions; saved reports keep the earlier check.
+        source = not_ready.replace("Implement the approved scope now.",
+                                   "Fix `/repo/implementing/plan.md`. Do not\n  implement Task 2. Do not start dependent\n  implementation.")
+        self.assertIn("Copy remediation prompt", render(source, self.stop_rerun(self.modern_context()))[0])
+        saved = self.stop_rerun(self.modern_context())
+        saved["kind"] = "saved"
+        render(not_ready.replace("Implement the approved scope now.", "Start implementing Phase 1. Do not start dependent implementation."), saved)
+
     def test_backticks_around_prose_do_not_bypass_the_word_limit(self):
         source = REPORT.replace("Implement the approved scope now.", "`" + "detail " * 81 + "` now.")
         with self.assertRaisesRegex(ValueError, "80 words"):
@@ -941,8 +955,16 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         # A Ready report's phase prompts wait for the re-run, or a phase starts on a plan the run may change.
         low = REPORT.replace("Confidence: 75%", "Confidence: 65%")
         page = render(low, self.rerun_yes(self.modern_context(), self.RERUN_PROMPT.replace("this before", "this\n  before")))[0]
-        self.assertIn("Run validation again first", self.panel(page, "summary"))
+        summary = self.panel(page, "summary")
+        self.assertIn("Run validation again first", summary)
         self.assertNotIn("Can start", page)
+        # No phase prompt can be copied before the re-run, and the re-run card comes before the next session.
+        self.assertNotIn("Copy Phase", page)
+        self.assertIn("Copy re-run prompt", summary)
+        self.assertLess(summary.index('id="rerun"'), summary.index("Next session"))
+        self.assertIn("start a phase only after that run", self.panel(page, "full"))
+        # Without the yes, the phase prompts keep their copy buttons.
+        self.assertIn("Copy Phase 1 prompt", render(low, self.stop_rerun(self.modern_context()))[0])
         with self.assertRaisesRegex(ValueError, "before starting any phase"):
             render(REPORT.replace("Confidence: 75%", "Confidence: 65%"),
                    self.rerun_yes(self.modern_context(), self.RERUN_PROMPT.replace(" Run this before starting any phase.", "")))
@@ -991,6 +1013,9 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                     render(REPORT, context)
         # A negated mention, with a typographic apostrophe too, is not an instruction.
         render(REPORT, self.rerun_yes(self.modern_context(), self.RERUN_PROMPT + " Don’t implement anything."))
+        # Every sentence check reads a wrapped prompt as one line.
+        wrapped = self.RERUN_PROMPT.replace("run 2 of 3", "run 2\n  of 3").replace("dependent implementation", "dependent\n  implementation")
+        render(REPORT, self.rerun_yes(self.modern_context(), wrapped + " Do not\n  implement anything."))
         # Paths are names, not instructions, even when they contain the word.
         render(REPORT, self.rerun_yes(self.modern_context(), self.RERUN_PROMPT.replace(
             "`/repo/PLAN.md`", "`/repo/docs/implementation plan.md`").replace(
@@ -1581,7 +1606,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             self.assertIn('href="#section-6"', row)
         summary = self.panel(page, "summary")
         self.assertIn('<button class="count" type="button" data-open-tab="answer"><strong>2</strong>', summary)
-        self.assertIn('<button class="count" type="button" data-open-tab="watch"><strong>4</strong>', summary)
+        self.assertIn('<button class="count" type="button" data-open-tab="watch"><strong>4</strong><span>items on the watch list</span>', summary)
         self.assertNotIn("Approve it.", summary)
         cards = re.findall(r'<article class="watch watch-(\w+)">(.*?)</article>', self.panel(page, "watch"), re.S)
         self.assertEqual([kind for kind, _ in cards], ["gap", "limit", "risk", "fixed"])

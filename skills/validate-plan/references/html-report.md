@@ -101,12 +101,18 @@ Versions 3 and 4 check the phase grouping. The renderer also checks that:
 - in a new report, each ready prompt after the first says `Confirm Phase <previous> is merged`
   for the ready phase before it, never negated;
 - a Not ready report, or one whose first phase waits, has exactly one prompt that
-  says `Do not start dependent implementation.` and has no `Implement` instruction.
+  says `Do not start dependent implementation.` and has no `Implement` instruction
+  (in a new version 4 report, no `implements` or `implementing` either, outside a
+  backtick-quoted path).
 
 Section 8 shows the phase table above the prompts, and each phase prompt has its
 own copy button. In version 4 the Summary repeats the first ready prompt (or the single
 remediation prompt) with its own copy button, or with the historical warning when the
-handoff is not current. Besides `handoff.txt` (the first prompt), the renderer writes
+handoff is not current. When a current Ready or Ready after approvals report recommends
+running validation again (`yes`), the phase prompts in the Summary and section 8 show
+`Run validation again first, with the re-run prompt in the Summary; start a phase only
+after that run.` instead of a copy button, and the Summary puts the re-run card above
+the next session. Besides `handoff.txt` (the first prompt), the renderer writes
 `handoff-phase-<id>.txt` for each ready phase, with the historical warning when the
 handoff is not current. A re-render first deletes every `handoff-phase-*.txt` in the
 run directory, so an earlier phase prompt never survives a changed verdict.
