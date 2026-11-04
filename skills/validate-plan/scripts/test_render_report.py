@@ -939,6 +939,10 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 prompt = render(source, self.rerun_yes(self.modern_context(), expected))[3]
                 self.assertEqual(prompt, expected)
         # A Ready report's phase prompts wait for the re-run, or a phase starts on a plan the run may change.
+        low = REPORT.replace("Confidence: 75%", "Confidence: 65%")
+        page = render(low, self.rerun_yes(self.modern_context(), self.RERUN_PROMPT.replace("this before", "this\n  before")))[0]
+        self.assertIn("Run validation again first", self.panel(page, "summary"))
+        self.assertNotIn("Can start", page)
         with self.assertRaisesRegex(ValueError, "before starting any phase"):
             render(REPORT.replace("Confidence: 75%", "Confidence: 65%"),
                    self.rerun_yes(self.modern_context(), self.RERUN_PROMPT.replace(" Run this before starting any phase.", "")))

@@ -413,19 +413,28 @@ def phase_plan(context, verdict):
     return phases
 
 
-def phase_status(phase, verdict, current):
+def phase_status(phase, verdict, current, rerun_first=False):
     """Return the escaped status shown for a phase in section 8 and on the Summary."""
     if phase["status"] == "waiting":
         return "Waits for " + inline(phase["waits_for"])
     # A remediation-only or historical report never shows a phase as startable.
     if verdict.lower() == "not ready":
         return "Waits for remediation"
-    return "Can start" if current else "Revalidate before starting"
+    if not current:
+        return "Revalidate before starting"
+    # A version 4 yes asks for another run before any phase starts.
+    return "Run validation again first" if rerun_first else "Can start"
 
 
-def phase_table(phases, verdict, current):
+def rerun_first(context, verdict):
+    """Whether a version 4 report recommends another validation run before any phase starts."""
+    rerun = context.get("rerun")
+    return isinstance(rerun, dict) and rerun.get("recommendation") == "yes" and verdict.lower() != "not ready"
+
+
+def phase_table(phases, verdict, current, first=False):
     def status(phase):
-        return phase_status(phase, verdict, current)
+        return phase_status(phase, verdict, current, first)
     rows = ''.join('<tr>' + ''.join(f'<td>{cell}</td>' for cell in (
         escape(phase["id"]) + ': ' + inline(phase["title"]), escape(", ".join(phase["tasks"])),
         "Docs only" if phase["docs_only"] else "Code",
@@ -614,7 +623,9 @@ def rerun_check(context, verdict, confidence, plan_revised, spec_revised):
         if IMPLEMENT_ANY.search(QUOTED_NAME.sub("path", prompt)):
             raise ValueError("The rerun prompt cannot contain an Implement instruction")
         order = "Run this after the remediation session." if verdict.lower() == "not ready" else "Run this before starting any phase."
-        if new and order.lower()[:-1] not in prompt.lower():
+        # Compare with single spaces, so a wrapped prompt still says the sentence.
+        spaced = re.sub(r"\s+", " ", prompt).lower()
+        if new and order.lower()[:-1] not in spaced:
             raise ValueError(f"The rerun prompt of a {verdict} report must say: {order}")
         if "do not start dependent implementation" not in prompt.lower():
             raise ValueError("The rerun prompt must say: Do not start dependent implementation.")
@@ -648,7 +659,7 @@ def report_sections(parts, version, verdict, prompts, pairs, context, current, m
                 intro = intro[:start] + intro[end:]
             content_html = markdown(intro)
             if version >= 3:
-                content_html += phase_table(context["phases"], verdict, current)
+                content_html += phase_table(context["phases"], verdict, current, version >= 4 and rerun_first(context, verdict))
             if pairs:
                 titles = {phase["id"]: phase["title"] for phase in context["phases"]}
                 for phase_id, prompt in pairs:
@@ -862,7 +873,7 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
               + "</div>")
     cards = []
     for phase in phases:
-        state = phase_status(phase, verdict, current)
+        state = phase_status(phase, verdict, current, rerun_first(context, verdict))
         style = ("chip-ok", "circle") if state == "Can start" else ("chip-wait", "diamond")
         flags = [chip(*style, "Ready" if state == "Can start" else state)]
         if phase["docs_only"]:
