@@ -63,6 +63,53 @@ Keep the eight evidence sections below in this order. Add the unnumbered **Summa
 7. **Verification and checkout:** actual dry-run commands/results, reviewed versus executed checks, checks not run, tested SHA, changed files, commit status and worktree cleanup. Never replace an actual test count with an inferred new total.
 8. **Fresh-session handoff:** a one-line suggested effort covering all phases, then one fenced launch prompt per ready phase, in phase order, following `../handoff-template.md`. The renderer adds the phase table from `context.json` above the prompts and a heading for each prompt, and shows all other section 8 text above the table, so write only the effort line, the between-phases note from the template and the fenced prompts. Each prompt targets 50–80 words with an 80-word maximum, names one phase and its tasks, and says `Stop at the end of Phase <id>` for its own phase. Reference verified plan/spec/report/context paths; keep full decisions, permissions and evidence in those sources. For **Ready after approvals**, give prompts only for ready phases before the first waiting phase and name the waiting decision; if the first phase waits, give one prompt that names what to resolve and says `Do not start dependent implementation.` For **Not ready**, use one short remediation prompt naming the blocker and explicitly prohibiting dependent implementation; no phase prompts.
 
+## Run validation again
+
+Every new report says whether to run validation again, in `context.json` `rerun`
+(fields and run counting in [html-report.md](html-report.md)). It is not one of the
+eight sections; the page shows it as a header pill and a Summary card with
+"Run <n> of at most 3".
+
+- **yes:** another run is likely to fix something. The reasons say what.
+- **no:** nothing is left that validation can fix. The reasons say why.
+- **stop:** do not run again; the user decides the next step. The reasons say what
+  remains, or what to decide.
+
+Give 1–4 short reasons. The renderer computes these mechanical triggers:
+
+- confidence `Unknown` or below 70%;
+- a revised PLAN or SPEC average below 8.0, or `Unknown`;
+- the verdict Not ready.
+
+Rules:
+
+- **Runs 1 and 2:** when a trigger fires, answer `yes` or `stop`, never `no`. Use
+  `stop` when another run cannot help, for example when the blocker needs the user's
+  decision; its reasons name what to decide. `yes` without a trigger is allowed when
+  validation could fix gaps it did not reach; its reasons name them.
+- **Run 3:** never `yes`. Answer `stop`, or `no` when no trigger fires.
+- **Pending approvals** are never a trigger. Recording an answer stays the same-run
+  re-render, or a phase-only validation after merges.
+
+Only `yes` has a `prompt`. It lives only in `context.json`, never in section 8, and
+the renderer writes it to `rerun.txt`. The prompt:
+
+- has at most 80 words; a backtick-quoted absolute path counts as one word;
+- starts with the invocation this run used (such as `/plan-validation:validate-plan`
+  or `$validate-plan`), because the skill runs only when invoked explicitly;
+- names the PLAN, the SPEC and this run's `report.md` as the previous report;
+- says `run <n+1> of 3`, where `<n>` is this run's number;
+- names what the run should focus on;
+- has no `Implement` instruction and says `Do not start dependent implementation.`
+
+```text
+/plan-validation:validate-plan PLAN: `[PLAN path]` SPEC: `[SPEC path]` FOCUS: Run validation again (run [n+1] of 3). Previous report: `[report.md path]`; read it and its context.json first. Focus on [what to fix]. Do not start dependent implementation.
+```
+
+When the plan or spec changes after review, the historical warning says to run
+validation again, naming the next run, instead of more review rounds; at run 3 it says
+the run limit is reached.
+
 ## Dependency evidence within the eight sections
 
 Keep both complete PLAN/SPEC tables, scope changes, confidence/evidence, verification limits and the full copyable handoff. Do not substitute a dependency summary or decision menu for this contract.
