@@ -191,8 +191,8 @@ Version 4 fields:
   date. `title_accent` is text that appears exactly once in `title`; it is shown in the
   accent colour.
 - `diagrams`: 1–3 items. Describe the intended design, not the validation workflow. The
-  `eyebrow` says whether a part is planned, existing or changing; draw only connections
-  the spec describes. Every diagram needs `eyebrow` (at most 40 characters), `title` (60),
+  `eyebrow` says whether the diagram shows planned, existing or changing parts (a node's
+  `sub` can mark a single part that differs); draw only connections the spec describes. Every diagram needs `eyebrow` (at most 40 characters), `title` (60),
   `description` (one sentence, read by screen readers) and `caption`.
   - `zones`: 1–3 zones side by side, each with a `label` (26) and 1–5 `nodes`. A node has
     an `id` (1–24 lowercase letters, digits or hyphens, starting with a letter, unique in
@@ -202,8 +202,8 @@ Version 4 fields:
     rejected (use `chain`), and so are two links that leave the same row of the same gap,
     except a link and its exact reverse, which run as two parallel lines.
   - `flow`: 2–7 `steps`, each with a `title` (24) and an optional `sub` (30), and at most
-    2 `branches`. A branch has `from_step`, a `title` (14), an optional `sub` (18) and a
-    `tone` of `retry`, `stop` or `note`. `returns_to` (an earlier step) draws a dashed
+    2 `branches`. A branch has `from_step` (a step number, counting from 1), a `title` (14), an optional `sub` (18) and a
+    `tone` of `retry`, `stop` or `note`. `returns_to` (an earlier step number) draws a dashed
     arrow back; when two branches leave one step, only the first may return, and two
     return paths may not cover the same steps.
   - The limits count a wide or full-width (East Asian) character as 2. The renderer also
@@ -218,7 +218,8 @@ Version 4 fields:
   item has `id` (1–16 letters, digits, dots or hyphens, unique, and present in section 6
   as a whole word: `D1` does not match `D10`), `question`, `recommendation`, `confidence`
   (`High`, `Medium` or `Low`) and `holds_back` (the phases or tasks it holds back, or
-  `Nothing`). A `Ready after approvals` verdict needs at least one item that holds back
+  exactly `Nothing` or `None` when it holds back no work; any other text counts as holding
+  back work). A `Ready after approvals` verdict needs at least one item that holds back
   work; a `Ready` verdict must have none that does.
 - `watch_list`: a list, `[]` when none. Each item has `kind` (`gap`, `limit`, `risk` or
   `fixed`), a `title` (at most 60 characters) and a one- or two-sentence `body`.
@@ -237,8 +238,10 @@ prompt references context.json so the next agent can recover it.
 
 Existing contexts without `format_version` are treated as version 1, preserving
 their original long prompt and eight-section layout when explicitly rendered.
-Versions 2 and 3 keep their "Feature at a glance" page (a `feature` with 3–7 steps)
-and render exactly as before. Do not modify existing reports, plans or specs to
+Versions 2 and 3 keep their "Feature at a glance" page and render exactly as before.
+Their `feature` has a nonempty `summary`, an optional `layout` (`flow`, the default, for
+a sequence with arrows, or `blocks` for independent parts) and 3–7 `steps`, each with a
+nonempty `title` and `description`. Do not modify existing reports, plans or specs to
 migrate the format. New validation runs use version 4; versions 1–3 render saved
 reports only, and legacy support is for recovery, not a way around the new writing
 requirements. Unsupported versions are rejected.
