@@ -342,7 +342,7 @@ a new report with `yes` that the copied re-run prompt matches `rerun.txt`. Provi
 to `report.html`; a short local preview URL may accompany it. If serving locally,
 bind to `127.0.0.1`, serve only this report directory, and keep that preview alive.
 No dependency install or external hosting is needed. Render new reports with `--open`,
-except when publishing is on (below);
+except a new run's first render while publishing is on (below);
 keep the clickable absolute link to `report.html` either way, and when the renderer
 prints `"opened": false`, do not say the report was opened.
 
@@ -400,8 +400,11 @@ To print or download, use the local `report.html`.
 
 Update an existing artifact only when the user asks to publish or update it, for
 example with a re-render of a run whose directory has `artifact.json`; a plain
-re-render, including one after a recorded answer, stays local, like any saved report. When asked, and the line still reads
-exactly `true`, update that artifact instead of creating a new one. Follow steps 1–3,
+re-render, including one after a recorded answer, stays local, like any saved report.
+After such a re-render of a run with `artifact.json`, say in one line that the published
+artifact still shows the earlier report and can be updated on request. When asked, and
+the line still reads exactly `true`, update that artifact instead of creating a new one;
+a run without `artifact.json` gets a first publish as described above. Follow steps 1–3,
 skip the quickstart, and in step 5 publish with `url` set to the URL in
 `artifact.json` and without `icon`. Render without `--open` even when the user asked
 to see the report; the artifact link takes its place. In a later session, first
