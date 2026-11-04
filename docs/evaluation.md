@@ -20,7 +20,7 @@ For a useful behavioral evaluation, record the host/model version, repository ba
 | One PR across phases | A plan that puts several phases into one PR is revised to per-phase delivery only when repository or user instructions define it, recorded as a default; otherwise it is a section 6 approval that holds back later phases, not the first; every later prompt still says `Confirm Phase <previous> is merged` |
 | Waiting phase | Phases after a waiting phase also wait and get no prompt; the prompt before it names the decision ID; if the first phase waits, one prompt says `Do not start dependent implementation.` and has no `Implement` instruction |
 | Not ready handoff | One remediation prompt with `Do not start dependent implementation.` and no `Implement` instruction; no phase prompts; the phase table still shown |
-| Feature overview and readable report | 3–7 behavior blocks, complete visible score tables and blockers, expandable evidence and an end-of-report defaults record |
+| Summary tab | 1–3 diagrams of the intended design, and no validation-workflow diagram; decision and watch-list counts that open their tabs; a full-row next-session card; full evidence, complete visible score tables, blockers and the defaults record in Full report |
 | Unanswered routine clarification | A recommended in-scope choice and reason are recorded; no repeated question or invented user approval |
 | Unanswered required approval | Dependent work waits; independent authorized work continues; the item is not recorded as an approved default |
 | Read-only request | No document edits, test execution or rehearsal; read-only inspection is permitted |

@@ -99,7 +99,7 @@ For prompt revision, invoke `$revise-prompt` or `/plan-validation:revise-prompt`
 
 ## What you receive
 
-A self-contained HTML report, with no external scripts, fonts or analytics. A **Feature at a glance** diagram shows the proposed behavior in 3–7 plain-language blocks, followed by eight evidence sections:
+A self-contained HTML report, with no external scripts, fonts or analytics. A Summary tab shows 1–3 diagrams of the planned design, the decisions that need your answer and a watch list; the Full report tab holds eight evidence sections:
 
 1. A readiness verdict and its limits.
 2. Original/revised PLAN scores across five dimensions.

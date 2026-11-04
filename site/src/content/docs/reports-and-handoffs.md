@@ -5,9 +5,16 @@ description: What the eight report sections, scores and evidence mean, and how t
 
 The report is a durable record of one validation, not a live monitor. It lives under `~/.local/share/plan-validation/<repository>/<run>/` with original/revised document copies, Markdown, context metadata and the exact handoff text.
 
-## A quick overview, then eight evidence sections
+## A summary, then eight evidence sections
 
-New reports begin with **Feature at a glance**: 3–7 plain-language blocks showing the proposed feature's main behavior. The diagram describes the feature, not the validation process, and stays readable without external scripts, fonts or services.
+New reports open with a header card (the verdict, phase and task counts, and a Historical label when the handoff is out of date) and a score strip with both averages and the confidence estimate. Below them are four tabs:
+
+- **Summary:** 1–3 diagrams of the planned design, a count of decisions that need your answer and of watch-list items, and the next session's phases with the first prompt and its copy button.
+- **Needs your answer:** each pending decision with its recommendation, confidence and what it holds back, linked to the full option menu in Open items.
+- **Watch list:** gaps, limits, risks and items fixed in the plan, each labelled with a word, not only a colour.
+- **Full report:** the eight evidence sections below, then the defaults record and the document identity.
+
+A tab with nothing in it is left out. The diagrams describe the feature, not the validation process. The renderer draws them from data, so labels are checked to fit and never overlap. The page stays readable without external scripts, fonts or services; without JavaScript every tab shows in order. A link to a section, such as Open items, opens the Full report tab.
 
 | Section | Purpose |
 | --- | --- |
@@ -34,7 +41,7 @@ Existing readiness confidence estimates, when used, are subjective and supported
 
 ## What the renderer checks
 
-The renderer rejects missing sections, malformed score tables, incorrect averages, a Ready report without completed-review metadata, missing scope records and invalid remediation prompts. New reports use format version 3. They also require the feature overview, a default-decision record, and a phase grouping that covers every validated task once, in plan order. Section 8 needs one prompt of at most 80 words per ready phase, and each prompt must say `Stop at the end of Phase <id>` for its own phase. Each prompt after the first must also say `Confirm Phase <previous> is merged`. It compares the recorded SHA-256 values with both document files at render time.
+The renderer rejects missing sections, malformed score tables, incorrect averages, a Ready report without completed-review metadata, missing scope records and invalid remediation prompts. New reports use format version 4. They also require 1–3 diagrams, the pending-decision and watch lists (which may be empty), a default-decision record, and a phase grouping that covers every validated task once, in plan order. Section 8 needs one prompt of at most 80 words per ready phase, and each prompt must say `Stop at the end of Phase <id>` for its own phase. Each prompt after the first must also say `Confirm Phase <previous> is merged`. Each pending decision's ID must also appear in Open items, and a Ready after approvals verdict needs at least one decision that holds back work. It compares the recorded SHA-256 values with both document files at render time.
 
 These checks validate the report contract. They do not verify the truth of an agent's recorded review, reconstruct Git approvals or rerun tests. A JSON field saying the review is complete is an assertion that must be backed by saved evidence.
 
@@ -44,7 +51,7 @@ Changed or unavailable documents disable the current prompt controls. The agent 
 
 On resumption, the skill rechecks the saved report, current paths, hashes, branch/base and approvals. It can regenerate missing HTML from saved evidence, clearly labeling this as recovery rather than a new validation.
 
-Older contexts without a format version still render through the legacy format. Updating the plugin does not rewrite existing reports, plans or specs. New runs use version 3; version 2 still renders saved reports.
+Older contexts without a format version still render through the legacy format. Updating the plugin does not rewrite existing reports, plans or specs. New runs use version 4; versions 2 and 3 still render saved reports, with their Feature at a glance page, exactly as before.
 
 ## Starting implementation
 
