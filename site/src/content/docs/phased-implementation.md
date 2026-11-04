@@ -37,6 +37,17 @@ Other rules:
 
 Between phases, the plan branch moves on purpose: earlier phases are merged and their task checkboxes are ticked. That is expected. Any other change to the plan, spec or approvals means the session reconciles it with the report before building.
 
+## Reviewing a validated spec and plan
+
+The workflow above needs only CI for docs-only PRs. Some repositories also run a code review on a docs PR, and this repository does: its `AGENTS.md` asks for a code review and a security review on every PR, docs-only PRs included. On a spec and plan that already have a validation report, open-ended review rounds tend to redesign the documents inside the PR. If your repository reviews such a docs PR, this rule is recommended:
+
+- **Review fixes only local defects:** a wrong path or command, a contradiction between two sections or with the code, or wrong wording.
+- **Design gaps go back to validation.** A finding that would add or change requirements, design, phases, tasks or scope is not fixed in the PR. Review stops, and validation runs again in a fresh session. That run counts toward the limit of 3 validation runs. Review then restarts on the new head.
+- **At most 3 review rounds.** If High or Medium findings remain after round 3, stop: validate again, or ask the maintainer.
+- **Low findings are listed, not fixed**, unless a High or Medium fix touches the same line.
+
+Other PRs keep their usual review rounds.
+
 ## Text for your repository instructions
 
 Paste this into your repository's `AGENTS.md` (or equivalent) and adjust it to your rules:
