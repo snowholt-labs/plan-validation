@@ -201,7 +201,8 @@ Version 4 fields:
     between consecutive nodes of a zone. `links` join nodes in neighbouring zones only,
     each with a `label` (14) and an optional `sub` (18). Links within one zone are
     rejected (use `chain`), and so are two links that leave the same row of the same gap,
-    except a link and its exact reverse, which run as two parallel lines.
+    except a link and its exact reverse between nodes on the same row, which run as two
+    parallel lines.
   - `flow`: 2–7 `steps`, each with a `title` (24) and an optional `sub` (30), and at most
     2 `branches`. A branch has `from_step` (a step number, counting from 1), a `title` (14), an optional `sub` (18) and a
     `tone` of `retry`, `stop` or `note`. `returns_to` (an earlier step number) draws a dashed
@@ -211,7 +212,8 @@ Version 4 fields:
     `audience` and watch-list `title` limits count every character as 1. The renderer also
     estimates the drawn width of each label inside a shape or gap, with wide letters such as `W` and `M`, symbols
     and emoji counting wider, so a label within its limit can still be too wide. It then
-    checks every shape, label and line for overlap. It rejects a label that does not fit or a layout that collides,
+    checks every shape, label and line for overlap; lines may cross at right angles, but
+    never run along each other or through a shape or label. It rejects a label that does not fit or a layout that collides,
     naming the field, the link or the colliding shapes; it never cuts or moves text. Links are routed in the order
     given, so reordering links or nodes can fix a rejected layout.
   - Node `id`s only resolve links; they never become page IDs. All text is escaped; the

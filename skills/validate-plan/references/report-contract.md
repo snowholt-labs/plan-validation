@@ -33,7 +33,7 @@ Score the original and revised versions separately, with the revised score taken
   - A primary source verifies what it actually documents; it does not prove this repository's runtime behavior. A future production approval gate alone does not lower confidence in starting the approved implementation.
 - **Verdict:**
   - **Not ready:** any blocker remains in either document, whatever the score.
-  - **Ready after approvals:** no blocker remains, and the open items are only non-blocking user approvals.
+  - **Ready after approvals:** no blocker remains, and the open items are only non-blocking user approvals, at least one of which holds back dependent work in the named scope. An approval that holds back nothing leaves the verdict Ready.
   - **Ready:** no blocker or unresolved approval for the named implementation scope. Recorded limitations and separately scoped follow-ups are not automatically blockers.
   - Approval gates that PLAN already has for production, rollout, secrets or infrastructure do not lower the verdict. The handoff stops before them.
 

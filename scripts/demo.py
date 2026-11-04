@@ -150,7 +150,7 @@ Do not start dependent implementation. Report results and any defaults chosen, t
                         {"id": "helper", "title": "Retry helper", "sub": "waits, then tries again"},
                     ], "chain": True},
                     {"label": "Remote service", "nodes": [
-                        {"id": "api", "title": "API endpoint", "sub": "may fail for a while"},
+                        {"id": "api", "title": "API endpoint", "sub": "existing, may fail for a while"},
                     ]},
                 ],
                 "links": [
