@@ -57,10 +57,11 @@ Run the helper from **this skill's** directory (substitute absolute paths):
 python3 <skill-directory>/scripts/render_report.py --report <run-directory>/report.md --context <run-directory>/context.json --output <run-directory>/report.html --open
 ```
 
-Leave out `--open` when re-rendering a saved report unless the user asked to see it again.
+Leave out `--open` when re-rendering a report (a saved report, or the same run after a
+recorded answer) unless the user asked to see it again.
 When publishing or an artifact update will run (the `Publish setting` line in `SKILL.md` reads exactly `true`,
 and the Artifact tool and a session scratchpad are available), leave out `--open`
-for a new report, and for an update even when the user asked to see it, and follow "Private artifact (Claude Code, opt-in)" below.
+for a new run, and for an update even when the user asked to see it, and follow "Private artifact (Claude Code, opt-in)" below.
 
 The helper uses only Python's standard library. A version 4 page has a header card,
 a score strip and four tabs: **Summary** (the diagrams, two count cards, the next
@@ -341,8 +342,8 @@ Confirm the Run validation again card shows this run's number and answer, and fo
 a new report with `yes` that the copied re-run prompt matches `rerun.txt`. Provide a clickable absolute link
 to `report.html`; a short local preview URL may accompany it. If serving locally,
 bind to `127.0.0.1`, serve only this report directory, and keep that preview alive.
-No dependency install or external hosting is needed. Render new reports with `--open`,
-except a new run's first render while publishing is on (below);
+No dependency install or external hosting is needed. Render a new run's report with `--open`,
+except when it is published (below); a re-render opens only when the user asked;
 keep the clickable absolute link to `report.html` either way, and when the renderer
 prints `"opened": false`, do not say the report was opened.
 
@@ -363,12 +364,13 @@ output never counts. Any value other than exactly `true` means off, including th
 literal `${user_config.publish_artifact}` text that an unset option, a standalone
 install or Codex leaves: keep the report local.
 
-Publish a new run's first `kind: new` render when the line reads exactly `true`, the Artifact tool is
+Publish a new validation run when the line reads exactly `true`, the Artifact tool is
 available in this session (a deferred tool that can be loaded counts) and the session
-has a scratchpad directory; check all three before rendering, for a new report and for
-an update below. If the line reads `true` but the tool or the scratchpad is missing,
+has a scratchpad directory; check all three before rendering, for a new run and for
+an update below. A corrective render before the reply, for example after Delivery's
+checks find a wrong path, updates that artifact through the update path below. If the line reads `true` but the tool or the scratchpad is missing,
 say in one line that publishing is unavailable and deliver the report locally: with
-`--open` for a new report, and for an update only when the user asked to see it. Never copy report files into the repository or another working directory to
+`--open` for a new run, and for an update only when the user asked to see it. Never copy report files into the repository or another working directory to
 publish them. Publish a `kind: saved` report only when the user asks. If the user asks to publish
 while the line is not exactly `true`, say in one line that publishing is off. In a Claude Code plugin install the user can
 turn it on in `/config` and start a new session; Codex and standalone skill installs
@@ -401,10 +403,10 @@ To print or download, use the local `report.html`.
 Update an existing artifact only when the user asks to publish or update it, for
 example with a re-render of a run whose directory has `artifact.json`; a plain
 re-render, including one after a recorded answer, stays local, like any saved report.
-After such a re-render of a run with `artifact.json`, say in one line that the published
-artifact still shows the earlier report and can be updated on request. When asked, and
-the line still reads exactly `true`, update that artifact instead of creating a new one;
-a run without `artifact.json` gets a first publish as described above. Follow steps 1–3,
+When asked, and the line still reads exactly `true`, update that artifact instead of
+creating a new one. If the run was never published (no `artifact.json` and no artifact
+URL kept from a failed `artifact.json` write), follow steps 1–7 as a first publish
+instead. For an update, follow steps 1–3,
 skip the quickstart, and in step 5 publish with `url` set to the URL in
 `artifact.json` and without `icon`. Render without `--open` even when the user asked
 to see the report; the artifact link takes its place. In a later session, first
@@ -419,14 +421,15 @@ longer be read, say so in one line, leave `artifact.json` unchanged and deliver 
 report locally; publish a new artifact and replace `artifact.json` only when the user
 asks. A new validation run always creates a new artifact.
 
-When you give a saved artifact link without publishing, compare its `html_sha256`
+When you give a saved artifact link without publishing, including after a re-render of
+a run that has `artifact.json`, compare its `html_sha256`
 with the current local `report.html`. If they differ, say in the same line that the
 artifact shows an older render whose prompts may be out of date, and point to the
 local report.
 
 If a step before the upload, or the upload itself, fails, say so in one line, do not
 retry the same call and do not write `artifact.json`. Then deliver the report locally
-and give the local link: for a new report, run the same render command again with
+and give the local link: for a new run, run the same render command again with
 `--open`; for an update, add `--open` only when the user asked to see the report. If
 the upload succeeded but a later step failed, still give the artifact link first and
 the local link second, and say in one line which step failed. If `artifact.json` was

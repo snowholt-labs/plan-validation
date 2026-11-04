@@ -93,8 +93,8 @@ Rules:
 
 In a Not ready report with `yes`, the section 8 remediation prompt comes first: it fixes
 the blocker, and a remediation session is not a validation run. The re-run prompt then
-validates the result as the next counted run. One of its reasons says to run the
-remediation first.
+validates the result as the next counted run, and it says so:
+`Run this after the remediation session.`
 
 Only `yes` has a `prompt`. It lives only in `context.json`, never in section 8, and
 the renderer writes it to `rerun.txt`. The prompt:
