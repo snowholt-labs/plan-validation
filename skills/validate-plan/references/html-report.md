@@ -3,7 +3,8 @@
 Read this when creating the baseline or publishing/repeating a validation result.
 The HTML is the full report, not an abridged alternative. The chat response gives
 the verdict, the report link and any immediate blocker in at most three bullets.
-If the user explicitly asks for the full report in chat, print all eight sections too.
+If the user explicitly asks for the full report in chat, print all eight sections too,
+with the diagram descriptions, open decisions, watch list and defaulted decisions.
 
 ## Files and rendering
 
@@ -27,7 +28,7 @@ After validation, save:
   decisions and the existing convention for readiness. Put decision states in
   section 6 and research/execution limits in section 7; section 8 points back to
   those records instead of repeating them. Use the exact source headings above;
-  versions 2 and 3 render friendlier display labels without changing section anchors.
+  versions 2 and later render friendlier display labels without changing section anchors.
   In sections 1, 4, 5 and 7, `### Technical details` starts expandable evidence
   through the end of that section. Put a concise results/limits summary before
   it. The marker is forbidden in sections 2, 3, 6 and 8 so score tables, blockers
@@ -35,9 +36,10 @@ After validation, save:
 - `context.json`: the small context record below. Use verified facts; use
   `Unknown` for unrecovered counts. Full document hashes identify the revisions
   that were actually validated, not whatever file happens to exist later.
-  New reports (`kind: new`) must use `format_version: 3`, a feature overview, an explicit
+  New reports (`kind: new`) must use `format_version: 4`, with the header fields,
+  `diagrams`, `open_decisions` and `watch_list` (rules below), an explicit
   `decisions_without_reply` list (empty when no routine defaults were used), and the
-  phase grouping in `task_inventory` and `phases` (rules below).
+  phase grouping in `task_inventory` and `phases`.
 - `revised-plan.md` and `revised-spec.md`: copies of the validated revisions.
 - A local research ledger and source evidence when research ran or was declined,
   including sent, declined or unavailable lookups. Record only public query text;
@@ -51,15 +53,16 @@ python3 <skill-directory>/scripts/render_report.py --report <run-directory>/repo
 
 Leave out `--open` when re-rendering a saved report unless the user asked to see it again.
 
-The helper uses only Python's standard library. Versions 2 and 3 add a local HTML/CSS
-block diagram above the eight evidence sections, optional expandable technical
-details, and the routine-default record at the end. It requires 3–7 feature
-steps, each with a nonempty title and description, and rejects handoffs longer
-than 80 whitespace-separated words; a backtick-quoted absolute path counts as one word. Target 50–80 words; do not add filler to
-meet a minimum. Print/PDF expands details and restores their state afterward.
-Use `feature.layout: flow` (the default) for a genuine sequence with arrows, or
-`blocks` for independent parts displayed without ordering or arrows. The
-`steps` array supplies the block text in either layout.
+The helper uses only Python's standard library. A version 4 page has a header card,
+a score strip and four tabs: **Summary** (the diagrams, two count cards, the next
+session's phases and first prompt), **Needs your answer** (from `open_decisions`),
+**Watch list** (from `watch_list`) and **Full report** (the eight evidence sections,
+the routine-default record and the document identity). A tab with nothing to show is
+left out and its count card says None. Without JavaScript every panel shows in order;
+a link to a section, such as `#section-6`, opens Full report. Print/PDF shows every
+panel, expands details and restores their state afterward. It rejects handoffs longer
+than 80 whitespace-separated words; a backtick-quoted absolute path counts as one word.
+Target 50–80 words; do not add filler to meet a minimum.
 It renders the full report and
 writes `handoff.txt` from section 8 exactly when the handoff is current. It rejects missing sections, incorrect
 averages and Ready reports with an incomplete cold read. It checks the two live
@@ -71,7 +74,7 @@ when the document hashes match. A Not ready prompt must explicitly say
 These are structural checks, not a substitute for reviewing the
 evidence, approvals, Git state or the generated report.
 
-Version 3 adds the phase grouping. The renderer also checks that:
+Versions 3 and 4 check the phase grouping. The renderer also checks that:
 
 - the phases cover `task_inventory` exactly once, in plan order, with no empty phase;
 - phase IDs are unique ignoring case and safe as file names (1–16 letters, digits,
@@ -88,7 +91,9 @@ Version 3 adds the phase grouping. The renderer also checks that:
   says `Do not start dependent implementation.` and has no `Implement` instruction.
 
 Section 8 shows the phase table above the prompts, and each phase prompt has its
-own copy button. Besides `handoff.txt` (the first prompt), the renderer writes
+own copy button. In version 4 the Summary repeats the first ready prompt (or the single
+remediation prompt) with its own copy button, or with the historical warning when the
+handoff is not current. Besides `handoff.txt` (the first prompt), the renderer writes
 `handoff-phase-<id>.txt` for each ready phase, with the historical warning when the
 handoff is not current. A re-render first deletes every `handoff-phase-*.txt` in the
 run directory, so an earlier phase prompt never survives a changed verdict.
@@ -97,8 +102,11 @@ Example context shape (replace every example value; do not invent a review):
 
 ```json
 {
-  "format_version": 3,
+  "format_version": 4,
+  "project": "repository-name",
+  "audience": "plan review for the maintainer",
   "title": "Feature name",
+  "title_accent": "name",
   "validation_date": "2026-10-14",
   "kind": "new",
   "review_status": "complete",
@@ -106,15 +114,50 @@ Example context shape (replace every example value; do not invent a review):
   "summary": "What is ready, the important fixes, and the main limitation.",
   "freshness": "Checked at <UTC time>: branch, head, base, approvals and PR state. Tests were run at the recorded SHA.",
   "provenance": "Validation session identifier and source evidence paths.",
-  "feature": {
-    "layout": "flow",
-    "summary": "The proposed feature lets a reader open a document they can access.",
-    "steps": [
-      {"title": "Choose a document", "description": "The reader selects a saved document."},
-      {"title": "Check access", "description": "The application checks permission to open it."},
-      {"title": "Show the result", "description": "The document opens, or an explanation appears."}
-    ]
-  },
+  "diagrams": [
+    {
+      "kind": "zones",
+      "eyebrow": "Architecture · planned",
+      "title": "Who talks to whom",
+      "description": "One sentence stating the whole diagram, for screen readers.",
+      "caption": "One or two plain sentences shown under the diagram.",
+      "zones": [
+        {"label": "Browser", "nodes": [
+          {"id": "reader", "title": "Reader", "sub": "opens a saved document"}
+        ]},
+        {"label": "Application", "nodes": [
+          {"id": "access", "title": "Access check", "sub": "new in this plan"},
+          {"id": "store", "title": "Document store", "sub": "existing"}
+        ], "chain": true}
+      ],
+      "links": [
+        {"from": "reader", "to": "access", "label": "open", "sub": "document ID"},
+        {"from": "access", "to": "reader", "label": "result"}
+      ]
+    },
+    {
+      "kind": "flow",
+      "eyebrow": "Flow · planned",
+      "title": "Opening a document",
+      "description": "One sentence stating the whole flow, for screen readers.",
+      "caption": "One or two plain sentences shown under the diagram.",
+      "steps": [
+        {"title": "Choose a document", "sub": "from the saved list"},
+        {"title": "Check access", "sub": "owner or shared reader"},
+        {"title": "Show the document"}
+      ],
+      "branches": [
+        {"from_step": 2, "title": "Refuse", "sub": "explain why", "tone": "stop"}
+      ]
+    }
+  ],
+  "open_decisions": [
+    {"id": "D1", "question": "Keep the old export format?", "recommendation": "Keep it for one release.",
+     "confidence": "Medium", "holds_back": "Phase 2"}
+  ],
+  "watch_list": [
+    {"kind": "limit", "title": "Checked in Chromium only", "body": "The layout was not checked in other browsers."}
+  ],
   "decisions_without_reply": [],
   "task_inventory": ["1", "2", "3"],
   "phases": [
@@ -142,6 +185,54 @@ Example context shape (replace every example value; do not invent a review):
 }
 ```
 
+Version 4 fields:
+
+- `project` (at most 40 characters, usually the repository name) and `audience` (at most
+  60, for example "plan review for the maintainer") form the kicker with the validation
+  date. `title_accent` is text that appears exactly once in `title`; it is shown in the
+  accent colour.
+- `diagrams`: 1–3 items. Describe the intended design, not the validation workflow. The
+  `eyebrow` says whether the diagram shows planned, existing or changing parts (a node's
+  `sub` can mark a single part that differs); draw only connections the spec describes. Every diagram needs `eyebrow` (at most 40 characters), `title` (60),
+  `description` (one sentence, read by screen readers) and `caption`.
+  - `zones`: 1–3 zones side by side, each with a `label` (26) and 1–5 `nodes`. A node has
+    an `id` (1–24 lowercase letters, digits or hyphens, starting with a letter, unique in
+    the diagram), a `title` (24) and an optional `sub` (30). `chain: true` draws arrows
+    between consecutive nodes of a zone. `links` join nodes in neighbouring zones only,
+    each with a `label` (14) and an optional `sub` (18). Links within one zone are
+    rejected (use `chain`), and so are two links that leave the same row of the same gap,
+    except a link and its exact reverse between nodes on the same row, which run as two
+    parallel lines.
+  - `flow`: 2–7 `steps`, each with a `title` (24) and an optional `sub` (30), and at most
+    2 `branches`. A branch has `from_step` (a step number, counting from 1), a `title` (14), an optional `sub` (18) and a
+    `tone` of `retry`, `stop` or `note`. `returns_to` (an earlier step number) draws a dashed
+    arrow back; when two branches leave one step, only the first may return, and two
+    return paths may not overlap; one may only begin at the step another returns to.
+  - Diagram limits count a wide or full-width (East Asian) character as 2; the `project`,
+    `audience` and watch-list `title` limits count every character as 1. The renderer also
+    estimates the drawn width of each label inside a shape or gap, with wide letters such as `W` and `M`, symbols
+    and emoji counting wider, so a label within its limit can still be too wide. It then
+    checks every shape, label and line for overlap; lines may cross at right angles, but
+    never run along each other or through a shape, label or arrowhead. Arrowheads keep at
+    least 1 unit apart, and each arrow meets a shape's straight edge, not its rounded corner. It rejects a label that does not fit or a layout that collides,
+    naming the field, the link or the colliding shapes; it never cuts or moves text. Links are routed in the order
+    given, so reordering links or nodes can fix a rejected layout.
+  - Node `id`s only resolve links; they never become page IDs. All text is escaped; the
+    agent never writes SVG or HTML.
+- `open_decisions`: a list, `[]` when none. It mirrors section 6's pending approvals. Each
+  item has `id` (1–16 letters, digits, dots or hyphens, starting with a letter or digit,
+  unique ignoring case, and present in section 6
+  with the same case, as a whole word: `D1` does not match `D10`), `question`, `recommendation`, `confidence`
+  (`High`, `Medium` or `Low`) and `holds_back` (the phases or tasks it holds back, or
+  `Nothing` or `None`, in any case, when it holds back no work; any other text counts as
+  holding back work). A `Ready after approvals` verdict needs at least one item that holds
+  back work; a `Ready` verdict must have none that does. In a phase-only validation, an
+  approval that holds back only phases outside the selected scope is a separately scoped
+  follow-up in section 6 and stays out of `open_decisions`.
+- `watch_list`: a list, `[]` when none. Each item has `kind` (`gap`, `limit`, `risk` or
+  `fixed`), a `title` (at most 60 characters) and a one- or two-sentence `body`.
+- `feature` is rejected in version 4; diagrams replace it.
+
 `task_inventory` lists every validated task ID as a string, in plan order
 (`"5b"` and `"5"` are different tasks). Each phase has an `id`, a `title`, its
 `tasks`, the booleans `docs_only` and `security_review` (with `security_reason`
@@ -155,9 +246,13 @@ prompt references context.json so the next agent can recover it.
 
 Existing contexts without `format_version` are treated as version 1, preserving
 their original long prompt and eight-section layout when explicitly rendered.
-Do not modify existing reports, plans or specs to migrate the format. New
-validation runs use version 3; version 2 renders saved reports only, and legacy support is for recovery, not a way around
-the new writing requirements. Unsupported versions are rejected.
+Versions 2 and 3 keep their "Feature at a glance" page and render exactly as before.
+Their `feature` has a nonempty `summary`, an optional `layout` (`flow`, the default, for
+a sequence with arrows, or `blocks` for independent parts) and 3–7 `steps`, each with a
+nonempty `title` and `description`. Do not modify existing reports, plans or specs to
+migrate the format. New validation runs use version 4; versions 1–3 render saved
+reports only, and legacy support is for recovery, not a way around the new writing
+requirements. Unsupported versions are rejected.
 
 For a recovered report set `kind` to `saved`, keep its original date, scores,
 test results and exact handoff, and state that it is being rendered rather than
@@ -168,9 +263,10 @@ Never replace the recorded hashes just to make an old report appear current.
 
 ## Delivery
 
-Open or inspect the generated page. For new reports, confirm the feature
-diagram, the phase table, one short prompt per ready phase, visible blockers/limits, expandable evidence and final
-defaults record. Confirm both five-row tables and averages,
+Open or inspect the generated page. For new reports, confirm the Summary diagrams
+and count cards, the Needs your answer and Watch list tabs when they have items, the
+phase table, one short prompt per ready phase, visible blockers/limits, expandable
+evidence and the final defaults record. Confirm both five-row tables and averages,
 confidence/evidence, scope comparison, limits and the entire prompt are present.
 Confirm applicable dependency/alternative tables and recorded choices are inside
 the report, and that the copied prompt references their complete saved record.
