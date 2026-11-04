@@ -69,8 +69,8 @@ IMPLEMENT = re.compile(r"(?<!not )(?<!n't )(?<!never )\bimplement\b", re.I)
 # Version 4 prompts also reject the other verb forms ("implements", "implementing", "reimplement",
 # "re-implement"). Descriptive words such as "implemented" or "implementation" stay allowed.
 IMPLEMENT_VERB = re.compile(r"\b(?:re-?)?implement(?:s|ing)?\b", re.I)
-# Text ending in a negation: a word ending in "not" ("cannot"), "n't" (straight or curly) or "never".
-NEGATION = re.compile(r"(?:not|n['’]t|\bnever)\s+$", re.I)
+# Text ending in a negation: "not", "cannot", "n't" (straight or curly) or "never".
+NEGATION = re.compile(r"(?:\b(?:can)?not|n['’]t|\bnever)\s+$", re.I)
 # Only path-like spans are skipped: no whitespace, or ending in a file extension.
 QUOTED_NAME = re.compile(r"`(?:/|~/|[A-Za-z]:[\\/])(?:[^`\s]*|[^`\n]*\.[A-Za-z0-9]+)`")
 
@@ -482,14 +482,13 @@ def handoff_prompts(section, version, verdict, context):
             # Every stop sentence names this phase, unnegated. "Phase 1.2", "Phase 1-b" and
             # "Phase 12" are other phases; a sentence-ending period is not.
             own = re.compile(rf"{re.escape(ready[index])}(?![A-Za-z0-9-]|\.[A-Za-z0-9])", re.I)
-            negated = NEGATION
             stops = list(re.finditer(r"\bstop\s+at\s+the\s+end\s+of\s+phase\s+", prompt, re.I))
-            if not stops or any(not own.match(prompt, stop.end()) or negated.search(prompt[:stop.start()]) for stop in stops):
+            if not stops or any(not own.match(prompt, stop.end()) or NEGATION.search(prompt[:stop.start()]) for stop in stops):
                 raise ValueError(f"Phase {ready[index]} prompt must say: Stop at the end of Phase {ready[index]}")
             # A later phase starts only once the previous one is merged; saved prompts stay as written.
             if index and context.get("kind") == "new":
                 checks = list(re.finditer(rf"\bconfirm\s+phase\s+{re.escape(ready[index - 1])}\s+is\s+merged\b", prompt, re.I))
-                if all(negated.search(prompt[:check.start()]) for check in checks):
+                if all(NEGATION.search(prompt[:check.start()]) for check in checks):
                     raise ValueError(f"Phase {ready[index]} prompt must say: Confirm Phase {ready[index - 1]} is merged")
     # With no startable phase, a version 3 or later prompt is a remediation prompt even before Not ready.
     if verdict.lower() == "not ready" or (version >= 3 and not ready):

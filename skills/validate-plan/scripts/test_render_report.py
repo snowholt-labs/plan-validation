@@ -1029,6 +1029,10 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         # A "not" closing one line does not excuse an instruction on the next.
         with self.assertRaisesRegex(ValueError, "Implement"):
             render(REPORT, self.rerun_yes(self.modern_context(), self.RERUN_PROMPT + " Keep D1 or not\nImplement Phase 1."))
+        # A raw CR from context.json ends a line too, and a word that only ends in "not" is no negation.
+        for tail in (" Keep D1 or not\rImplement Phase 1.", " Call isNot implement Phase 1."):
+            with self.subTest(tail=tail), self.assertRaisesRegex(ValueError, "Implement"):
+                render(REPORT, self.rerun_yes(self.modern_context(), self.RERUN_PROMPT + tail))
         # Paths are names, not instructions, even when they contain the word.
         render(REPORT, self.rerun_yes(self.modern_context(), self.RERUN_PROMPT.replace(
             "`/repo/PLAN.md`", "`/repo/docs/implementation plan.md`").replace(
