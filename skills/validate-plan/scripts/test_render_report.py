@@ -1300,12 +1300,14 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                       "Agents that never run validation again first build on stale plans.",
                       "Do not run validation again first unless the plan changed.",
                       "Run validation\nagain first.", "Run  validation again\u00a0first.",
-                      "_Run validation again first_, then start Phase 1.", "__Run validation again first__."):
+                      "_Run validation again first_, then start Phase 1.", "__Run validation again first__.",
+                      "Run validation again _first_, then start Phase 1.", "Run _validation_ again first."):
             with self.subTest(other=other), self.assertRaisesRegex(ValueError, "remove that line"):
                 render(REPORT.replace("Implement the approved scope now.", other + " Implement the approved scope now."),
                        self.modern_context())
         for negated in ("You do not need to run validation again first.", "There is no need to run validation again first.",
-                        "You don’t have to run validation again first.", "You do not need to\nrun validation again first."):
+                        "You don’t have to run validation again first.", "You do not need to\nrun validation again first.",
+                        "_You do not need to_ run validation again first."):
             with self.subTest(negated=negated):
                 render(REPORT.replace("Implement the approved scope now.", negated + " Implement the approved scope now."),
                        self.modern_context())
@@ -1315,6 +1317,12 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             with self.subTest(text=text):
                 render(REPORT.replace("Implement the approved scope now.", text + " Implement the approved scope now."),
                        self.modern_context())
+        # The text before and after a prompt is read apart, so a negation before the prompt does not excuse
+        # a run-first line after it.
+        split = REPORT.replace("## 8. Fresh-session handoff\n```text", "## 8. Fresh-session handoff\nYou do not need to\n```text", 1)
+        split = split.replace("it is the last phase.\n```\n", "it is the last phase.\n```\nrun validation again first.\n", 1)
+        with self.assertRaisesRegex(ValueError, "remove that line"):
+            render(split, self.modern_context())
         # This run's report.md, quoted exactly, is a name even when its folder holds the phrase.
         report_md = "/work/run validation again first/report.md"
         quoted = REPORT.replace("Implement the approved scope now.", f"Read `{report_md}`. Implement the approved scope now.")

@@ -924,7 +924,8 @@ def prompt_prefix(context, current, pairs):
 
 # "run validation again first" is excused only right after "not/never/n't need to", "not/never/n't have to" or "no need to",
 # as in "You do not need to run validation again first". Any other wording tells the reader to hold the phases.
-# Underscores around the phrase are emphasis, so they do not hide it; letters, digits or a hyphen next to it do.
+# run_first_note drops emphasis underscores before matching; letters, digits or a hyphen next to the phrase
+# make it part of another word.
 RUN_FIRST = re.compile(r"(?<![A-Za-z0-9])run validation again first(?![A-Za-z0-9-])", re.I)
 RUN_FIRST_EXCUSED = re.compile(r"(?:\b(?:not|never)\s+(?:need|have)\s+to|n['’]t\s+(?:need|have)\s+to|\bno\s+need\s+to)\s+$", re.I)
 
@@ -932,17 +933,17 @@ RUN_FIRST_EXCUSED = re.compile(r"(?:\b(?:not|never)\s+(?:need|have)\s+to|n['’]
 def run_first_note(section, prompts, context, run_files=()):
     """A new (version 5) report has no re-run, so section 8 and its prompts never send the reader to one.
 
-    Each part (the text around the prompts, and each prompt) is read with its whitespace joined, so a wrapped
-    phrase still matches, and with quoted paths read as names. A saved report keeps its section 8 as its run wrote it.
+    Each part (each stretch of text between the prompts, and each prompt) is read on its own, with its whitespace
+    joined, so a wrapped phrase still matches, with quoted paths read as names, and with emphasis (`*`, `_`) dropped.
+    A saved report keeps its section 8 as its run wrote it.
     """
     if context.get("kind") != "new":
         return
     names = recorded_names(context, run_files)
-    intro = section
-    for start, end, _ in reversed(prompts):
-        intro = intro[:start] + intro[end:]
-    for chunk in [intro] + [text for _, _, text in prompts]:
-        text = spaced(plain(without_paths(chunk, names)))
+    bounds = [0] + [edge for start, end, _ in prompts for edge in (start, end)] + [len(section)]
+    between = [section[bounds[i]:bounds[i + 1]] for i in range(0, len(bounds), 2)]
+    for chunk in between + [text for _, _, text in prompts]:
+        text = spaced(plain(without_paths(chunk, names)).replace("_", ""))
         for match in RUN_FIRST.finditer(text):
             if not RUN_FIRST_EXCUSED.search(text[:match.start()]):
                 raise ValueError("Section 8 says to run validation again first, but new reports have no re-run; remove that line")
