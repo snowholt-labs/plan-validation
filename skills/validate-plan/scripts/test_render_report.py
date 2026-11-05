@@ -1284,8 +1284,11 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         prompt = "Run validation again first, with the re-run prompt in rerun.txt. Implement the approved scope now."
         with self.assertRaisesRegex(ValueError, "remove that line"):
             render(REPORT.replace("Implement the approved scope now.", prompt), self.modern_context())
-        render(REPORT.replace("Implement the approved scope now.",
-                              "You do not need to run validation again first. Implement the approved scope now."), self.modern_context())
+        for negated in ("You do not need to run validation again first.", "Do not run validation again first.",
+                        "Don’t run validation again first.", "Never run validation again first."):
+            with self.subTest(negated=negated):
+                render(REPORT.replace("Implement the approved scope now.", negated + " Implement the approved scope now."),
+                       self.modern_context())
 
     def test_section_8_never_says_run_first(self):
         # A new report has no re-run, so any run-first line contradicts the page.

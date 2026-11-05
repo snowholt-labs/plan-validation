@@ -976,7 +976,9 @@ def run_first_note(section, prompts, context, pairs):
     # "You do not need to run validation again first", "There is no need to run validation again first".
     # Version 5 has no re-run at all, so its prompts cannot send the next session to one either.
     text = spaced(plain(section if context.get("format_version", 1) >= 5 else intro))
-    excused = re.compile(r"(?:\b(?:not|never)\s+(?:need|have)\s+to|n['’]t\s+(?:need|have)\s+to|\bno\s+need\s+to)\s+$", re.I)
+    # A direct "Do not", "Don't" or "Never" excuses it too.
+    excused = re.compile(r"(?:\b(?:not|never)\s+(?:need|have)\s+to|n['’]t\s+(?:need|have)\s+to|\bno\s+need\s+to"
+                         r"|\bdo\s+not|\bdon['’]t|\bnever)\s+$", re.I)
     for match in re.finditer(r"\brun validation again first\b", text, re.I):
         if not excused.search(text[:match.start()]):
             if context.get("format_version", 1) >= 5:
