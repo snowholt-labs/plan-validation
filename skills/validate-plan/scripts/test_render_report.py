@@ -1279,6 +1279,14 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         with self.assertRaisesRegex(ValueError, "prompt"):
             render(REPORT, context)
 
+    def test_v5_prompt_cannot_say_run_first(self):
+        # A prompt that sends the next session to a re-run points at a rerun.txt version 5 never writes.
+        prompt = "Run validation again first, with the re-run prompt in rerun.txt. Implement the approved scope now."
+        with self.assertRaisesRegex(ValueError, "remove that line"):
+            render(REPORT.replace("Implement the approved scope now.", prompt), self.modern_context())
+        render(REPORT.replace("Implement the approved scope now.",
+                              "You do not need to run validation again first. Implement the approved scope now."), self.modern_context())
+
     def test_section_8_never_says_run_first(self):
         # A new report has no re-run, so any run-first line contradicts the page.
         context = self.modern_context()

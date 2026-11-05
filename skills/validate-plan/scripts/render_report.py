@@ -60,10 +60,9 @@ HISTORICAL_TEXT = ("Document identity, Git state or approvals changed or could n
                    "This is a historical prompt. Revalidate the changed scope before using it.")
 HISTORICAL_WARNING = f'<p class="warning">{HISTORICAL_TEXT}</p>'
 # Version 5 has no re-run: drift advice says to reconcile the change or validate the changed scope again.
-V5_DRIFT_TEXT = ("The plan or spec changed or could not be read after this validation. "
-                 "Reconcile the change before building, or validate the changed scope again.")
-V5_HISTORICAL_PREFIX = ("HISTORICAL PROMPT — DO NOT EXECUTE.\nDocument identity, Git state or approvals changed. "
-                        "Reconcile the change before building, or validate the changed scope again.\n\n")
+V5_RECONCILE = "Reconcile the change before building, or validate the changed scope again."
+V5_DRIFT_TEXT = "The plan or spec changed or could not be read after this validation. " + V5_RECONCILE
+V5_HISTORICAL_PREFIX = f"HISTORICAL PROMPT — DO NOT EXECUTE.\nDocument identity, Git state or approvals changed. {V5_RECONCILE}\n\n"
 RUN_FIRST_TEXT = "Run validation again first, with the re-run prompt in the Summary; start a phase only after that run."
 RUN_FIRST_NOTE = f'<p class="warning">{RUN_FIRST_TEXT}</p>'
 # Held phase prompt files carry this note, so a copied file cannot start a phase before the re-run.
@@ -514,7 +513,7 @@ def phase_table(phases, verdict, current, rerun_first=False, version=4):
 
 
 def recorded_names(context, run_files=()):
-    """Quoted paths a version 4 prompt may name even with spaces: the recorded PLAN and SPEC paths and
+    """Quoted paths a version 4 or later prompt may name even with spaces: the recorded PLAN and SPEC paths and
     this run's own files (report.md and context.json, which main() passes in as run_files)."""
     return {doc["path"] for doc in context_documents(context)} | set(run_files)
 
@@ -913,8 +912,7 @@ def historical_warning_v5(fingerprints_match):
     """The version 5 historical warning: reconcile the change or validate again; it names no run or limit."""
     if fingerprints_match:
         # Only Git state or approvals drifted.
-        return ('<p class="warning">This is a historical prompt. Git state or approvals changed after this validation. '
-                'Reconcile the change before building, or validate the changed scope again.</p>')
+        return f'<p class="warning">This is a historical prompt. Git state or approvals changed after this validation. {V5_RECONCILE}</p>'
     return f'<p class="warning">This is a historical prompt. {V5_DRIFT_TEXT}</p>'
 
 
@@ -976,7 +974,8 @@ def run_first_note(section, prompts, context, pairs):
         return
     # Any "run validation again first" tells the reader to hold the phases, unless directly negated:
     # "You do not need to run validation again first", "There is no need to run validation again first".
-    text = spaced(plain(intro))
+    # Version 5 has no re-run at all, so its prompts cannot send the next session to one either.
+    text = spaced(plain(section if context.get("format_version", 1) >= 5 else intro))
     excused = re.compile(r"(?:\b(?:not|never)\s+(?:need|have)\s+to|n['’]t\s+(?:need|have)\s+to|\bno\s+need\s+to)\s+$", re.I)
     for match in re.finditer(r"\brun validation again first\b", text, re.I):
         if not excused.search(text[:match.start()]):
@@ -1024,7 +1023,7 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
     prompt_download = '<a href="handoff.txt" download>Prompt .txt</a>' if current and not hold_phases else ""
     hero = (f'<header class="hero"><div class="hero-text"><p class="kicker">{kicker}</p><h1>{heading}</h1>'
             f'<p class="lead">{inline(context["summary"])}</p>{pills_html}'
-            f'<p class="freshness">{escape(freshness_state(4, fingerprints_match, current))} {inline(context["freshness"])}</p>{notes_html}'
+            f'<p class="freshness">{escape(freshness_state(version, fingerprints_match, current))} {inline(context["freshness"])}</p>{notes_html}'
             f'<div class="actions"><a href="report.md" download>Source Markdown</a>{prompt_download}'
             f'<button id="print-report" type="button">Print / PDF</button></div></div>{icon}</header>')
     scores_html = ('<div class="scores">'
@@ -1120,7 +1119,7 @@ class Rendered(tuple):
     """The result of render(): it unpacks as (page, handoff, current, rerun_prompt).
 
     Attributes for main(): pairs, the (phase_id, prompt) of each ready phase; prefix, the note that
-    starts handoff.txt and each phase prompt file; held, whether those prompts wait for a re-run.
+    starts handoff.txt and each phase prompt file; held, whether those prompts wait for a re-run (version 4 only).
     """
 
     def __new__(cls, values, pairs, prefix):
@@ -1135,7 +1134,7 @@ class Rendered(tuple):
 
 def render(source, context, run_files=()):
     """Validate and render a report. run_files are this run's own paths (report.md and context.json),
-    which a version 4 prompt may quote even when they contain spaces."""
+    which a version 4 or later prompt may quote even when they contain spaces."""
     version = context.get("format_version", 1)
     if type(version) is not int or version not in (1, 2, 3, 4, 5):
         raise ValueError("format_version must be 1 (legacy), 2, 3, 4 or 5")
