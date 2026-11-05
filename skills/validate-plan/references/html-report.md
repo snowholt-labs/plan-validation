@@ -319,8 +319,7 @@ test results and exact handoff, and state that it is being rendered rather than
 revalidated. Check current documents and Git state first. If approvals or Git
 state changed, mark the old prompt historical in the report and provide a
 remediation/resume prompt; unchanged file hashes alone do not establish readiness.
-Never replace the recorded hashes just to make an old report appear current. Only
-the end-of-run answers in the same run refresh them, for the revision they produce (SKILL.md step 8).
+Never replace the recorded hashes just to make an old report appear current.
 
 ## Delivery
 
@@ -401,7 +400,8 @@ re-render, including one after a recorded answer, stays local, like any saved re
 The one exception is the end-of-run re-render in the same run (SKILL.md workflow step 8):
 after the user's answers to the end-of-run questions, it updates this run's own artifact
 through the update steps below without being asked. If that run published but left no
-`artifact.json`, it does not publish again and says in one line that the artifact was not updated.
+`artifact.json`, it updates the artifact URL the session holds and writes `artifact.json`; with no
+known URL, it does not publish again and says in one line that the artifact was not updated.
 When asked, and the line still reads exactly `true`, update that artifact instead of
 creating a new one. If the run has no `artifact.json` and the user gives no artifact
 URL, follow steps 1–7 as a first publish instead. For an update, follow steps 1–3,
