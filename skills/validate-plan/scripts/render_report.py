@@ -774,8 +774,9 @@ def plural(count, word):
 def count_card(tab, items, noun, nouns, label, empty, hint):
     if not items:
         return f'<div class="count count-none"><strong>None</strong><span>{label}</span><small>{empty}</small></div>'
-    return (f'<button class="count" type="button" data-open-tab="{tab}"><strong>{len(items)}</strong>'
-            f'<span>{noun if len(items) == 1 else nouns}</span><small>{hint}</small></button>')
+    # A link to the panel, so the card also works without JavaScript, when every panel shows in order.
+    return (f'<a class="count" href="#panel-{tab}" data-open-tab="{tab}"><strong>{len(items)}</strong>'
+            f'<span>{noun if len(items) == 1 else nouns}</span><small>{hint}</small></a>')
 
 
 def holds_back_work(item):
@@ -789,7 +790,7 @@ def answer_hint(decisions):
     if not holding:
         first = "Nothing is held back"
     else:
-        # The hint sits inside a button, which may hold no link, so Markdown links keep only their text.
+        # The hint sits inside a link, which may hold no other link, so Markdown links keep only their text.
         text = plain(re.sub(MARKDOWN_LINK, r"\1", holding[0]["holds_back"]))
         first = escape(holding[0]["id"]) + " holds back " + escape(text)
         if len(holding) > 1:
@@ -816,13 +817,16 @@ def historical_warning_v4(rerun, fingerprints_match, saved):
     """The historical warning; when the plan or spec changed, it names the re-run instead of more review."""
     if fingerprints_match:
         return HISTORICAL_WARNING
-    if saved:
+    if rerun["number"] >= MAX_RUNS:
+        advice = "Do not run more review rounds: the run limit is reached; decide the next step yourself."
+    elif rerun["recommendation"] == "stop":
+        # Drift does not override a recorded stop: its reasons say the user decides first.
+        advice = "The recorded answer is stop, so decide the next step yourself before revalidating; do not run more review rounds."
+    elif saved:
         # Later runs may exist, so a saved report names no run number.
         advice = "Run validation again instead of more review rounds, if the 3-run limit allows."
-    elif rerun["number"] < MAX_RUNS:
-        advice = f"Run validation again (run {rerun['number'] + 1} of {MAX_RUNS}) instead of more review rounds."
     else:
-        advice = "Do not run more review rounds: the run limit is reached; decide the next step yourself."
+        advice = f"Run validation again (run {rerun['number'] + 1} of {MAX_RUNS}) instead of more review rounds."
     return f'<p class="warning">{HISTORICAL_TEXT} The plan or spec changed or could not be read after this validation. {advice}</p>'
 
 
