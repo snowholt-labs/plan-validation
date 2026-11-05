@@ -954,7 +954,7 @@ def phases_held(context, current, pairs):
 def prompt_prefix(context, current, pairs):
     """The note that starts handoff.txt and each phase prompt file: historical, held or none."""
     if not current:
-        return V5_HISTORICAL_PREFIX if context.get("format_version") == 5 else HISTORICAL_PREFIX
+        return V5_HISTORICAL_PREFIX if context.get("format_version", 1) >= 5 else HISTORICAL_PREFIX
     return HELD_PREFIX if phases_held(context, current, pairs) else ""
 
 
@@ -980,7 +980,7 @@ def run_first_note(section, prompts, context, pairs):
     excused = re.compile(r"(?:\b(?:not|never)\s+(?:need|have)\s+to|n['’]t\s+(?:need|have)\s+to|\bno\s+need\s+to)\s+$", re.I)
     for match in re.finditer(r"\brun validation again first\b", text, re.I):
         if not excused.search(text[:match.start()]):
-            if context.get("format_version") == 5:
+            if context.get("format_version", 1) >= 5:
                 raise ValueError("Section 8 says to run validation again first, but new reports have no re-run; remove that line")
             raise ValueError("Section 8 says to run validation again first, which only a report whose rerun answer "
                              "is yes and that has a ready phase says; remove that line")
@@ -1188,7 +1188,7 @@ def render(source, context, run_files=()):
         if verdict.lower() == "ready" and any(holds_back_work(item) for item in fields["decisions"]):
             raise ValueError("A Ready verdict cannot have open decisions that hold back work; "
                              "set holds_back to Nothing or use Ready after approvals")
-        if version == 5:
+        if version >= 5:
             if "validation_run" in context or "rerun" in context:
                 raise ValueError("Version 5 reports have no validation_run or rerun; re-validation was removed")
             fields["rerun"] = None

@@ -1095,6 +1095,47 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                             "prompt": self.RERUN_PROMPT if prompt is None else prompt}
         return context
 
+    def test_saved_v4_rerun_prompt_stays_as_written(self):
+        # The checks that only a new version 4 run applied never reject a saved report.
+        plan, spec = (doc["path"] for doc in self.context["documents"])
+        for name, prompt in {
+            "invocation": self.RERUN_PROMPT.replace("/plan-validation:validate-plan ", ""),
+            "other command": self.RERUN_PROMPT.replace("/plan-validation:validate-plan", "/plan-validation:validate-planner"),
+            "PLAN path": self.RERUN_PROMPT.replace(f"`{plan}`", "the plan"),
+            "PLAN path .bak": self.RERUN_PROMPT.replace(f"`{plan}`", f"`{plan}.bak`"),
+            "SPEC path": self.RERUN_PROMPT.replace(f"`{spec}`", "the spec"),
+            "no previous report": self.RERUN_PROMPT.replace("Previous report: `/data/run-1/report.md`.", "Read the last report."),
+            "relative previous report": self.RERUN_PROMPT.replace("`/data/run-1/report.md`", "`run-1/report.md`"),
+            "other file": self.RERUN_PROMPT.replace("`/data/run-1/report.md`", "`/data/run-1/report.html`"),
+            "no order": self.RERUN_PROMPT.replace(" Run this before starting any phase.", ""),
+        }.items():
+            with self.subTest(name=name):
+                render(run_first(REPORT), self.rerun_yes(self.v4_context(), prompt))
+        # A run-2 prompt that names the earlier run's report.
+        second = self.rerun_yes(self.v4_context(), self.RERUN_PROMPT.replace("run 2 of 3", "run 3 of 3"))
+        second["validation_run"].update(number=2, previous_report="/data/run-1/report.md")
+        render(run_first(REPORT), second)
+        # A phase-only run without its scope sentence.
+        source, two = self.two_phase(self.v4_context())
+        two["validation_run"]["scope"] = "phases:1-2"
+        render(run_first(source), self.rerun_yes(two))
+        # A recorded plan path with spaces may hold the verb in its file name.
+        spaced_plan = self.v4_context()
+        path = Path(self.directory.name) / "My Repo" / "implement-retry.md"
+        path.parent.mkdir()
+        path.write_text("PLAN")
+        spaced_plan["documents"][0]["path"] = str(path)
+        spaced_plan["validation_run"]["plan_key"] = "implement-retry.md"
+        render(run_first(REPORT), self.rerun_yes(spaced_plan, self.RERUN_PROMPT.replace(plan, str(path))))
+        # The prompt rules that also bind a saved report still apply: a ".." detour through words with spaces
+        # is neither a name nor exempt from the word limit or the Implement check.
+        detour = self.RERUN_PROMPT.replace("/data/run-1/report.md", "/implement every task now/../data/report.md")
+        with self.assertRaisesRegex(ValueError, "Implement"):
+            render(run_first(REPORT), self.rerun_yes(self.v4_context(), detour))
+        padded = self.RERUN_PROMPT.replace("/data/run-1/report.md", "/x " + "word " * 80 + "/../data/report.md")
+        with self.assertRaisesRegex(ValueError, "80 words"):
+            render(run_first(REPORT), self.rerun_yes(self.v4_context(), padded))
+
     def test_v4_requires_run_fields(self):
         for key in ("validation_run", "rerun"):
             with self.subTest(key=key):
@@ -1457,7 +1498,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
 
     def test_malformed_documents_get_a_message(self):
         # A malformed context is rejected with a message that names the field, never a traceback.
-        cases = {"v4": (REPORT, self.modern_context()), **self.legacy_cases()}
+        cases = {"v5": (REPORT, self.modern_context()), "v4": (REPORT, self.v4_context()), **self.legacy_cases()}
         for version, (source, base) in cases.items():
             plan, spec = base["documents"]
             fields = [[plan, {key: value for key, value in spec.items() if key != "path"}],
@@ -1653,7 +1694,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             render(source, context)
         remediation = REPORT.replace("**Ready.**", "**Not ready.**").replace(
             "Implement the approved scope now.", "Resume validation. Do not start dependent implementation.")
-        self.assertEqual(render(remediation, (context)).pairs, [])
+        self.assertEqual(render(remediation, context).pairs, [])
 
     def run_renderer(self, directory, source, context):
         (directory / "in.md").write_text(source, encoding="utf-8")
@@ -1719,7 +1760,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
     def test_not_ready_phase_table_offers_no_start(self):
         source = REPORT.replace("**Ready.**", "**Not ready.**").replace(
             "Implement the approved scope now.", "Resume validation. Do not start dependent implementation.")
-        page, _, _, _ = render(source, (self.modern_context()))
+        page, _, _, _ = render(source, self.modern_context())
         self.assertIn("Waits for remediation", page)
         self.assertNotIn("Can start", page)
         self.assertIn("Copy remediation prompt", page)
@@ -2030,6 +2071,8 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 self.assertNotIn('data-copy-target="summary-handoff', summary)
                 self.assertIn("This is a historical prompt.", summary)
                 self.assertEqual(change == "document", render_report.V5_DRIFT_TEXT in summary)
+                self.assertEqual(change == "status", "Git state or approvals changed after this validation." in summary)
+                self.assertNotIn("Revalidate", page)
                 self.assertNotIn("Run validation again", summary)
                 self.assertIn('<pre id="summary-handoff-1"', summary)
                 self.assertNotIn('href="handoff.txt"', page)
@@ -2037,7 +2080,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
     def test_v4_summary_shows_remediation_prompt_when_no_phase_is_ready(self):
         source = REPORT.replace("**Ready.**", "**Not ready.**").replace(
             "Implement the approved scope now.", "Resume validation. Do not start dependent implementation.")
-        page, _, _, _ = render(source, (self.modern_context()))
+        page, _, _, _ = render(source, self.modern_context())
         summary = self.panel(page, "summary")
         self.assertIn('data-copy-target="summary-handoff"', summary)
         self.assertIn('<pre id="summary-handoff"', summary)
@@ -2241,6 +2284,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             self.assertEqual(rendered.held, key == "v4-yes-held", key)
             self.assertEqual(rendered[2], key in ("v4-no", "v4-yes-held"), key)
         self.assertEqual(actual, V4_SAVED_DIGESTS)
+
 
 if __name__ == "__main__":
     unittest.main()
