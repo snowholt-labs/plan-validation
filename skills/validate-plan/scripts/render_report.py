@@ -59,6 +59,10 @@ HISTORICAL_PREFIX = "HISTORICAL PROMPT — DO NOT EXECUTE.\nDocument identity, G
 HISTORICAL_TEXT = ("Document identity, Git state or approvals changed or could not be checked. "
                    "This is a historical prompt. Revalidate the changed scope before using it.")
 HISTORICAL_WARNING = f'<p class="warning">{HISTORICAL_TEXT}</p>'
+# Version 5 has no re-run: drift advice says to reconcile the change or validate the changed scope again.
+V5_RECONCILE = "Reconcile the change before building, or validate the changed scope again."
+V5_DRIFT_TEXT = "The plan or spec changed or could not be read after this validation. " + V5_RECONCILE
+V5_HISTORICAL_PREFIX = f"HISTORICAL PROMPT — DO NOT EXECUTE.\nDocument identity, Git state or approvals changed. {V5_RECONCILE}\n\n"
 RUN_FIRST_TEXT = "Run validation again first, with the re-run prompt in the Summary; start a phase only after that run."
 RUN_FIRST_NOTE = f'<p class="warning">{RUN_FIRST_TEXT}</p>'
 # Held phase prompt files carry this note, so a copied file cannot start a phase before the re-run.
@@ -485,7 +489,7 @@ def phase_plan(context, verdict):
     return phases
 
 
-def phase_status(phase, verdict, current, rerun_first=False):
+def phase_status(phase, verdict, current, rerun_first=False, version=4):
     """Return the escaped status shown for a phase in section 8 and on the Summary."""
     if phase["status"] == "waiting":
         return "Waits for " + inline(phase["waits_for"])
@@ -493,23 +497,23 @@ def phase_status(phase, verdict, current, rerun_first=False):
     if verdict.lower() == "not ready":
         return "Waits for remediation"
     if not current:
-        return "Revalidate before starting"
+        return "Reconcile before starting" if version >= 5 else "Revalidate before starting"
     # A version 4 yes asks for another run before any phase starts.
     return "Run validation again first" if rerun_first else "Can start"
 
 
-def phase_table(phases, verdict, current, rerun_first=False):
+def phase_table(phases, verdict, current, rerun_first=False, version=4):
     rows = ''.join('<tr>' + ''.join(f'<td>{cell}</td>' for cell in (
         escape(phase["id"]) + ': ' + inline(phase["title"]), escape(", ".join(phase["tasks"])),
         "Docs only" if phase["docs_only"] else "Code",
         "Yes — " + inline(phase["security_reason"]) if phase["security_review"] else "No",
-        phase_status(phase, verdict, current, rerun_first))) + '</tr>' for phase in phases)
+        phase_status(phase, verdict, current, rerun_first, version))) + '</tr>' for phase in phases)
     head = ''.join(f'<th scope="col">{title}</th>' for title in ("Phase", "Tasks", "Kind", "Security review", "Status"))
     return f'<div class="table-scroll" role="region" aria-label="Phase plan" tabindex="0"><table><thead><tr>{head}</tr></thead><tbody>{rows}</tbody></table></div>'
 
 
 def recorded_names(context, run_files=()):
-    """Quoted paths a version 4 prompt may name even with spaces: the recorded PLAN and SPEC paths and
+    """Quoted paths a version 4 or later prompt may name even with spaces: the recorded PLAN and SPEC paths and
     this run's own files (report.md and context.json, which main() passes in as run_files)."""
     return {doc["path"] for doc in context_documents(context)} | set(run_files)
 
@@ -774,7 +778,7 @@ def report_sections(parts, version, verdict, prompts, pairs, context, current, m
                 intro = intro[:start] + intro[end:]
             content_html = markdown(intro)
             if version >= 3:
-                content_html += phase_table(context["phases"], verdict, current, rerun_first)
+                content_html += phase_table(context["phases"], verdict, current, rerun_first, version)
             if pairs:
                 titles = {phase["id"]: phase["title"] for phase in context["phases"]}
                 for phase_id, prompt in pairs:
@@ -904,6 +908,14 @@ def historical_warning_v4(rerun, fingerprints_match, saved):
     return f'<p class="warning">{HISTORICAL_TEXT}{changed} {advice}</p>'
 
 
+def historical_warning_v5(fingerprints_match):
+    """The version 5 historical warning: reconcile the change or validate again; it names no run or limit."""
+    if fingerprints_match:
+        # Only Git state or approvals drifted.
+        return f'<p class="warning">This is a historical prompt. Git state or approvals changed after this validation. {V5_RECONCILE}</p>'
+    return f'<p class="warning">This is a historical prompt. {V5_DRIFT_TEXT}</p>'
+
+
 def rerun_label(rerun, recorded):
     """A saved or historical page shows the recommendation as recorded, as it does the verdict."""
     return ("Recorded: run validation again: " if recorded else "Run validation again: ") + rerun["recommendation"]
@@ -928,8 +940,8 @@ def waits_for_rerun(context, pairs):
 
     Only a Ready or Ready after approvals report with a ready phase has phase prompts (pairs).
     """
-    version = context.get("format_version")
-    return bool(type(version) is int and version >= 4 and pairs and context["rerun"]["recommendation"] == "yes")
+    # Version 5 has no re-run, so its phases never wait for one.
+    return bool(context.get("format_version") == 4 and pairs and context["rerun"]["recommendation"] == "yes")
 
 
 def phases_held(context, current, pairs):
@@ -939,7 +951,9 @@ def phases_held(context, current, pairs):
 
 def prompt_prefix(context, current, pairs):
     """The note that starts handoff.txt and each phase prompt file: historical, held or none."""
-    return HISTORICAL_PREFIX if not current else HELD_PREFIX if phases_held(context, current, pairs) else ""
+    if not current:
+        return V5_HISTORICAL_PREFIX if context.get("format_version", 1) >= 5 else HISTORICAL_PREFIX
+    return HELD_PREFIX if phases_held(context, current, pairs) else ""
 
 
 def run_first_note(section, prompts, context, pairs):
@@ -959,29 +973,42 @@ def run_first_note(section, prompts, context, pairs):
                              f"must say before the prompts: {RUN_FIRST_TEXT}")
         return
     # Any "run validation again first" tells the reader to hold the phases, unless directly negated:
-    # "You do not need to run validation again first", "There is no need to run validation again first".
-    text = spaced(plain(intro))
-    excused = re.compile(r"(?:\b(?:not|never)\s+(?:need|have)\s+to|n['’]t\s+(?:need|have)\s+to|\bno\s+need\s+to)\s+$", re.I)
-    for match in re.finditer(r"\brun validation again first\b", text, re.I):
-        if not excused.search(text[:match.start()]):
-            raise ValueError("Section 8 says to run validation again first, which only a report whose rerun answer "
-                             "is yes and that has a ready phase says; remove that line")
-
+    # "You do not need to run validation again first", "There is no need to run validation again first",
+    # "You need not run ...", or a sentence or list item that starts "Do not", "Don't" or "Never". A conditional
+    # such as "If you do not run validation again first, ..." still sends the reader to a re-run.
+    excused = re.compile(r"(?:(?:\b(?:not|never)\s+(?:need|have)\s+to|n['’]t\s+(?:need|have)\s+to|\bno\s+need\s+to|\bneed\s+not)"
+                         r"|(?:^|[.!?;:]\s*|(?:^|\s)-\s+)(?:do\s+not|don['’]t|never))\s+$", re.I)
+    # Version 5 has no re-run at all, so its prompts cannot send the next session to one either.
+    # Each prompt is read on its own, so its first sentence starts at the beginning of the text.
+    v5 = context.get("format_version", 1) >= 5
+    for chunk in [intro] + ([text for _, _, text in prompts] if v5 else []):
+        text = spaced(plain(chunk))
+        for match in re.finditer(r"\brun validation again first\b", text, re.I):
+            if not excused.search(text[:match.start()]):
+                if v5:
+                    raise ValueError("Section 8 says to run validation again first, but new reports have no re-run; remove that line")
+                raise ValueError("Section 8 says to run validation again first, which only a report whose rerun answer "
+                                 "is yes and that has a ready phase says; remove that line")
 
 def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pairs, current, checks):
-    """Return the version 4 page: header card, score strip, tabs (Summary, answers, watch list, full report)."""
+    """Return the version 4 or 5 page: header card, score strip, tabs (Summary, answers, watch list, full report).
+    Version 5 has no rerun (fields["rerun"] is None): no re-run pill or card, and its own historical warning."""
     css = (ASSETS / "report-v4.css").read_text()
     js = (ASSETS / "report-v4.js").read_text()
     favicon = base64.b64encode((ASSETS / "favicon.svg").read_bytes()).decode()
     script_hash = base64.b64encode(hashlib.sha256(js.encode()).digest()).decode()
     icon = (ASSETS / "report-icon.svg").read_text().strip().replace("<svg ", '<svg class="hero-icon" aria-hidden="true" focusable="false" ', 1)
     decisions, watch, phases, rerun = fields["decisions"], fields["watch"], context["phases"], fields["rerun"]
+    version = context["format_version"]
     # A yes with a ready phase asks for another run before any phase starts.
     rerun_first = waits_for_rerun(context, pairs)
     # Current phase prompts wait for that run: no copy button, no download, the re-run card first.
     hold_phases = phases_held(context, current, pairs)
     fingerprints_match = all(matches for _, matches in checks)
-    warning = historical_warning_v4(rerun, fingerprints_match, context["kind"] == "saved")
+    if rerun is None:
+        warning = historical_warning_v5(fingerprints_match)
+    else:
+        warning = historical_warning_v4(rerun, fingerprints_match, context["kind"] == "saved")
 
     # Header card. The accent is split from the raw title, then each part is escaped.
     before, accent, after = context["title"].partition(context["title_accent"])
@@ -991,7 +1018,8 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
     status = "Recorded: " + verdict if recorded else verdict
     pills = [chip(*VERDICT_STYLE[verdict.lower()], escape(status)),
              chip("chip-info", "square", plural(len(phases), "phase") + " · " + plural(len(context["task_inventory"]), "task"))]
-    pills.append(chip(*RERUN_STYLE[rerun["recommendation"]], rerun_label(rerun, recorded)))
+    if rerun is not None:
+        pills.append(chip(*RERUN_STYLE[rerun["recommendation"]], rerun_label(rerun, recorded)))
     if not current:
         pills.append(chip("chip-wait", "triangle", "Historical"))
     pills_html = '<ul class="pills" role="list">' + "".join(f"<li>{pill}</li>" for pill in pills) + "</ul>"
@@ -1000,7 +1028,7 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
     prompt_download = '<a href="handoff.txt" download>Prompt .txt</a>' if current and not hold_phases else ""
     hero = (f'<header class="hero"><div class="hero-text"><p class="kicker">{kicker}</p><h1>{heading}</h1>'
             f'<p class="lead">{inline(context["summary"])}</p>{pills_html}'
-            f'<p class="freshness">{escape(freshness_state(4, fingerprints_match, current))} {inline(context["freshness"])}</p>{notes_html}'
+            f'<p class="freshness">{escape(freshness_state(version, fingerprints_match, current))} {inline(context["freshness"])}</p>{notes_html}'
             f'<div class="actions"><a href="report.md" download>Source Markdown</a>{prompt_download}'
             f'<button id="print-report" type="button">Print / PDF</button></div></div>{icon}</header>')
     scores_html = ('<div class="scores">'
@@ -1034,7 +1062,7 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
               + "</div>")
     cards = []
     for phase in phases:
-        state = phase_status(phase, verdict, current, rerun_first)
+        state = phase_status(phase, verdict, current, rerun_first, version)
         style = ("chip-ok", "circle") if state == "Can start" else ("chip-wait", "diamond")
         flags = [chip(*style, "Ready" if state == "Can start" else state)]
         if phase["docs_only"]:
@@ -1054,7 +1082,7 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
                     f'<h4 class="prompt-title">{prompt_title}</h4><div class="prompt-toolbar">{toolbar}</div>'
                     f'<pre id="{escape(target)}" tabindex="0">{escape(prompt)}</pre>'
                     '<p><a href="#section-8">All prompts: Full report, section 8</a></p></div>')
-    rerun_html = rerun_card(rerun, recorded, context["kind"] == "new")
+    rerun_html = "" if rerun is None else rerun_card(rerun, recorded, context["kind"] == "new")
     ordered = rerun_html + next_session if hold_phases else next_session + rerun_html
     panels = [panel("summary", "Summary", figures + counts + ordered)]
 
@@ -1076,7 +1104,7 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
         panels.append(panel("watch", "Watch list", f'<div class="watch-grid">{items}</div>'))
 
     marks = [mark(SECTION_SHAPES[index % len(SECTION_SHAPES)]) for index in range(8)]
-    sections_html = "".join(report_sections(parts, 4, verdict, prompts, pairs, context, current, marks, warning, rerun_first, hold_phases))
+    sections_html = "".join(report_sections(parts, version, verdict, prompts, pairs, context, current, marks, warning, rerun_first, hold_phases))
     panels.append(panel("full", "Full report", sections_html + defaulted_decisions(context["decisions_without_reply"]) + identity_details(checks, context)))
 
     return f'''<!doctype html>
@@ -1096,7 +1124,7 @@ class Rendered(tuple):
     """The result of render(): it unpacks as (page, handoff, current, rerun_prompt).
 
     Attributes for main(): pairs, the (phase_id, prompt) of each ready phase; prefix, the note that
-    starts handoff.txt and each phase prompt file; held, whether those prompts wait for a re-run.
+    starts handoff.txt and each phase prompt file; held, whether those prompts wait for a re-run (version 4 only).
     """
 
     def __new__(cls, values, pairs, prefix):
@@ -1111,12 +1139,12 @@ class Rendered(tuple):
 
 def render(source, context, run_files=()):
     """Validate and render a report. run_files are this run's own paths (report.md and context.json),
-    which a version 4 prompt may quote even when they contain spaces."""
+    which a version 4 or later prompt may quote even when they contain spaces."""
     version = context.get("format_version", 1)
-    if type(version) is not int or version not in (1, 2, 3, 4):
-        raise ValueError("format_version must be 1 (legacy), 2, 3 or 4")
-    if context.get("kind") == "new" and version != 4:
-        raise ValueError("New reports require format_version 4; earlier versions render saved reports only")
+    if type(version) is not int or version not in (1, 2, 3, 4, 5):
+        raise ValueError("format_version must be 1 (legacy), 2, 3, 4 or 5")
+    if context.get("kind") == "new" and version != 5:
+        raise ValueError("New reports require format_version 5; earlier versions render saved reports only")
     source = source.replace("\r\n", "\n").replace("\r", "\n")
     overview = feature_overview(context.get("feature")) if version in (2, 3) else ''
     defaults = defaulted_decisions(context.get("decisions_without_reply")) if version >= 2 else ''
@@ -1164,7 +1192,12 @@ def render(source, context, run_files=()):
         if verdict.lower() == "ready" and any(holds_back_work(item) for item in fields["decisions"]):
             raise ValueError("A Ready verdict cannot have open decisions that hold back work; "
                              "set holds_back to Nothing or use Ready after approvals")
-        fields["rerun"] = rerun_check(context, verdict, confidence, plan[1], spec[1], run_files)
+        if version >= 5:
+            if "validation_run" in context or "rerun" in context:
+                raise ValueError("Version 5 reports have no validation_run or rerun; re-validation was removed")
+            fields["rerun"] = None
+        else:
+            fields["rerun"] = rerun_check(context, verdict, confidence, plan[1], spec[1], run_files)
         run_first_note(parts[7][1], prompts, context, pairs)
     handoff = prompts[0][2]
     if context.get("handoff_status") not in {"current", "historical"}:
@@ -1186,7 +1219,8 @@ def render(source, context, run_files=()):
     if version >= 4:
         page = page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pairs, current, checks)
         # A saved report's run label may be stale (later runs can exist), so only a new report writes rerun.txt.
-        return Rendered((page, marked, current, fields["rerun"]["prompt"] if context["kind"] == "new" else None), pairs, prefix)
+        rerun_prompt = fields["rerun"]["prompt"] if fields["rerun"] is not None and context["kind"] == "new" else None
+        return Rendered((page, marked, current, rerun_prompt), pairs, prefix)
     css = (ASSETS / "report.css").read_text()
     js = (ASSETS / "report.js").read_text()
     favicon = base64.b64encode((ASSETS / "favicon.svg").read_bytes()).decode()

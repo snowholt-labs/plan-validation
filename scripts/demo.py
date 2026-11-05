@@ -101,13 +101,13 @@ Actual captured outputs are saved in evidence.json. No agent evaluation, Git reh
 ```text
 Work in `{ROOT}`. Fix the retry-delay fixture documents `{output / 'plan.md'}` and `{output / 'spec.md'}`.
 
-Read `{output / 'report.md'}`, its context.json, and repository instructions first. Confirm the saved evidence still applies. Revise Task 1 to include the 30-second delay cap (R3) and its attempt-6 boundary assertion, within recorded permissions. Do not edit the implementation files or validate again; the re-run prompt does that.
+Read `{output / 'report.md'}`, its context.json, and repository instructions first. Confirm the saved evidence still applies. Revise Task 1 to include the 30-second delay cap (R3) and its attempt-6 boundary assertion, within recorded permissions. Do not edit the implementation files.
 
 Do not start dependent implementation. Report results and any defaults chosen, then stop.
 ```
 '''
     context = {
-        "format_version": 4,
+        "format_version": 5,
         "project": "plan-validation",
         "audience": "example report",
         "title_accent": "missing boundary",
@@ -165,17 +165,6 @@ Do not start dependent implementation. Report results and any defaults chosen, t
              "body": "Task 1 returns 2 ** attempt with no limit, so attempt 6 waits 64 seconds instead of 30 (SPEC R3)."},
         ],
         "decisions_without_reply": [],
-        "validation_run": {"number": 1, "plan_key": "plan.md", "scope": "full"},
-        "rerun": {
-            "recommendation": "yes",
-            "reasons": ["The verdict is Not ready: the plan has no 30-second delay cap (R3).",
-                        "No independent review ran yet; another run can add one."],
-            "prompt": (f"/plan-validation:validate-plan PLAN: `{output / 'plan.md'}` SPEC: `{output / 'spec.md'}` "
-                       f"FOCUS: Run validation again (run 2 of 3). Previous report: `{output / 'report.md'}`; "
-                       "read it and its context.json first. Run this after the remediation session. "
-                       "Focus on the delay cap fix and the independent review. "
-                       "Do not start dependent implementation."),
-        },
         "scope": {"explanation": "The same one-task fixture is retained; the corrected control adds no requirement.",
                   "approval": "Teaching example only. No real implementation or external-action authorization.",
                   "rows": [{"metric": metric, "original": count, "revised": count, "reason": "Same fixture scope; no plan revision claimed."}
@@ -191,16 +180,13 @@ Do not start dependent implementation. Report results and any defaults chosen, t
     # The prompts quote this run's own files, which may sit under a folder with spaces.
     run_files = {str(path) for file in (output / "report.md", output / "context.json")
                  for path in (file, file.absolute(), file.resolve())}
-    page, prompt, current, rerun_prompt = renderer.render(report, context, run_files)
+    page, prompt, current, _ = renderer.render(report, context, run_files)
     if not current:
         raise SystemExit("Demo document identity check failed")
     for name, content in (("report.md", report), ("report.html", page), ("handoff.txt", prompt + "\n"),
                           ("context.json", json.dumps(context, indent=2) + "\n"),
                           ("evidence.json", json.dumps(evidence, indent=2) + "\n")):
         (output / name).write_text(content, encoding="utf-8")
-    # The demo writes its own files instead of calling the renderer's main, so it writes rerun.txt too.
-    if rerun_prompt is not None:
-        (output / "rerun.txt").write_text(rerun_prompt + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":
