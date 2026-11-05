@@ -121,7 +121,8 @@ the renderer writes it to `rerun.txt`. The prompt:
 
 When the plan or spec changes after review, the historical warning says to run
 validation again, naming the next run, instead of more review rounds; at run 3 it says
-the run limit is reached.
+the run limit is reached, and after a recorded `stop` it says to decide the next step
+instead of running again.
 
 ## Dependency evidence within the eight sections
 

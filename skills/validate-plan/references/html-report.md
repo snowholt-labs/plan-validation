@@ -68,7 +68,8 @@ a score strip and four tabs: **Summary** (the diagrams, two count cards, the nex
 session's phases and first prompt), **Needs your answer** (from `open_decisions`),
 **Watch list** (from `watch_list`) and **Full report** (the eight evidence sections,
 the routine-default record and the document identity). A tab with nothing to show is
-left out and its count card says None. Without JavaScript every panel shows in order;
+left out and its count card says None; otherwise the count card is a link to its tab.
+Without JavaScript every panel shows in order and the count card links to the panel;
 a link to a section, such as `#section-6`, opens Full report. Print/PDF shows every
 panel, expands details and restores their state afterward. It rejects handoffs longer
 than 80 whitespace-separated words; a backtick-quoted absolute path counts as one word.

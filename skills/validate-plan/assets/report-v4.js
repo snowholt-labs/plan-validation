@@ -68,10 +68,13 @@ if (tabs.length) {
     choose(tabs[moves[event.key]]);
   });
 
+  // Count cards link to their panel for readers without JavaScript; here they choose the tab instead.
   document.querySelectorAll("[data-open-tab]").forEach(card => {
-    card.addEventListener("click", () => {
+    card.addEventListener("click", event => {
       const tab = document.getElementById("tab-" + card.dataset.openTab);
-      if (tabs.includes(tab)) choose(tab);
+      if (!tabs.includes(tab)) return;
+      event.preventDefault();
+      choose(tab);
     });
   });
 
