@@ -359,6 +359,9 @@ class ReportTests(unittest.TestCase):
         self.assertTrue(handoff.startswith(render_report.V5_HISTORICAL_PREFIX))
         self.assertIn(render_report.V5_DRIFT_TEXT, page)
         self.assertIn("Reconcile before starting", page)
+        hero = page[page.index('<p class="freshness">'):page.index("</p>", page.index('<p class="freshness">'))]
+        self.assertIn(render_report.V5_RECONCILE, hero)
+        self.assertNotIn("Recheck the saved evidence", page)
         for text in ("run 2 of 3", "3-run limit", "review rounds", "run limit", "Revalidate the changed scope", "Revalidate before starting"):
             self.assertNotIn(text, page)
 
@@ -371,6 +374,14 @@ class ReportTests(unittest.TestCase):
         output = json.loads(result.stdout)
         self.assertIsNone(output["rerun"])
         self.assertFalse(output["handoff_held"])
+        self.assertFalse((out / "rerun.txt").exists())
+        # A saved version 5 re-render never keeps a stale file either: version 5 has no re-run.
+        (out / "rerun.txt").write_text("old\n")
+        saved = self.v5_context()
+        saved["kind"] = "saved"
+        result = self.run_renderer(out, REPORT, saved)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIsNone(json.loads(result.stdout)["rerun"])
         self.assertFalse((out / "rerun.txt").exists())
 
     def stop_rerun(self, context):
@@ -539,7 +550,7 @@ class ReportTests(unittest.TestCase):
             "Implement the approved scope now.", "Do not implement Task 2. Do not start dependent implementation.")
         self.assertIn("Copy remediation prompt", render(source, self.modern_context())[0])
 
-    def test_v4_remediation_prompt_rejects_every_implement_form(self):
+    def test_v5_remediation_prompt_rejects_every_implement_form(self):
         not_ready = REPORT.replace("**Ready.**", "**Not ready.**")
         for instruction in ("Start implementing Phase 1.", "The fix implements Task 2.",
                             "Fix `/repo/a\nStart implementing Phase 1 now.md`.", "Keep D1 or not\nImplement Phase 1.",
@@ -901,13 +912,13 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         render(REPORT, self.v5_context())
         render(REPORT, self.v3_saved_context())
 
-    def test_v4_rejects_feature(self):
+    def test_v5_rejects_feature(self):
         context = self.modern_context()
         context["feature"] = self.v3_saved_context()["feature"]
         with self.assertRaisesRegex(ValueError, "feature"):
             render(REPORT, context)
 
-    def test_v4_header_fields(self):
+    def test_v5_header_fields(self):
         for field, limit in (("project", 40), ("audience", 60)):
             for value in (None, 7, "", "   ", "x" * (limit + 1)):
                 with self.subTest(field=field, value=value):
@@ -926,7 +937,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 with self.assertRaisesRegex(ValueError, "title_accent"):
                     render(REPORT, context)
 
-    def test_v4_open_decisions(self):
+    def test_v5_open_decisions(self):
         decision = {"id": "D1", "question": "Approve the paid service?", "recommendation": "Approve it.",
                     "confidence": "High", "holds_back": "Nothing"}
         source = REPORT.replace("No blockers.", "Pending approval **D1**: adding a paid service.")
@@ -948,7 +959,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         context["open_decisions"] = [decision]
         render(source, context)
 
-    def test_v4_ready_cannot_hold_back_work(self):
+    def test_v5_ready_cannot_hold_back_work(self):
         source, context = self.pending_d1(REPORT, self.modern_context())
         with self.assertRaisesRegex(ValueError, "Ready verdict"):
             render(source, context)
@@ -964,7 +975,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         render(*self.phase_1_waits(source.replace("**Ready.**", "**Ready after approvals.**"),
                                    self.pending_d1(REPORT, self.modern_context())[1]))
 
-    def test_v4_held_back_work_waits_for_its_decision(self):
+    def test_v5_held_back_work_waits_for_its_decision(self):
         # A decision that holds back Phase 1 while Phase 1 is ready would hand out its implementation prompt.
         source, context = self.pending_d1(REPORT.replace("**Ready.**", "**Ready after approvals.**"), self.modern_context())
         with self.assertRaisesRegex(ValueError, "D1 holds back work"):
@@ -982,7 +993,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         self.assertIn("Do not start dependent implementation.", prompt)
         self.assertNotIn("Copy Phase 1 prompt", page)
 
-    def test_v4_decision_ids_are_unique(self):
+    def test_v5_decision_ids_are_unique(self):
         source = REPORT.replace("No blockers.", "Pending approvals D1 and d1.")
         decision = {"question": "Approve?", "recommendation": "Approve it.", "confidence": "High", "holds_back": "Nothing"}
         for second in ("D1", "d1"):
@@ -992,14 +1003,14 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 with self.assertRaisesRegex(ValueError, "unique"):
                     render(source, context)
 
-    def test_v4_pending_approvals_must_hold_back_work(self):
+    def test_v5_pending_approvals_must_hold_back_work(self):
         # Ready after approvals says something waits; a list where nothing waits contradicts it.
         source, context = self.pending_d1(REPORT.replace("**Ready.**", "**Ready after approvals.**"), self.modern_context())
         context["open_decisions"][0]["holds_back"] = "Nothing."
         with self.assertRaisesRegex(ValueError, "holds back work"):
             render(source, context)
 
-    def test_v4_answer_hint_counts_the_rest(self):
+    def test_v5_answer_hint_counts_the_rest(self):
         source = REPORT.replace("No blockers.", "Pending approvals D1, D2 and D3.").replace("**Ready.**", "**Ready after approvals.**")
         decision = {"question": "Approve?", "recommendation": "Approve it.", "confidence": "High"}
         for count, tail in ((2, "· 1 more holds back work"), (3, "· 2 more hold back work")):
@@ -1010,7 +1021,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 button = re.search(r'<a class="count" href="#panel-answer" data-open-tab="answer">.*?</a>', page, re.S).group(0)
                 self.assertIn("D1 holds back Phase 1 " + tail + " ·", button)
 
-    def test_v4_answer_hint_holds_no_link(self):
+    def test_v5_answer_hint_holds_no_link(self):
         # The count card is a link, and a link inside a link is invalid; the table keeps the link.
         source, context = self.pending_d1(REPORT.replace("**Ready.**", "**Ready after approvals.**"), self.modern_context())
         context["open_decisions"][0]["holds_back"] = "[Phase 1](https://example.com/p1) and **tests**"
@@ -1028,7 +1039,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("--report", result.stdout)
 
-    def test_v4_watch_list(self):
+    def test_v5_watch_list(self):
         item = {"kind": "gap", "title": "No browser check", "body": "The page was not opened in a browser."}
         for bad in ("None", [dict(item, kind="bug")], [dict(item, title="x" * 61)], [dict(item, title="")],
                     [dict(item, body="")], [{"kind": "gap", "title": "No body"}], ["gap"]):
@@ -1041,13 +1052,13 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         context["watch_list"] = [dict(item, kind=kind, title="x" * 60) for kind in ("gap", "limit", "risk", "fixed")]
         render(REPORT, context)
 
-    def test_v4_pending_approvals_need_decisions(self):
+    def test_v5_pending_approvals_need_decisions(self):
         source = REPORT.replace("**Ready.**", "**Ready after approvals.**")
         with self.assertRaisesRegex(ValueError, "open_decisions"):
             render(source, self.modern_context())
         render(*self.phase_1_waits(*self.pending_d1(source, self.modern_context())))
 
-    def test_v4_text_fields_cannot_inject_markup(self):
+    def test_v5_text_fields_cannot_inject_markup(self):
         probe = '<script>x</script>"&amp'
         context = self.modern_context()
         context.update(project=probe, audience=probe, title=probe, title_accent="x")
@@ -1072,7 +1083,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         self.assertIn("<h1>Fish &amp; c<em>amp</em></h1>", page)
         self.assertNotIn("&<", page)
 
-    def test_v4_phase_prompts_still_checked(self):
+    def test_v5_phase_prompts_still_checked(self):
         source, context = self.two_phase()
         self.assertEqual(context["format_version"], 5)
         self.assertEqual([pid for pid, _ in render(source, context).pairs], ["1", "2"])
@@ -1286,22 +1297,39 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             render(REPORT.replace("Implement the approved scope now.", prompt), self.modern_context())
         for conditional in ("If you do not run validation again first, Phase 1 builds on a stale plan.",
                             "Agents that never run validation again first build on stale plans.",
-                            "If you don't run validation again first, stop."):
+                            "If you don't run validation again first, stop.",
+                            "Do not run validation again first unless the plan changed.",
+                            "Never run validation again first except after a rebase.",
+                            "Do not hesitate - never run validation again first."):
             with self.subTest(conditional=conditional), self.assertRaisesRegex(ValueError, "remove that line"):
                 render(REPORT.replace("Implement the approved scope now.", conditional + " Implement the approved scope now."),
                        self.modern_context())
         for negated in ("You do not need to run validation again first.", "Do not run validation again first.",
                         "Don’t run validation again first.", "Never run validation again first.",
-                        "You need not run validation again first.", "- Do not run validation again first."):
+                        "You need not run validation again first.", "- Do not run validation again first.",
+                        "* Do not run validation again first.", "1) Do not run validation again first.",
+                        "_Do not_ run validation again first.", "Keep tests\nDo not run validation again first."):
             with self.subTest(negated=negated):
                 render(REPORT.replace("Implement the approved scope now.", negated + " Implement the approved scope now."),
                        self.modern_context())
 
+    def test_v5_section_8_names_no_rerun_file_or_prompt(self):
+        # Version 5 writes no rerun.txt and has no re-run prompt, so section 8 cannot send a reader to either.
+        for text in ("Use the re-run prompt before you start.", "Read `rerun.txt` first.", "Then open rerun.txt."):
+            with self.subTest(text=text), self.assertRaisesRegex(ValueError, "no re-run prompt or rerun.txt"):
+                render(REPORT.replace("Implement the approved scope now.", text + " Implement the approved scope now."),
+                       self.modern_context())
+            with self.subTest(text=text, where="intro"), self.assertRaisesRegex(ValueError, "no re-run prompt or rerun.txt"):
+                render(REPORT.replace("## 8. Fresh-session handoff\n", f"## 8. Fresh-session handoff\n{text}\n\n", 1),
+                       self.modern_context())
+        # A saved version 4 report keeps its section 8 as written.
+        render(REPORT.replace("## 8. Fresh-session handoff\n", "## 8. Fresh-session handoff\nRead rerun.txt.\n\n", 1),
+               self.v4_context())
+
     def test_section_8_never_says_run_first(self):
-        # A new report has no re-run, so any run-first line contradicts the page.
+        # A new report has no re-run, so any run-first line contradicts the page (the plain line is
+        # test_v5_rejects_run_first_line).
         context = self.modern_context()
-        with self.assertRaisesRegex(ValueError, "remove that line"):
-            render(run_first(REPORT), context)
         # Other wording that mentions running validation again is free text.
         for line in ("You do not need to run validation again first.", "There is no need to run validation again first."):
             render(REPORT.replace("## 8. Fresh-session handoff\n", f"## 8. Fresh-session handoff\n{line}\n\n", 1), context)
@@ -1978,7 +2006,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         ends = [page.find(marker, start + 1) for marker in ('<section id="panel-', '</main>')]
         return page[start:min(end for end in ends if end != -1)]
 
-    def test_v4_layout_order(self):
+    def test_page_layout_order(self):
         for context in (self.modern_context(), self.v4_context()):
             with self.subTest(version=context["format_version"]):
                 context["decisions_without_reply"] = [{"question": "Q?", "decision": "D.", "reason": "R."}]
@@ -2001,7 +2029,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         else:
             self.assertNotIn('id="rerun"', summary)
 
-    def test_v4_status_pills(self):
+    def test_v5_status_pills(self):
         page, _, _, _ = render(REPORT, self.modern_context())
         pills = page[page.index('<ul class="pills"'):page.index('</ul>', page.index('<ul class="pills"'))]
         self.assertIn('<span>Ready</span>', pills)
@@ -2014,7 +2042,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         self.assertIn("2 phases · 2 tasks", pills)
         self.assertIn("<span>Historical</span>", pills)
 
-    def test_v4_optional_tabs(self):
+    def test_v5_optional_tabs(self):
         page, _, _, _ = render(REPORT, self.modern_context())
         for name in ("answer", "watch"):
             self.assertNotIn(f'id="panel-{name}"', page)
@@ -2051,7 +2079,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         for kind, card in cards:
             self.assertIn(f"<span>{kind.capitalize()}</span>", card)
 
-    def test_v4_prompt_ids_are_unique_and_match_handoff(self):
+    def test_v5_prompt_ids_are_unique_and_match_handoff(self):
         source, context = self.two_phase()
         source = source.replace("Phase 1", "Phase 1.2")
         context["phases"][0]["id"] = "1.2"
@@ -2073,7 +2101,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         self.assertEqual(targets, ["summary-handoff-1.2", "handoff-1.2", "handoff-2"])
         self.assertTrue(set(targets) <= set(ids))
 
-    def test_v4_historical_summary_has_no_copy_button(self):
+    def test_v5_historical_summary_has_no_copy_button(self):
         for change in ("status", "document"):
             with self.subTest(change=change):
                 context = self.modern_context()
@@ -2095,7 +2123,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 self.assertIn('<pre id="summary-handoff-1"', summary)
                 self.assertNotIn('href="handoff.txt"', page)
 
-    def test_v4_summary_shows_remediation_prompt_when_no_phase_is_ready(self):
+    def test_v5_summary_shows_remediation_prompt_when_no_phase_is_ready(self):
         source = REPORT.replace("**Ready.**", "**Not ready.**").replace(
             "Implement the approved scope now.", "Resume validation. Do not start dependent implementation.")
         page, _, _, _ = render(source, self.modern_context())
@@ -2106,7 +2134,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         self.assertIn("Waits for remediation", summary)
         self.assertNotIn("Can start", page)
 
-    def test_v4_page_contract(self):
+    def test_v5_page_contract(self):
         page, _, _, _ = render(REPORT, self.modern_context())
         self.assertIn("<title>Example</title>", page)
         js = (ASSETS / "report-v4.js").read_text()
@@ -2146,7 +2174,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             self.assertIsNotNone(name, shape)
             self.assertRegex(css, rf"\.hero-icon \.{name.group(1)}\{{[^}}]*var\(--")
 
-    def test_v4_no_js_shows_everything(self):
+    def test_v5_no_js_shows_everything(self):
         source = REPORT.replace("No blockers.", "Pending approvals D1.")
         context = self.modern_context()
         context["open_decisions"] = [{"id": "D1", "question": "Approve?", "recommendation": "Approve it.",
