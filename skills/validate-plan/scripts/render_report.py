@@ -56,8 +56,8 @@ SOURCE_HEADINGS = (
     "Changes", "Open items", "Verification and checkout", "Fresh-session handoff",
 )
 HISTORICAL_PREFIX = "HISTORICAL PROMPT — DO NOT EXECUTE.\nDocument identity, Git state or approvals need revalidation before implementation.\n\n"
-HISTORICAL_LEAD = "Document identity, Git state or approvals changed or could not be checked. This is a historical prompt."
-HISTORICAL_TEXT = HISTORICAL_LEAD + " Revalidate the changed scope before using it."
+HISTORICAL_TEXT = ("Document identity, Git state or approvals changed or could not be checked. "
+                   "This is a historical prompt. Revalidate the changed scope before using it.")
 HISTORICAL_WARNING = f'<p class="warning">{HISTORICAL_TEXT}</p>'
 RUN_FIRST_NOTE = ('<p class="warning">Run validation again first, with the re-run prompt in the Summary; '
                   'start a phase only after that run.</p>')
@@ -309,7 +309,7 @@ def document_checks(context):
         expected, path = doc["sha256"], Path(doc["path"])
         try:
             actual = hashlib.sha256(path.read_bytes()).hexdigest()
-        except OSError:
+        except (OSError, ValueError):  # ValueError: a path with a NUL byte cannot be read either
             actual = None
         results.append((doc, actual == expected))
     return results
@@ -825,9 +825,7 @@ def historical_warning_v4(rerun, fingerprints_match, saved):
     """The historical warning; when the plan or spec changed, it names the re-run instead of more review."""
     if fingerprints_match:
         return HISTORICAL_WARNING
-    # At the run limit or after a recorded stop, revalidating is not the next step, so the warning
-    # does not open by asking for it.
-    text = HISTORICAL_LEAD + " Do not use it as written."
+    # The prompt still needs revalidation before use; the advice says what that takes.
     if rerun["number"] >= MAX_RUNS:
         advice = ("The run limit is reached, so revalidating needs your explicit reset of the run count; "
                   "do not run more review rounds, and decide the next step yourself.")
@@ -835,11 +833,10 @@ def historical_warning_v4(rerun, fingerprints_match, saved):
         # Drift does not override a recorded stop: its reasons say the user decides first.
         advice = "The recorded answer is stop, so decide the next step yourself before revalidating; do not run more review rounds."
     else:
-        text = HISTORICAL_TEXT
         # Later runs may exist, so a saved report names no run number.
         advice = ("Run validation again instead of more review rounds, if the 3-run limit allows." if saved
                   else f"Run validation again (run {rerun['number'] + 1} of {MAX_RUNS}) instead of more review rounds.")
-    return f'<p class="warning">{text} The plan or spec changed or could not be read after this validation. {advice}</p>'
+    return f'<p class="warning">{HISTORICAL_TEXT} The plan or spec changed or could not be read after this validation. {advice}</p>'
 
 
 def rerun_label(rerun, recorded):

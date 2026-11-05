@@ -1201,6 +1201,11 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 context["documents"][0]["path"] = "PLAN.md"
                 with self.assertRaisesRegex(ValueError, "Document paths must be absolute"):
                     render(source, context)
+            # A path that cannot be read, even one with a NUL byte, is unavailable, not a crash.
+            with self.subTest(version=version, documents="nul"):
+                context = copy.deepcopy(base)
+                context["documents"][0]["path"] += "\0"
+                self.assertFalse(render_report.document_checks(context)[0][1])
             # A missing documents field names the documents, not a field that reads them.
             with self.subTest(version=version, documents="missing"):
                 context = copy.deepcopy(base)
@@ -1224,8 +1229,6 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         page, _, _, _ = render(REPORT, context)
         self.assertNotIn("run 4 of 3", page)
         self.assertIn("The run limit is reached, so revalidating needs your explicit reset", page)
-        # The warning does not open by asking for the revalidation the limit forbids.
-        self.assertNotIn("Revalidate the changed scope", self.panel(page, "summary"))
         # An earlier recorded stop is not overridden either: the page never offers the next run.
         for kind in ("new", "saved"):
             with self.subTest(kind=kind):
