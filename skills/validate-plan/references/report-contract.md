@@ -120,7 +120,8 @@ the renderer writes it to `rerun.txt`. The prompt:
 ```
 
 When the plan or spec changes after review, the historical warning says to run
-validation again, naming the next run, instead of more review rounds; at run 3 it says
+validation again, naming the next run (a saved re-render names none and adds "if the
+3-run limit allows"), instead of more review rounds; at run 3 it says
 the run limit is reached and that revalidating needs the user's explicit reset, and
 after a recorded `stop` it names no run and says to decide the next step before
 revalidating.
