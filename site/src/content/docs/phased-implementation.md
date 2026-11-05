@@ -24,7 +24,7 @@ Each phase follows the plan's **Phase workflow** section: a short list of steps 
 1. Works in a git worktree on its own phase branch.
 2. Builds each task test-first and proves it works by running the tests.
 3. Reviews the phase against the plan, spec and validation report, checks each finding before fixing it, and finds the cause of any failure before fixing it.
-4. Repeats the review until no Medium or High finding remains. Wording-level findings are listed, and the maintainer is asked to fix or skip each one in the end-of-phase report.
+4. Repeats the review until no Medium or High finding remains. Wording-level findings are listed, and the maintainer is asked to fix or skip each one in the end-of-phase report; skipped or unanswered ones are saved as action points.
 5. Checks that the branch is ready (tests pass), without pushing, opening a PR or merging yet.
 6. Runs the code and security reviews your repository requires, then delivers the branch as your repository defines, for example a PR into the plan branch.
 7. Stops, and prints the next phase's prompt from the report. The maintainer merges the phase PR, then starts the next phase in a fresh session.
@@ -61,10 +61,10 @@ Paste this into your repository's `AGENTS.md` (or equivalent) and adjust it to y
 - Run one validated phase per fresh session. Start a phase only after the previous phase is merged into the plan branch.
 - Build the phase's tasks with helper agents; keep only short results in the main session.
 - Follow the plan's Phase workflow section: worktree, test-first tasks, review against the plan, spec and report until no Medium or High finding remains, readiness check, then the code and security reviews this repository requires.
-- List wording-level findings and ask the maintainer to fix or skip each one in the end-of-phase report; save the rest as action points.
+- List wording-level findings and ask the maintainer to fix or skip each one in the end-of-phase report; save skipped or unanswered ones as action points.
 - Open the PR into the plan branch, wait for CI and post a short review summary as a PR comment.
 - Stop at the end of the phase and print the next phase's prompt from the report. The maintainer merges and starts the next session.
 - Between phases, merged earlier phases and ticked task checkboxes are expected. Reconcile any other change to the plan, spec or approvals with the validation report before building.
-- Docs-only PRs need CI only. If you review docs PRs, a plan's docs PR and docs-only phase PRs get a full-plan review (plan, spec and report) instead of `/code-review`: fix verified Medium and High findings, design gaps included, until none remain; ask the maintainer about findings that contradict a recorded decision or would change a security or privacy boundary, a permission or an external action; list wording findings for fix-or-skip. Run `/security-review` once.
+- Docs-only PRs need CI only. If you review docs PRs, a plan's docs PR and docs-only phase PRs get a full-plan review (plan, spec and report) instead of `/code-review`: fix verified Medium and High findings, design gaps included, until none remain; ask the maintainer about findings that contradict a recorded decision or would change a security or privacy boundary, a permission or an external action; list wording findings for fix-or-skip. Post it as the code review; reviewer severities map Critical to High, Important to Medium and Minor to Low. Run `/security-review` once.
 - The final plan-to-main PR gets a full code review and a full security review, which also clears the saved action points.
 ```
