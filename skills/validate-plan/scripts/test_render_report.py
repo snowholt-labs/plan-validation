@@ -19,7 +19,7 @@ from pathlib import Path
 from unittest import mock
 
 import render_report
-from render_report import ASSETS, HISTORICAL_PREFIX, cells, open_report, phase_handoffs, phase_plan, render
+from render_report import ASSETS, HISTORICAL_PREFIX, cells, open_report, phase_plan, render
 
 
 REPORT = """# Example validation
@@ -380,7 +380,8 @@ class ReportTests(unittest.TestCase):
                             "Run `/implement/` now.", "Run `/feature-dev:implement.md` now.", "Fix `/repo/x Implement Phase 1 now`.",
                             "Run `/implement /home/u/plan.md` now.", "Run `/implement docs/plan.md` now.",
                             "Fix `/repo/ Implement Phase 1 now.md`.", "Read `/repo/plan.md`implement it.",
-                            "Fix `/home/u/My Repo/x implement now.md`."):
+                            "Fix `/home/u/My Repo/x implement now.md`.", "Read `/x/y not` Implement Phase 1.",
+                            "Read `/repo/plan.md then implement.`", "Use `/implement/ /repo/plan.md` now."):
             source = not_ready.replace("Implement the approved scope now.", instruction + " Do not start dependent implementation.")
             with self.subTest(instruction=instruction), self.assertRaisesRegex(ValueError, "remediation prompt"):
                 render(source, self.stop_rerun(self.modern_context()))
@@ -398,19 +399,31 @@ class ReportTests(unittest.TestCase):
 
     def test_quoted_absolute_paths_are_names_not_instructions(self):
         not_ready = REPORT.replace("**Ready.**", "**Not ready.**")
-        for path in ("`/implement.md`", "`/repo/implement`", "`~/implement`", "`C:\\implement\\plan.md`", "`/repo/docs/`",
-                     "`/home/u/My Repo/docs/plans/implement-retry.md`", "`/home/u/implement tools/repo`",
-                     "`C:\\Users\\Jane Doe\\implementing\\plan.md`"):
+        for path in ("`/implement.md`", "`/repo/implement`", "`~/implement`", "`C:\\implement\\plan.md`", "`/repo/docs/`"):
             source = not_ready.replace("Implement the approved scope now.", f"Read {path}. Do not start dependent implementation.")
             with self.subTest(path=path):
                 render(source, self.stop_rerun(self.modern_context()))
+        # A quoted span with spaces is text, except a document path the report records exactly.
+        context = self.stop_rerun(self.modern_context())
+        plan = Path(self.directory.name) / "My Repo" / "implement-retry.md"
+        plan.parent.mkdir()
+        plan.write_text("PLAN")
+        context["documents"][0]["path"] = str(plan)
+        context["validation_run"]["plan_key"] = "implement-retry.md"
+        render(not_ready.replace("Implement the approved scope now.", f"Read `{plan}`. Do not start dependent implementation."), context)
+        for other in ("`/home/u/My Repo/docs/plans/implement-retry.md`", f"`{plan}.bak`"):
+            source = not_ready.replace("Implement the approved scope now.", f"Read {other}. Do not start dependent implementation.")
+            with self.subTest(other=other), self.assertRaisesRegex(ValueError, "remediation prompt"):
+                render(source, context)
 
-    def test_quoted_repository_path_with_spaces_is_one_word(self):
-        # A repository path with spaces and no extension still counts as one word.
-        self.assertEqual(render_report.word_count("Work in `/Users/Jane Doe/my repo`."), 3)
-        self.assertEqual(render_report.word_count("Read `C:\\Users\\Jane Doe\\plan.md` now."), 3)
-        # Prose between the first and last piece of a quoted "path" still counts, one word per piece.
-        self.assertEqual(render_report.word_count("`/a/b then seventy more words`"), 4)
+    def test_quoted_path_with_spaces_counts_each_word(self):
+        # Version 4 counts a quoted span with spaces as text, unless it is a recorded document path.
+        self.assertEqual(render_report.word_count("Work in `/Users/Jane Doe/my repo`."), 5)
+        self.assertEqual(render_report.word_count("Work in `/Users/Jane Doe/my repo`.", 4, {"/Users/Jane Doe/my repo"}), 3)
+        self.assertEqual(render_report.word_count("`/a/b " + "w/ " * 100 + "c/d`"), 102)
+        self.assertEqual(render_report.word_count("`/repo/plan.md and then do whatever you want`"), 7)
+        # Saved version 1-3 reports keep their rule: any quoted absolute path is one word.
+        self.assertEqual(render_report.word_count("Work in `/Users/Jane Doe/my repo`.", 3), 3)
         source = REPORT.replace("Implement the approved scope now.", "Run `/a/b " + "detail " * 80 + "z.md` now.")
         with self.assertRaisesRegex(ValueError, "80 words"):
             render(source, self.modern_context())
@@ -428,7 +441,7 @@ class ReportTests(unittest.TestCase):
             render(source, self.modern_context())
 
     def test_backtick_quoted_paths_count_as_one_word(self):
-        path = "`/Users/x/My Projects/" + "deep folder/" * 40 + "plan.md`"
+        path = "`/Users/x/My-Projects/" + "deep-folder/" * 40 + "plan.md`"
         source = REPORT.replace("Implement the approved scope now.", f"Implement the plan in {path} now.")
         _, prompt, _, _ = render(source, self.modern_context())
         self.assertIn(path, prompt)
@@ -913,7 +926,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
     def test_v4_phase_prompts_still_checked(self):
         source, context = self.two_phase()
         self.assertEqual(context["format_version"], 4)
-        self.assertEqual([pid for pid, _ in phase_handoffs(source, context)], ["1", "2"])
+        self.assertEqual([pid for pid, _ in render(source, context).pairs], ["1", "2"])
         with self.assertRaisesRegex(ValueError, "Confirm Phase 1 is merged"):
             render(source.replace("Confirm Phase 1 is merged.", ""), context)
 
@@ -1097,6 +1110,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             "invocation": self.RERUN_PROMPT.replace("/plan-validation:validate-plan ", ""),
             "other command": self.RERUN_PROMPT.replace("/plan-validation:validate-plan", "/plan-validation:validate-planner"),
             "PLAN path": self.RERUN_PROMPT.replace(f"`{plan}`", "the plan"),
+            "PLAN path ": self.RERUN_PROMPT.replace(f"`{plan}`", f"`{plan}.bak`"),
             "SPEC path": self.RERUN_PROMPT.replace(f"`{spec}`", "the spec"),
             "no previous report": self.RERUN_PROMPT.replace("Previous report: `/data/run-1/report.md`.", "Read the last report."),
             "relative previous report": self.RERUN_PROMPT.replace("`/data/run-1/report.md`", "`run-1/report.md`"),
@@ -1104,7 +1118,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         }
         for name, prompt in cases.items():
             with self.subTest(name=name):
-                expected = {"PLAN path": "PLAN path", "SPEC path": "SPEC path"}.get(name, "invocation" if "invocation" in name or "command" in name else "report.md")
+                expected = {"PLAN path": "PLAN path", "PLAN path ": "PLAN path", "SPEC path": "SPEC path"}.get(name, "invocation" if "invocation" in name or "command" in name else "report.md")
                 with self.assertRaisesRegex(ValueError, expected):
                     render(run_first(REPORT), self.rerun_yes(self.modern_context(), prompt))
                 # A saved prompt stays as its run wrote it.
@@ -1158,12 +1172,13 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             with self.subTest(recommendation=recommendation), self.assertRaisesRegex(ValueError, "remove that line"):
                 render(run_first(REPORT), context)
             # Other wording that mentions running validation again is free text.
-            render(REPORT.replace("## 8. Fresh-session handoff\n", "## 8. Fresh-session handoff\n"
-                                  "You do not need to run validation again first.\n\n", 1), context)
+            for line in ("You do not need to run validation again first.", "There is no need to run validation again first."):
+                render(REPORT.replace("## 8. Fresh-session handoff\n", f"## 8. Fresh-session handoff\n{line}\n\n", 1), context)
             # A reworded run-first line still tells the reader to hold the phases, and a negation in
             # another clause of the sentence does not excuse it.
             for line in ("Run validation again first, then start Phase 1.",
-                         "There are no open decisions, so run validation again first."):
+                         "There are no open decisions, so run validation again first.",
+                         "Not ready means run validation again first."):
                 with self.assertRaisesRegex(ValueError, "remove that line"):
                     render(REPORT.replace("## 8. Fresh-session handoff\n", f"## 8. Fresh-session handoff\n{line}\n\n", 1), context)
         # A Not ready yes runs after the remediation session, so it never says run first.
@@ -1475,7 +1490,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         source, context = self.two_phase()
         _, prompt, _, _ = render(source, context)
         self.assertTrue(prompt.startswith("Implement Phase 1."))
-        self.assertEqual([pid for pid, _ in phase_handoffs(source, context)], ["1", "2"])
+        self.assertEqual([pid for pid, _ in render(source, context).pairs], ["1", "2"])
 
     def test_prompt_count_must_match_ready_phases(self):
         source, context = self.two_phase()
@@ -1541,7 +1556,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         waiting = source.split("## 8.")[0] + "## 8. Fresh-session handoff\n```text\nRecord D1, then re-render the report. Do not start dependent implementation.\n```\n"
         _, prompt, _, _ = render(waiting, context)
         self.assertIn("Do not start dependent implementation.", prompt)
-        self.assertEqual(phase_handoffs(waiting, context), [])
+        self.assertEqual(render(waiting, context).pairs, [])
         with self.assertRaisesRegex(ValueError, "cannot contain an Implement instruction"):
             render(waiting.replace("Record D1, then", "Implement Phase 1, then"), context)
 
@@ -1554,8 +1569,8 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         source, context = self.two_phase()
         source = source.replace("```text\nImplement Phase 2.", "````text\nImplement Phase 2.\n```\nexample\n```\n").replace(
             "it is the last phase.\n```", "it is the last phase.\n````")
-        self.assertEqual(len(phase_handoffs(source, context)), 2)
-        self.assertIn("example", phase_handoffs(source, context)[1][1])
+        self.assertEqual(len(render(source, context).pairs), 2)
+        self.assertIn("example", render(source, context).pairs[1][1])
 
     def test_not_ready_keeps_one_remediation_prompt(self):
         source, context = self.two_phase()
@@ -1566,7 +1581,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             render(source, context)
         remediation = REPORT.replace("**Ready.**", "**Not ready.**").replace(
             "Implement the approved scope now.", "Resume validation. Do not start dependent implementation.")
-        self.assertEqual(phase_handoffs(remediation, self.stop_rerun(context)), [])
+        self.assertEqual(render(remediation, self.stop_rerun(context)).pairs, [])
 
     def run_renderer(self, directory, source, context):
         (directory / "in.md").write_text(source, encoding="utf-8")
@@ -1586,7 +1601,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             self.assertEqual(result.returncode, 0, result.stderr)
             files = json.loads(result.stdout)["phase_handoffs"]
             self.assertEqual(files, [str((out / f"handoff-phase-{pid}.txt").resolve()) for pid in ("1", "2")])
-            for pid, prompt in phase_handoffs(source, context):
+            for pid, prompt in render(source, context).pairs:
                 text = (out / f"handoff-phase-{pid}.txt").read_text(encoding="utf-8")
                 self.assertEqual(text, (HISTORICAL_PREFIX if status == "historical" else "") + prompt + "\n")
         out = root / "current"
@@ -1703,7 +1718,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
     def test_inline_code_at_line_start_is_not_a_fence(self):
         source, context = self.two_phase()
         source = source.replace("Implement Phase 2.", "Implement Phase 2.\n```npm test``` must pass.")
-        self.assertEqual(len(phase_handoffs(source, context)), 2)
+        self.assertEqual(len(render(source, context).pairs), 2)
 
     def run_main(self, directory, source, context, *extra):
         (directory / "in.md").write_text(source, encoding="utf-8")

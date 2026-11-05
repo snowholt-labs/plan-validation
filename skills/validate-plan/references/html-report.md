@@ -73,10 +73,9 @@ Without JavaScript every panel shows in order and the count card links to the pa
 a link to a section, such as `#section-6`, opens Full report. Print/PDF shows every
 panel, expands details and restores their state afterward. It rejects handoffs longer
 than 80 whitespace-separated words; a backtick-quoted absolute path counts as one word
-(in version 4, the path must start like the implement rule below defines, with a first
-segment without a colon or space, so a quoted slash command counts every word; in a path
-with spaces, each space-separated piece between the first and the last that has no `/`
-or `\` counts as one more word).
+(in version 4, a path as the implement rule below defines it, so a quoted slash command
+or a quoted path with spaces counts every word, except a PLAN or SPEC `path` quoted
+exactly).
 Target 50–80 words; do not add filler to meet a minimum.
 It renders the full report and
 writes `handoff.txt` from section 8 exactly when the handoff is current. It rejects missing sections, incorrect
@@ -111,19 +110,18 @@ Versions 3 and 4 check the phase grouping. The renderer also checks that:
   (in a version 4 report, no `implements` or `implementing` either, also with a `re` or
   `re-` prefix; any of these forms is allowed right after `not`, `cannot`, `n't`
   (straight or curly) or `never` on the same line, or inside a backtick-quoted absolute
-  path; a path that starts with `/` needs a first segment without a colon or space and,
-  without a file extension, a second segment, so a quoted slash command such as
-  `/feature-dev:implement`, `/implement/` or `/implement /repo/plan.md` is checked like
-  other text; in a quoted path with spaces, only a form that touches `/`, `\`, `.`, `_`
-  or `-` (such as `implement-retry.md`) is part of a name, and one between spaces is
-  checked like other text);
+  path with no spaces; a path that starts with `/` needs a first segment without a colon
+  and, without a file extension, a second segment, so a quoted slash command such as
+  `/feature-dev:implement` or `/implement/` is checked like other text; a quoted span
+  with spaces is text too, except a PLAN or SPEC `path` (or, in the re-run prompt, the
+  previous report) quoted exactly);
 - in a new version 4 report, section 8 says `Run validation again first, with the re-run
   prompt in the Summary; start a phase only after that run.` before its prompts exactly
   when its `rerun` answer is `yes` and it has a ready phase, also when the handoff later
   turns historical; the renderer rejects the line when it is missing then. In any other
   new report, such as one whose answer changed to `no` or `stop`, it rejects any
-  `run validation again first` in section 8 that no `not`, `never`, `no` or `n't` earlier
-  in the same clause negates. A `kind: saved` report keeps section 8 as its run wrote it.
+  `run validation again first` in section 8 unless directly negated, as in `do not need
+  to`, `don't have to` or `no need to`. A `kind: saved` report keeps section 8 as its run wrote it.
 
 Section 8 shows the phase table above the prompts, and each phase prompt has its
 own copy button. In version 4 the Summary repeats the first ready prompt (or the single
@@ -297,8 +295,8 @@ Version 4 fields:
   strings) and, only for `yes`, `prompt`. The rules are in report-contract.md, "Run
   validation again". The renderer computes the triggers and rejects a `no` that a
   trigger forbids, a `yes` at run 3, and a prompt that breaks the prompt rules: in a new
-  report it must start with the validate-plan invocation (bare or in backticks), contain
-  the PLAN and SPEC `path` values exactly, and say `Previous report:` followed by a
+  report it must start with the validate-plan invocation (bare or in backticks), quote
+  the PLAN and SPEC `path` values exactly in backticks, and say `Previous report:` followed by a
   backtick-quoted absolute path ending in `report.md` (the last such label counts), not
   the `previous_report` of this run; the helper also checks that it is the `report.md` it writes beside `report.html`. A `kind: saved` report keeps its invocation, document, scope and order sentences
   as its run wrote them. The
