@@ -508,11 +508,17 @@ def phase_table(phases, verdict, current, rerun_first=False):
     return f'<div class="table-scroll" role="region" aria-label="Phase plan" tabindex="0"><table><thead><tr>{head}</tr></thead><tbody>{rows}</tbody></table></div>'
 
 
-def handoff_prompts(section, version, verdict, context):
+def recorded_names(context, run_files=()):
+    """Quoted paths a version 4 prompt may name even with spaces: the recorded PLAN and SPEC paths and
+    this run's own files (report.md and context.json, which main() passes in as run_files)."""
+    return {doc["path"] for doc in context_documents(context)} | set(run_files)
+
+
+def handoff_prompts(section, version, verdict, context, run_files=()):
     """Return validated (start, end, text) prompt spans and their (phase_id, prompt) pairs."""
     prompts = [(start, end, section[body_start:body_end].rstrip("\n")) for start, end, body_start, body_end in fenced_blocks(section)]
     # Version 4 reads the recorded document paths as names, even with spaces.
-    names = {doc["path"] for doc in context_documents(context)} if version >= 4 else set()
+    names = recorded_names(context, run_files) if version >= 4 else set()
     ready = []
     if version >= 3 and verdict.lower() != "not ready":
         ready = [phase["id"] for phase in phase_plan(context, verdict) if phase["status"] == "ready"]
@@ -626,7 +632,7 @@ def previous_report_named(prompt):
     return None
 
 
-def rerun_check(context, verdict, confidence, plan_revised, spec_revised):
+def rerun_check(context, verdict, confidence, plan_revised, spec_revised, run_files=()):
     """Return the checked "Run validation again" data of a version 4 report (spec Part 2)."""
     run = context.get("validation_run")
     if not isinstance(run, dict):
@@ -684,7 +690,7 @@ def rerun_check(context, verdict, confidence, plan_revised, spec_revised):
     else:
         if not isinstance(prompt, str) or not prompt.strip():
             raise ValueError("A yes rerun recommendation needs a prompt")
-        names = {doc["path"] for doc in context_documents(context)} | {previous_report_named(prompt)}
+        names = recorded_names(context, run_files) | {previous_report_named(prompt)}
         if word_count(prompt, 4, names) > 80:
             raise ValueError("The rerun prompt must be at most 80 words; wrap paths in backticks")
         # Compare with single spaces, so a wrapped prompt still says each sentence.
@@ -1102,7 +1108,9 @@ class Rendered(tuple):
         return self.prefix == HELD_PREFIX
 
 
-def render(source, context):
+def render(source, context, run_files=()):
+    """Validate and render a report. run_files are this run's own paths (report.md and context.json),
+    which a version 4 prompt may quote even when they contain spaces."""
     version = context.get("format_version", 1)
     if type(version) is not int or version not in (1, 2, 3, 4):
         raise ValueError("format_version must be 1 (legacy), 2, 3 or 4")
@@ -1140,7 +1148,7 @@ def render(source, context):
         confidence = "Unknown"
     if confidence != "Unknown" and (not 0 <= int(confidence[:-1]) <= 100 or int(confidence[:-1]) % 5):
         raise ValueError("Confidence must be Unknown or a percentage in steps of five")
-    prompts, pairs = handoff_prompts(parts[7][1], version, verdict, context)
+    prompts, pairs = handoff_prompts(parts[7][1], version, verdict, context, run_files)
     if version >= 4:
         fields = v4_fields(context, parts[5][1])
         if verdict.lower() == "ready after approvals" and not any(holds_back_work(item) for item in fields["decisions"]):
@@ -1155,7 +1163,7 @@ def render(source, context):
         if verdict.lower() == "ready" and any(holds_back_work(item) for item in fields["decisions"]):
             raise ValueError("A Ready verdict cannot have open decisions that hold back work; "
                              "set holds_back to Nothing or use Ready after approvals")
-        fields["rerun"] = rerun_check(context, verdict, confidence, plan[1], spec[1])
+        fields["rerun"] = rerun_check(context, verdict, confidence, plan[1], spec[1], run_files)
         run_first_note(parts[7][1], prompts, context, pairs)
     handoff = prompts[0][2]
     if context.get("handoff_status") not in {"current", "historical"}:
@@ -1258,7 +1266,10 @@ def main():
     try:
         source = args.report.read_text(encoding="utf-8")
         context = json.loads(args.context.read_text(encoding="utf-8"))
-        rendered = render(source, context)
+        # This run's report.md and context.json, as given and absolute, so a prompt may quote them with spaces.
+        run_files = {str(path) for file in (args.output.with_suffix(".md"), args.output.with_name("context.json"), args.context)
+                     for path in (file, file.absolute(), file.resolve())}
+        rendered = render(source, context, run_files)
         page, handoff, current, rerun_prompt = rendered
         # The next run reads this run's report.md, the copy written beside report.html.
         if rerun_prompt is not None:
@@ -1267,18 +1278,19 @@ def main():
                 raise ValueError(f"The rerun prompt must name this run's report.md as the previous report: "
                                  f"{args.output.with_suffix('.md').resolve()}")
         args.output.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        # Delete the old re-run prompt before any write, so a failed render never leaves it beside a new page.
+        # Delete the old prompt files before any write, so a failed write never leaves an earlier,
+        # unmarked prompt beside a new page.
         rerun_path = args.output.with_name("rerun.txt")
         # A saved re-render writes no re-run prompt and keeps the one its run wrote.
         if context.get("kind") != "saved":
             rerun_path.unlink(missing_ok=True)
+        args.output.with_name("handoff.txt").unlink(missing_ok=True)
+        for stale in args.output.parent.glob("handoff-phase-*.txt"):
+            stale.unlink()
         if args.report.resolve() != args.output.with_suffix(".md").resolve():
             args.output.with_suffix(".md").write_text(source, encoding="utf-8")
         args.output.write_text(page, encoding="utf-8")
         args.output.with_name("handoff.txt").write_text(handoff + "\n", encoding="utf-8")
-        # A re-render must never leave an earlier, unmarked phase prompt behind.
-        for stale in args.output.parent.glob("handoff-phase-*.txt"):
-            stale.unlink()
         phase_files = []
         # The phase files get the same historical or held note as handoff.txt, chosen once by render().
         held = rendered.held

@@ -1358,6 +1358,47 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         self.assertIn("disk full", err)
         self.assertFalse((out / "rerun.txt").exists())
 
+    def test_failed_write_never_leaves_an_unheld_prompt(self):
+        out = Path(self.directory.name) / "held-fail"
+        out.mkdir()
+        code, _, err = self.run_main(out, REPORT, self.modern_context())
+        self.assertEqual(code, 0, err)
+        self.assertTrue((out / "handoff-phase-1.txt").exists())
+        # The yes render fails after report.html is written; no earlier, unheld prompt may stay beside it.
+        write_text = Path.write_text
+
+        def failing(path, *args, **kwargs):
+            if path.name == "handoff.txt":
+                raise OSError("disk full")
+            return write_text(path, *args, **kwargs)
+        with mock.patch.object(Path, "write_text", failing):
+            code, _, err = self.run_main(out, run_first(REPORT), self.rerun_yes(self.modern_context(), self.rerun_prompt_for(out)))
+        self.assertEqual(code, 1)
+        self.assertIn("disk full", err)
+        self.assertFalse((out / "handoff.txt").exists())
+        self.assertEqual(list(out.glob("handoff-phase-*.txt")), [])
+
+    def test_prompts_may_quote_this_runs_files_with_spaces(self):
+        # A run directory under a home or repository folder with spaces is common on Windows and macOS.
+        out = Path(self.directory.name) / "Jane Doe" / "my repo" / "run 1"
+        out.mkdir(parents=True)
+        report, context_file = out / "report.md", out / "context.json"
+        prompt = f"Implement the approved scope now. Read `{report}` and `{context_file}` first."
+        block = REPORT.split("```text\n", 1)[1].split("\n```", 1)[0].replace("Implement the approved scope now.", prompt)
+        filler = 80 - render_report.word_count(block, 4, {str(report), str(context_file)}) - 1
+        self.assertGreater(filler, 0)
+        source = REPORT.replace("Implement the approved scope now.", prompt + " Then" + " check" * filler + ".")
+        # Without the run's own paths every word inside them counts, so the prompt is over the limit.
+        with self.assertRaisesRegex(ValueError, "80 words"):
+            render(source, self.modern_context())
+        (out / "context.json").write_text(json.dumps(self.modern_context()), encoding="utf-8")
+        (out / "in.md").write_text(source, encoding="utf-8")
+        argv = ["render_report.py", "--report", str(out / "in.md"), "--context", str(context_file), "--output", str(out / "report.html")]
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with mock.patch.object(sys, "argv", argv), contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            render_report.main()
+        self.assertIn(str(report), (out / "handoff-phase-1.txt").read_text(encoding="utf-8"))
+
     def test_run_three_error_names_only_stop(self):
         context = self.modern_context()
         context["validation_run"].update(number=3, previous_report="/data/run-2/report.md")

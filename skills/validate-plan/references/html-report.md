@@ -74,8 +74,8 @@ a link to a section, such as `#section-6`, opens Full report. Print/PDF shows ev
 panel, expands details and restores their state afterward. It rejects handoffs longer
 than 80 whitespace-separated words; a backtick-quoted absolute path counts as one word
 (in version 4, a path as the implement rule below defines it, so a quoted slash command
-or a quoted path with spaces counts every word, except a PLAN or SPEC `path` quoted
-exactly).
+or a quoted path with spaces counts every word, except a PLAN or SPEC `path` or this
+run's `report.md` or `context.json` quoted exactly).
 Target 50–80 words; do not add filler to meet a minimum.
 It renders the full report and
 writes `handoff.txt` from section 8 exactly when the handoff is current. It rejects missing sections, incorrect
@@ -113,8 +113,8 @@ Versions 3 and 4 check the phase grouping. The renderer also checks that:
   path with no spaces; a path that starts with `/` needs a first segment without a colon
   and, without a file extension, a second segment, so a quoted slash command such as
   `/feature-dev:implement` or `/implement/` is checked like other text; a quoted span
-  with spaces is text too, except a PLAN or SPEC `path` (or, in the re-run prompt, the
-  previous report) quoted exactly);
+  with spaces is text too, except a PLAN or SPEC `path`, this run's `report.md` or
+  `context.json` (or, in the re-run prompt, the previous report) quoted exactly);
 - in a new version 4 report, section 8 says `Run validation again first, with the re-run
   prompt in the Summary; start a phase only after that run.` before its prompts exactly
   when its `rerun` answer is `yes` and it has a ready phase, also when the handoff later
@@ -135,8 +135,8 @@ the Summary puts the re-run card above the next session. Besides `handoff.txt` (
 handoff is not current. While the phase prompts are held for a re-run, `handoff.txt` and
 each `handoff-phase-<id>.txt` instead start with `HELD PROMPT — DO NOT START YET.` and a
 note to run validation again first, and the renderer's JSON output says `"handoff_held": true` (`false`
-otherwise); never hand such a file to a session before the re-run. A re-render first deletes every `handoff-phase-*.txt` in the
-run directory, so an earlier phase prompt never survives a changed verdict.
+otherwise); never hand such a file to a session before the re-run. Before it writes any file, a render deletes `handoff.txt` and every `handoff-phase-*.txt` in the
+run directory, so an earlier prompt never survives a changed verdict or a failed write.
 For a version 4 report whose `rerun` recommendation is `yes`, the renderer also writes
 the re-run prompt to `rerun.txt`, even when the handoff is historical, because running
 validation again is the answer to drift. A new report's re-render first deletes any
