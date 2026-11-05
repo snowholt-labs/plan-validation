@@ -58,7 +58,8 @@ python3 <skill-directory>/scripts/render_report.py --report <run-directory>/repo
 ```
 
 Leave out `--open` when re-rendering a report (a saved report, or the same run after a
-recorded answer) unless the user asked to see it again.
+recorded answer) unless the user asked to see it again. The step 8 re-render after the
+end-of-run answers passes `--open` again when this run rendered with `--open`.
 When publishing or an artifact update will run (the `Publish setting` line in `SKILL.md` reads exactly `true`,
 and the Artifact tool and a session scratchpad are available), leave out `--open`
 for a new run, and for an update or a publish on request even when the user asked to see it, and follow "Private artifact (Claude Code, opt-in)" below.
@@ -126,7 +127,7 @@ handoff is not current. Besides `handoff.txt` (the first prompt), the renderer w
 `handoff-phase-<id>.txt` for each ready phase, with the historical warning when the
 handoff is not current. Before it writes any file, a render deletes `handoff.txt` and every `handoff-phase-*.txt` in the
 run directory, so an earlier prompt never survives a changed verdict or a failed write.
-A new report's render also deletes any `rerun.txt`. In the renderer's JSON output, a
+A new report's render, and any version 5 render, also deletes any `rerun.txt`. In the renderer's JSON output, a
 version 5 report has `"rerun": null` and `"handoff_held": false`.
 
 Saved version 4 reports keep what their run drew. When a saved Ready or Ready after
@@ -334,7 +335,7 @@ Provide a clickable absolute link
 to `report.html`; a short local preview URL may accompany it. If serving locally,
 bind to `127.0.0.1`, serve only this report directory, and keep that preview alive.
 No dependency install or external hosting is needed. Render a new run's report with `--open`,
-except when it is published (below); a re-render opens only when the user asked;
+except when it is published (below); a re-render opens only when the user asked, or as the step 8 re-render above;
 keep the clickable absolute link to `report.html` either way, and when the renderer
 prints `"opened": false`, do not say the report was opened.
 
