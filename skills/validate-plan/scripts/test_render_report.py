@@ -1411,6 +1411,15 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             render_report.main()
         self.assertIn(str(report), (out / "handoff-phase-1.txt").read_text(encoding="utf-8"))
 
+    def test_demo_runs_into_a_folder_with_spaces(self):
+        # The demo's prompts quote its own report.md, so a spaced output folder must still render.
+        script = Path(__file__).resolve().parents[3] / "scripts" / "demo.py"
+        output = Path(self.directory.name) / "My demo" / "please implement it"
+        result = subprocess.run([sys.executable, "-B", str(script), "--output", str(output)], capture_output=True, text=True,
+                                timeout=120)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue((output / "report.html").exists())
+
     def test_run_three_error_names_only_stop(self):
         context = self.modern_context()
         context["validation_run"].update(number=3, previous_report="/data/run-2/report.md")
