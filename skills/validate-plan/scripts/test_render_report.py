@@ -1186,7 +1186,10 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         # A malformed context is rejected with a message that names the field, never a traceback.
         cases = {"v4": (REPORT, self.modern_context()), "v3": (LEGACY_REPORT, self.v3_saved_context())}
         for version, (source, base) in cases.items():
-            for documents in (None, "PLAN", {"label": "PLAN"}, base["documents"] + [42], [base["documents"][0], None]):
+            plan, spec = base["documents"]
+            fields = [[plan, {key: value for key, value in spec.items() if key != "path"}],
+                      [plan, dict(spec, sha256=5)], [plan, dict(spec, label=["SPEC"])], [plan, dict(spec, path=7)]]
+            for documents in [None, "PLAN", {"label": "PLAN"}, base["documents"] + [42], [plan, None]] + fields:
                 with self.subTest(version=version, documents=documents):
                     context = copy.deepcopy(base)
                     context["documents"] = documents
