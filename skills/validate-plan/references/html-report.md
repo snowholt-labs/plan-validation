@@ -107,7 +107,14 @@ Versions 3 and 4 check the phase grouping. The renderer also checks that:
   (in a version 4 report, no `implements` or `implementing` either, also with a `re` or
   `re-` prefix; any of these forms is allowed right after `not`, `cannot`, `n't`
   (straight or curly) or `never` on the same line, or inside a backtick-quoted absolute
-  path with no spaces or ending in a file extension).
+  path with no spaces or ending in a file extension; a path that starts with `/` needs a
+  second `/` after a first segment without a colon, so a quoted slash command such as
+  `/feature-dev:implement` is checked like other text);
+- in version 4, section 8 says `Run validation again first, with the re-run prompt in the
+  Summary; start a phase only after that run.` before its prompts exactly when the report
+  is Ready or Ready after approvals and its `rerun` answer is `yes`; the renderer rejects
+  the line when it is missing then, and rejects it in any other report, such as one whose
+  answer changed to `no` or `stop`.
 
 Section 8 shows the phase table above the prompts, and each phase prompt has its
 own copy button. In version 4 the Summary repeats the first ready prompt (or the single
@@ -118,7 +125,10 @@ least one ready phase recommends running validation again (`yes`), the phase pro
 after that run.` instead of a copy button, the header has no **Prompt .txt** link, and
 the Summary puts the re-run card above the next session. Besides `handoff.txt` (the first prompt), the renderer writes
 `handoff-phase-<id>.txt` for each ready phase, with the historical warning when the
-handoff is not current. A re-render first deletes every `handoff-phase-*.txt` in the
+handoff is not current. While the phase prompts are held for a re-run, `handoff.txt` and
+each `handoff-phase-<id>.txt` instead start with `HELD PROMPT — DO NOT START YET.` and the
+run-first note, and the renderer's JSON output says `"handoff_held": true` (`false`
+otherwise); never hand such a file to a session before the re-run. A re-render first deletes every `handoff-phase-*.txt` in the
 run directory, so an earlier phase prompt never survives a changed verdict.
 For a version 4 report whose `rerun` recommendation is `yes`, the renderer also writes
 the re-run prompt to `rerun.txt`, even when the handoff is historical, because running
@@ -277,8 +287,12 @@ Version 4 fields:
 - `rerun`: `recommendation` (`yes`, `no` or `stop`), `reasons` (1–4 short, nonempty
   strings) and, only for `yes`, `prompt`. The rules are in report-contract.md, "Run
   validation again". The renderer computes the triggers and rejects a `no` that a
-  trigger forbids, a `yes` at run 3, and a prompt that breaks the prompt rules (a
-  `kind: saved` report keeps its scope and order sentences as its run wrote them). The
+  trigger forbids, a `yes` at run 3, and a prompt that breaks the prompt rules: in a new
+  report it must start with the validate-plan invocation, contain the PLAN and SPEC
+  `path` values exactly, and say `Previous report:` followed by a backtick-quoted absolute
+  path ending in `report.md` (the renderer checks the form, not that it is this run's
+  file). A `kind: saved` report keeps its invocation, document, scope and order sentences
+  as its run wrote them. The
   page shows the recommendation as a header pill and a Summary card with the run
   number and reasons; only `yes` has a copy button. A saved or historical page labels the
   recommendation "Recorded", because it predates the change.

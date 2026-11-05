@@ -59,8 +59,13 @@ HISTORICAL_PREFIX = "HISTORICAL PROMPT — DO NOT EXECUTE.\nDocument identity, G
 HISTORICAL_TEXT = ("Document identity, Git state or approvals changed or could not be checked. "
                    "This is a historical prompt. Revalidate the changed scope before using it.")
 HISTORICAL_WARNING = f'<p class="warning">{HISTORICAL_TEXT}</p>'
-RUN_FIRST_NOTE = ('<p class="warning">Run validation again first, with the re-run prompt in the Summary; '
-                  'start a phase only after that run.</p>')
+RUN_FIRST_TEXT = "Run validation again first, with the re-run prompt in the Summary; start a phase only after that run."
+RUN_FIRST_NOTE = f'<p class="warning">{RUN_FIRST_TEXT}</p>'
+# Held phase prompt files carry this note, so a copied file cannot start a phase before the re-run.
+HELD_PREFIX = ("HELD PROMPT — DO NOT START YET.\nRun validation again first, with the re-run prompt in rerun.txt "
+               "or the report's Summary; start a phase only after that run.\n\n")
+# The invocation a re-run prompt starts with: the plugin command, a bare skill command or the Codex skill.
+INVOCATION = re.compile(r"\s*(?:/(?:[\w.-]+:)?validate-plan|\$validate-plan)(?![\w-])")
 # Phase IDs become file names, so they cannot contain path separators.
 PHASE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9.-]{0,15}\Z")
 CONFIDENCE_LEVELS = ("High", "Medium", "Low")
@@ -73,8 +78,10 @@ IMPLEMENT_VERB = re.compile(r"\b(?:re-?)?implement(?:s|ing)?\b", re.I)
 NEGATION = re.compile(r"(?:\b(?:can)?not|[a-z]n['’]t|\bnever)\s+$", re.I)
 # Saved version 1-3 reports keep the negation rule they were rendered with.
 LEGACY_NEGATION = re.compile(r"(?:\bnot|n't|\bnever)\s+$", re.I)
-# Only path-like spans are skipped: no whitespace, or ending in a file extension.
-QUOTED_NAME = re.compile(r"`(?:/|~/|[A-Za-z]:[\\/])(?:[^`\s]*|[^`\n]*\.[A-Za-z0-9]+)`")
+# Only path-like spans are skipped: no whitespace, or ending in a file extension. A path that starts
+# with "/" needs a second "/" after a first segment without a colon or space, so a quoted slash
+# command such as `/feature-dev:implement` or `/implement` is checked like any other text.
+QUOTED_NAME = re.compile(r"`(?:/(?=[^`\s/:]+/)|~/|[A-Za-z]:[\\/])(?:[^`\s]*|[^`\n]*\.[A-Za-z0-9]+)`")
 
 
 def spaced(text):
@@ -668,6 +675,17 @@ def rerun_check(context, verdict, confidence, plan_revised, spec_revised):
             raise ValueError(f"The rerun prompt of a {verdict} report must say: {order}")
         if "do not start dependent implementation" not in joined.lower():
             raise ValueError("The rerun prompt must say: Do not start dependent implementation.")
+        if new:
+            # validate-plan runs only when invoked explicitly, and the next run reads these documents.
+            if not INVOCATION.match(prompt):
+                raise ValueError("The rerun prompt must start with the invocation this run used, "
+                                 "such as /plan-validation:validate-plan or $validate-plan")
+            for doc in context_documents(context):
+                if doc["path"] not in prompt:
+                    raise ValueError(f"The rerun prompt must name the {doc['label']} path {doc['path']}")
+            previous = re.search(r"previous report:?\s*`([^`\n]*)`", prompt, re.I)
+            if not previous or not is_absolute(previous.group(1)) or not re.search(r"(?:^|[\\/])report\.md\Z", previous.group(1)):
+                raise ValueError("The rerun prompt must name this run's report.md: Previous report: `<absolute path>/report.md`")
     return {"number": number, "recommendation": recommendation, "reasons": reasons,
             "prompt": prompt if recommendation == "yes" else None, "triggers": triggers}
 
@@ -869,6 +887,30 @@ def rerun_card(rerun, recorded, copyable):
             f'<p class="rerun-run">Run {rerun["number"]} of at most {MAX_RUNS}</p><ul>{reasons}</ul>{triggers}{prompt}</div>')
 
 
+def phases_held(context, current, pairs):
+    """Whether a version 4 report's current phase prompts wait for the re-run its rerun yes asks for.
+
+    Only a Ready or Ready after approvals report has phase prompts, so pairs is empty for Not ready.
+    """
+    return bool(context.get("format_version") == 4 and current and pairs and context["rerun"]["recommendation"] == "yes")
+
+
+def run_first_note(section, prompts, verdict, recommendation):
+    """Section 8 says the run-first line before its prompts exactly when the page holds the phases for a re-run."""
+    intro = section
+    for start, end, _ in reversed(prompts):
+        intro = intro[:start] + intro[end:]
+    def says(text, words):
+        return words.lower() in spaced(plain(text)).lower()
+    if recommendation == "yes" and verdict.lower() != "not ready":
+        if not says(section[:prompts[0][0]], RUN_FIRST_TEXT):
+            raise ValueError(f"Section 8 of a {verdict} report that recommends running validation again "
+                             f"must say before the prompts: {RUN_FIRST_TEXT}")
+    elif says(intro, "Run validation again first"):
+        raise ValueError("Section 8 says to run validation again first, which only a Ready or Ready after approvals "
+                         f"report whose rerun answer is yes says; this one is {verdict} with {recommendation}")
+
+
 def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pairs, current, checks):
     """Return the version 4 page: header card, score strip, tabs (Summary, answers, watch list, full report)."""
     css = (ASSETS / "report-v4.css").read_text()
@@ -880,7 +922,7 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
     # A yes outside Not ready asks for another run before any phase starts.
     rerun_first = rerun["recommendation"] == "yes" and verdict.lower() != "not ready"
     # Current phase prompts wait for that run: no copy button, no download, the re-run card first.
-    hold_phases = bool(current and rerun_first and pairs)
+    hold_phases = phases_held(context, current, pairs)
     fingerprints_match = all(matches for _, matches in checks)
     warning = historical_warning_v4(rerun, fingerprints_match, context["kind"] == "saved")
 
@@ -1047,6 +1089,7 @@ def render(source, context):
             raise ValueError("A Ready verdict cannot have open decisions that hold back work; "
                              "set holds_back to Nothing or use Ready after approvals")
         fields["rerun"] = rerun_check(context, verdict, confidence, plan[1], spec[1])
+        run_first_note(parts[7][1], prompts, verdict, fields["rerun"]["recommendation"])
     handoff = prompts[0][2]
     if context.get("handoff_status") not in {"current", "historical"}:
         raise ValueError("Set handoff_status to current or historical after checking Git state and approvals")
@@ -1062,7 +1105,7 @@ def render(source, context):
         raise ValueError("Scope comparison needs an explanation and approval basis (or Unknown)")
     if context.get("kind") not in {"saved", "new"}:
         raise ValueError("Context kind must be saved or new")
-    marked = handoff if current else HISTORICAL_PREFIX + handoff
+    marked = (HISTORICAL_PREFIX if not current else HELD_PREFIX if phases_held(context, current, pairs) else "") + handoff
     if version >= 4:
         page = page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pairs, current, checks)
         # A saved report's run label may be stale (later runs can exist), so only a new report writes rerun.txt.
@@ -1162,16 +1205,20 @@ def main():
         for stale in args.output.parent.glob("handoff-phase-*.txt"):
             stale.unlink()
         phase_files = []
-        for phase_id, prompt in phase_handoffs(source, context):
+        pairs = phase_handoffs(source, context)
+        # Held prompts carry the run-first note in their files too, not only on the page.
+        held = phases_held(context, current, pairs)
+        prefix = HISTORICAL_PREFIX if not current else HELD_PREFIX if held else ""
+        for phase_id, prompt in pairs:
             path = args.output.with_name(f"handoff-phase-{phase_id}.txt")
-            path.write_text(("" if current else HISTORICAL_PREFIX) + prompt + "\n", encoding="utf-8")
+            path.write_text(prefix + prompt + "\n", encoding="utf-8")
             phase_files.append(str(path.resolve()))
         # The re-run prompt starts a validation, never implementation, so it is written even for a historical handoff.
         if rerun_prompt is not None:
             rerun_path.write_text(rerun_prompt + "\n", encoding="utf-8")
     except (ValueError, KeyError, OSError, ArithmeticError) as error:
         parser.exit(1, f"Report not generated: {error}\n")
-    result = {"html": str(args.output.resolve()), "handoff": str(args.output.with_name("handoff.txt").resolve()), "handoff_current": current, "phase_handoffs": phase_files,
+    result = {"html": str(args.output.resolve()), "handoff": str(args.output.with_name("handoff.txt").resolve()), "handoff_current": current, "handoff_held": held, "phase_handoffs": phase_files,
               "rerun": str(rerun_path.resolve()) if rerun_path.exists() else None}
     if args.open:
         result["opened"], reason = open_report(args.output.resolve())

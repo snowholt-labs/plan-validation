@@ -159,6 +159,11 @@ ZONES_DIAGRAM = {
 }
 
 
+def run_first(source):
+    """Add the line section 8 says before its prompts while a rerun yes holds a Ready report's phases."""
+    return source.replace("## 8. Fresh-session handoff\n", "## 8. Fresh-session handoff\n" + render_report.RUN_FIRST_TEXT + "\n\n", 1)
+
+
 def normalized(page, root):
     return re.sub(r"HTML generated \S+\.", "HTML generated X.", page.replace(root, "ROOT"))
 
@@ -370,7 +375,8 @@ class ReportTests(unittest.TestCase):
         not_ready = REPORT.replace("**Ready.**", "**Not ready.**")
         for instruction in ("Start implementing Phase 1.", "The fix implements Task 2.",
                             "Fix `/repo/a\nStart implementing Phase 1 now.md`.", "Keep D1 or not\nImplement Phase 1.",
-                            "Reimplement Phase 1.", "Keep D1 or not\u2028Implement Phase 1.", "Keep D1 or not\rImplement Phase 1."):
+                            "Reimplement Phase 1.", "Keep D1 or not\u2028Implement Phase 1.", "Keep D1 or not\rImplement Phase 1.",
+                            "Run `/feature-dev:implement` for Phase 1.", "Run `/implement` now.", "Run `/x:implement/` now."):
             source = not_ready.replace("Implement the approved scope now.", instruction + " Do not start dependent implementation.")
             with self.subTest(instruction=instruction), self.assertRaisesRegex(ValueError, "remediation prompt"):
                 render(source, self.stop_rerun(self.modern_context()))
@@ -770,19 +776,19 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         # A saved prompt stays as its run wrote it.
         saved = self.rerun_yes(copy.deepcopy(two))
         saved["kind"] = "saved"
-        render(source, saved)
-        render(source, self.rerun_yes(two, self.RERUN_PROMPT + " Validate only Phases 1-2."))
+        render(run_first(source), saved)
+        render(run_first(source), self.rerun_yes(two, self.RERUN_PROMPT + " Validate only Phases 1-2."))
         one = self.modern_context()
         one["validation_run"]["scope"] = "phases:1-1"
         for sentence in ("Validate only Phases 1-1.", "Validate only Phase 1."):
             with self.subTest(sentence=sentence):
-                render(REPORT, self.rerun_yes(one, self.RERUN_PROMPT + " " + sentence))
+                render(run_first(REPORT), self.rerun_yes(one, self.RERUN_PROMPT + " " + sentence))
         # Phase IDs may hold dots, so Phase 1. must end the sentence, not start Phase 1.5.
         for other in ("Validate only Phase 10.", "Validate only Phase 1.5.", "Validate only Phase 1.2 and 1.3."):
             with self.subTest(other=other), self.assertRaisesRegex(ValueError, "Validate only Phase 1"):
-                render(REPORT, self.rerun_yes(one, self.RERUN_PROMPT + " " + other))
-        render(source, self.rerun_yes(two, self.RERUN_PROMPT + " Validate only Phases 1–2."))
-        render(REPORT, self.rerun_yes(self.modern_context()))
+                render(run_first(REPORT), self.rerun_yes(one, self.RERUN_PROMPT + " " + other))
+        render(run_first(source), self.rerun_yes(two, self.RERUN_PROMPT + " Validate only Phases 1–2."))
+        render(run_first(REPORT), self.rerun_yes(self.modern_context()))
 
     def test_v4_decision_ids_are_unique(self):
         source = REPORT.replace("No blockers.", "Pending approvals D1 and d1.")
@@ -881,9 +887,12 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         with self.assertRaisesRegex(ValueError, "Confirm Phase 1 is merged"):
             render(source.replace("Confirm Phase 1 is merged.", ""), context)
 
-    RERUN_PROMPT = ("Run validation again (run 2 of 3) for `/repo/PLAN.md` and `/repo/SPEC.md`. Previous report: "
-                    "`/data/run-1/report.md`. Run this before starting any phase. Focus on the delay cap. "
-                    "Do not start dependent implementation.")
+    @property
+    def RERUN_PROMPT(self):
+        plan, spec = (doc["path"] for doc in self.context["documents"])
+        return (f"/plan-validation:validate-plan PLAN: `{plan}` SPEC: `{spec}` FOCUS: Run validation again (run 2 of 3). "
+                "Previous report: `/data/run-1/report.md`. Run this before starting any phase. Focus on the delay cap. "
+                "Do not start dependent implementation.")
 
     def rerun_yes(self, context, prompt=None):
         context["rerun"] = {"recommendation": "yes", "reasons": ["The delay cap is still open."],
@@ -956,11 +965,11 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                     saved["kind"] = "saved"
                     render(source, saved)
                     expected = self.RERUN_PROMPT.replace("before starting any phase", "after the remediation session")
-                prompt = render(source, self.rerun_yes(self.modern_context(), expected))[3]
+                prompt = render(source if name == "Not ready" else run_first(source), self.rerun_yes(self.modern_context(), expected))[3]
                 self.assertEqual(prompt, expected)
         # A Ready report's phase prompts wait for the re-run, or a phase starts on a plan the run may change.
         low = REPORT.replace("Confidence: 75%", "Confidence: 65%")
-        page = render(low, self.rerun_yes(self.modern_context(), self.RERUN_PROMPT.replace("this before", "this\n  before")))[0]
+        page = render(run_first(low), self.rerun_yes(self.modern_context(), self.RERUN_PROMPT.replace("this before", "this\n  before")))[0]
         summary = self.panel(page, "summary")
         self.assertIn("Run validation again first", summary)
         self.assertNotIn("Can start", page)
@@ -997,7 +1006,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             context = self.modern_context()
             context["rerun"]["recommendation"] = recommendation
             self.assertIsNone(render(REPORT, context)[3])
-        self.assertEqual(render(REPORT, self.rerun_yes(self.modern_context()))[3], self.RERUN_PROMPT)
+        self.assertEqual(render(run_first(REPORT), self.rerun_yes(self.modern_context()))[3], self.RERUN_PROMPT)
         # A pending approval alone is not a re-run trigger.
         render(*self.phase_1_waits(*self.pending_d1(REPORT.replace("**Ready.**", "**Ready after approvals.**"), self.modern_context())))
 
@@ -1010,6 +1019,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             "implementing": self.RERUN_PROMPT + " Then start implementing Phase 1.",
             "quoted instruction": self.RERUN_PROMPT + " Then `/x Implement Phase 1 now` please.",
             "split quote": self.RERUN_PROMPT + " Fix `/repo/a\nStart implementing Phase 1 now.md`.",
+            "slash command": self.RERUN_PROMPT + " Then run `/feature-dev:implement` for Phase 1.",
             "Do not start dependent implementation": self.RERUN_PROMPT.replace(" Do not start dependent implementation.", ""),
         }
         for name, prompt in cases.items():
@@ -1019,32 +1029,110 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                     del context["rerun"]["prompt"]
                 else:
                     context["rerun"]["prompt"] = prompt
-                with self.assertRaisesRegex(ValueError, "Implement" if name in ("implementing", "quoted instruction", "split quote") else name):
+                with self.assertRaisesRegex(ValueError, "Implement" if name in ("implementing", "quoted instruction", "split quote", "slash command") else name):
                     render(REPORT, context)
         # A negated mention, with a typographic apostrophe too, is not an instruction.
-        render(REPORT, self.rerun_yes(self.modern_context(), self.RERUN_PROMPT + " Don’t implement anything."))
+        render(run_first(REPORT), self.rerun_yes(self.modern_context(), self.RERUN_PROMPT + " Don’t implement anything."))
         # Every sentence check reads a wrapped prompt as one line.
         wrapped = self.RERUN_PROMPT.replace("run 2 of 3", "run 2\n  of 3").replace("dependent implementation", "dependent\n  implementation")
-        render(REPORT, self.rerun_yes(self.modern_context(), wrapped))
+        render(run_first(REPORT), self.rerun_yes(self.modern_context(), wrapped))
         # A "not" closing one line does not excuse an instruction on the next.
         with self.assertRaisesRegex(ValueError, "Implement"):
-            render(REPORT, self.rerun_yes(self.modern_context(), self.RERUN_PROMPT + " Keep D1 or not\nImplement Phase 1."))
+            render(run_first(REPORT), self.rerun_yes(self.modern_context(), self.RERUN_PROMPT + " Keep D1 or not\nImplement Phase 1."))
         # A raw CR from context.json ends a line too, and a word that only ends in "not" is no negation.
         for tail in (" Keep D1 or not\rImplement Phase 1.", " Call isNot implement Phase 1.", " Do n’t implement Phase 1."):
             with self.subTest(tail=tail), self.assertRaisesRegex(ValueError, "Implement"):
-                render(REPORT, self.rerun_yes(self.modern_context(), self.RERUN_PROMPT + tail))
+                render(run_first(REPORT), self.rerun_yes(self.modern_context(), self.RERUN_PROMPT + tail))
         # Paths are names, not instructions, even when they contain the word.
-        render(REPORT, self.rerun_yes(self.modern_context(), self.RERUN_PROMPT.replace(
+        render(run_first(REPORT), self.rerun_yes(self.modern_context(), self.RERUN_PROMPT.replace(
             "`/repo/PLAN.md`", "`/repo/docs/implementation plan.md`").replace(
             "`/data/run-1/report.md`", "`/data/20261104T0000Z-implement-retry/report.md`")))
         # Describing implementation is not an instruction to implement.
-        render(REPORT, self.rerun_yes(self.modern_context(), self.RERUN_PROMPT.replace(
+        render(run_first(REPORT), self.rerun_yes(self.modern_context(), self.RERUN_PROMPT.replace(
             "Focus on the delay cap.", "Check whether Task 3 is implemented correctly and the implementation order.")))
         # Only yes carries a prompt, so rerun.txt exists only for yes.
         context = self.modern_context()
         context["rerun"]["prompt"] = self.RERUN_PROMPT
         with self.assertRaisesRegex(ValueError, "prompt"):
             render(REPORT, context)
+
+    def test_rerun_prompt_starts_validation_of_the_named_documents(self):
+        # A fresh session needs the explicit invocation, both documents and this run's report.
+        plan, spec = (doc["path"] for doc in self.context["documents"])
+        cases = {
+            "invocation": self.RERUN_PROMPT.replace("/plan-validation:validate-plan ", ""),
+            "other command": self.RERUN_PROMPT.replace("/plan-validation:validate-plan", "/plan-validation:validate-planner"),
+            "PLAN path": self.RERUN_PROMPT.replace(f"`{plan}`", "the plan"),
+            "SPEC path": self.RERUN_PROMPT.replace(f"`{spec}`", "the spec"),
+            "no previous report": self.RERUN_PROMPT.replace("Previous report: `/data/run-1/report.md`.", "Read the last report."),
+            "relative previous report": self.RERUN_PROMPT.replace("`/data/run-1/report.md`", "`run-1/report.md`"),
+            "other file": self.RERUN_PROMPT.replace("`/data/run-1/report.md`", "`/data/run-1/report.html`"),
+        }
+        for name, prompt in cases.items():
+            with self.subTest(name=name):
+                expected = {"PLAN path": "PLAN path", "SPEC path": "SPEC path"}.get(name, "invocation" if "invocation" in name or "command" in name else "report.md")
+                with self.assertRaisesRegex(ValueError, expected):
+                    render(run_first(REPORT), self.rerun_yes(self.modern_context(), prompt))
+                # A saved prompt stays as its run wrote it.
+                saved = self.rerun_yes(self.modern_context(), prompt)
+                saved["kind"] = "saved"
+                render(run_first(REPORT), saved)
+        for invocation in ("$validate-plan", "/validate-plan", "  /plan-validation:validate-plan"):
+            with self.subTest(invocation=invocation):
+                render(run_first(REPORT), self.rerun_yes(self.modern_context(), self.RERUN_PROMPT.replace(
+                    "/plan-validation:validate-plan", invocation, 1)))
+
+    def test_section_8_says_run_first_only_while_phases_wait_for_a_rerun(self):
+        yes = self.rerun_yes(self.modern_context())
+        with self.assertRaisesRegex(ValueError, "must say before the prompts"):
+            render(REPORT, yes)
+        # The line belongs before the prompts, and it may wrap or carry emphasis.
+        after = REPORT.replace("it is the last phase.\n```\n", "it is the last phase.\n```\n" + render_report.RUN_FIRST_TEXT + "\n")
+        with self.assertRaisesRegex(ValueError, "must say before the prompts"):
+            render(after, yes)
+        wrapped = REPORT.replace("## 8. Fresh-session handoff\n", "## 8. Fresh-session handoff\n**"
+                                 + render_report.RUN_FIRST_TEXT.replace("; ", ";\n") + "**\n\n", 1)
+        render(wrapped, self.rerun_yes(self.modern_context()))
+        # A stale line after the answer changed to no or stop contradicts the page.
+        for recommendation in ("no", "stop"):
+            context = self.modern_context()
+            context["rerun"]["recommendation"] = recommendation
+            with self.subTest(recommendation=recommendation), self.assertRaisesRegex(ValueError, f"Ready with {recommendation}"):
+                render(run_first(REPORT), context)
+        # A Not ready yes runs after the remediation session, so it never says run first.
+        not_ready = REPORT.replace("**Ready.**", "**Not ready.**").replace(
+            "Implement the approved scope now.", "Fix Task 1. Do not start dependent implementation.")
+        remediation = self.rerun_yes(self.modern_context(), self.RERUN_PROMPT.replace(
+            "before starting any phase", "after the remediation session"))
+        render(not_ready, remediation)
+        with self.assertRaisesRegex(ValueError, "Not ready with yes"):
+            render(run_first(not_ready), remediation)
+
+    def test_held_phase_prompt_files_say_run_first(self):
+        out = Path(self.directory.name) / "held"
+        out.mkdir()
+        code, stdout, err = self.run_main(out, run_first(REPORT), self.rerun_yes(self.modern_context()))
+        self.assertEqual(code, 0, err)
+        result = json.loads(stdout)
+        self.assertTrue(result["handoff_current"])
+        self.assertTrue(result["handoff_held"])
+        # Every prompt file a session or a publish could pick up starts with the held note.
+        for name in ("handoff.txt", "handoff-phase-1.txt"):
+            text = (out / name).read_text(encoding="utf-8")
+            self.assertTrue(text.startswith(render_report.HELD_PREFIX), name)
+            self.assertIn("Implement the approved scope now.", text)
+        # Without the yes the files start the phase; a historical handoff keeps its own warning.
+        code, stdout, err = self.run_main(out, REPORT, self.modern_context())
+        self.assertEqual(code, 0, err)
+        self.assertFalse(json.loads(stdout)["handoff_held"])
+        self.assertTrue((out / "handoff-phase-1.txt").read_text(encoding="utf-8").startswith("Implement the approved scope now."))
+        historical = self.rerun_yes(self.modern_context())
+        historical["handoff_status"] = "historical"
+        code, stdout, err = self.run_main(out, run_first(REPORT), historical)
+        self.assertEqual(code, 0, err)
+        self.assertFalse(json.loads(stdout)["handoff_held"])
+        for name in ("handoff.txt", "handoff-phase-1.txt"):
+            self.assertTrue((out / name).read_text(encoding="utf-8").startswith(HISTORICAL_PREFIX), name)
 
     def test_rerun_reasons(self):
         for reasons in ([], ["One.", "Two.", "Three.", "Four.", "Five."], ["One.", " "], "One.", [1]):
@@ -1059,7 +1147,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             render(REPORT, context)
 
     def test_rerun_rendered(self):
-        page, _, _, prompt = render(REPORT, self.rerun_yes(self.modern_context()))
+        page, _, _, prompt = render(run_first(REPORT), self.rerun_yes(self.modern_context()))
         pills = page[page.index('<ul class="pills"'):page.index('</ul>', page.index('<ul class="pills"'))]
         self.assertIn("<span>Run validation again: yes</span>", pills)
         summary = self.panel(page, "summary")
@@ -1080,7 +1168,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         # A historical report still offers the re-run prompt: re-running is the answer to drift.
         context = self.rerun_yes(self.modern_context())
         context["handoff_status"] = "historical"
-        page, _, current, _ = render(REPORT, context)
+        page, _, current, _ = render(run_first(REPORT), context)
         self.assertFalse(current)
         targets = re.findall(r'data-copy-target="([^"]+)"', self.panel(page, "summary"))
         self.assertEqual(targets, ["rerun-prompt"])
@@ -1088,7 +1176,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         # A saved report shows its re-run advice as recorded, like its verdict.
         context = self.rerun_yes(self.modern_context())
         context["kind"] = "saved"
-        page, _, _, prompt = render(REPORT, context)
+        page, _, _, prompt = render(run_first(REPORT), context)
         self.assertIn("<span>Recorded: run validation again: yes</span>", page)
         # A saved report's run label may be stale, so it gets no copy button and no rerun.txt.
         self.assertIsNone(prompt)
@@ -1099,7 +1187,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         probe = '<script>x</script>"&amp'
         context = self.rerun_yes(self.modern_context(), self.RERUN_PROMPT + " " + probe)
         context["rerun"]["reasons"] = [probe]
-        page, _, _, prompt = render(REPORT, context)
+        page, _, _, prompt = render(run_first(REPORT), context)
         self.assertEqual(page.count("<script>"), 1)
         self.assertNotIn("<script>x", page)
         self.assertIn("&lt;script&gt;x&lt;/script&gt;&quot;&amp;amp", self.panel(page, "summary"))
@@ -1112,7 +1200,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         for status in ("current", "historical"):
             with self.subTest(status=status):
                 context["handoff_status"] = status
-                result = self.run_renderer(out, REPORT, context)
+                result = self.run_renderer(out, run_first(REPORT), context)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(json.loads(result.stdout)["rerun"], str((out / "rerun.txt").resolve()))
                 # The re-run prompt starts a validation, so it never carries the implementation warning.
@@ -1122,8 +1210,8 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         self.assertIsNone(json.loads(result.stdout)["rerun"])
         self.assertFalse((out / "rerun.txt").exists())
         # A failed render leaves the earlier files alone.
-        self.run_renderer(out, REPORT, self.rerun_yes(self.modern_context()))
-        result = self.run_renderer(out, REPORT, self.rerun_yes(self.modern_context(), "Run it again."))
+        self.run_renderer(out, run_first(REPORT), self.rerun_yes(self.modern_context()))
+        result = self.run_renderer(out, run_first(REPORT), self.rerun_yes(self.modern_context(), "Run it again."))
         self.assertNotEqual(result.returncode, 0)
         self.assertTrue((out / "rerun.txt").exists())
 
@@ -1131,10 +1219,10 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         out = Path(self.directory.name) / "rerun-saved"
         out.mkdir()
         context = self.rerun_yes(self.modern_context())
-        code, _, err = self.run_main(out, REPORT, context)
+        code, _, err = self.run_main(out, run_first(REPORT), context)
         self.assertEqual(code, 0, err)
         context["kind"] = "saved"
-        code, stdout, err = self.run_main(out, REPORT, context)
+        code, stdout, err = self.run_main(out, run_first(REPORT), context)
         self.assertEqual(code, 0, err)
         # The JSON names the kept file, so the reply can still give its path.
         self.assertEqual(json.loads(stdout)["rerun"], str((out / "rerun.txt").resolve()))
@@ -1153,7 +1241,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
     def test_failed_write_never_leaves_an_old_rerun_prompt(self):
         out = Path(self.directory.name) / "rerun-fail"
         out.mkdir()
-        code, _, err = self.run_main(out, REPORT, self.rerun_yes(self.modern_context()))
+        code, _, err = self.run_main(out, run_first(REPORT), self.rerun_yes(self.modern_context()))
         self.assertEqual(code, 0, err)
         self.assertTrue((out / "rerun.txt").exists())
         # A later write fails after report.html is written; the old yes prompt must already be gone.
