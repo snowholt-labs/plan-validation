@@ -809,16 +809,16 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 context = self.modern_context()
                 context["open_decisions"] = [dict(decision, id=f"D{n}", holds_back=f"Phase {n}") for n in range(1, count + 1)]
                 page, _, _, _ = render(*self.phase_1_waits(source, context, " and ".join(f"D{n}" for n in range(1, count + 1))))
-                button = re.search(r'<button class="count" type="button" data-open-tab="answer">.*?</button>', page, re.S).group(0)
+                button = re.search(r'<a class="count" href="#panel-answer" data-open-tab="answer">.*?</a>', page, re.S).group(0)
                 self.assertIn("D1 holds back Phase 1 " + tail + " ·", button)
 
     def test_v4_answer_hint_holds_no_link(self):
-        # The count card is a button, and a link inside a button is invalid; the table keeps the link.
+        # The count card is a link, and a link inside a link is invalid; the table keeps the link.
         source, context = self.pending_d1(REPORT.replace("**Ready.**", "**Ready after approvals.**"), self.modern_context())
         context["open_decisions"][0]["holds_back"] = "[Phase 1](https://example.com/p1) and **tests**"
         page, _, _, _ = render(*self.phase_1_waits(source, context))
-        button = re.search(r'<button class="count" type="button" data-open-tab="answer">.*?</button>', page, re.S).group(0)
-        self.assertNotIn("<a", button)
+        button = re.search(r'<a class="count" href="#panel-answer" data-open-tab="answer">.*?</a>', page, re.S).group(0)
+        self.assertEqual(button.count("<a"), 1)
         self.assertIn("D1 holds back Phase 1 and tests", button)
         self.assertIn('<a href="https://example.com/p1"', self.panel(page, "answer"))
 
@@ -1198,6 +1198,27 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         page, _, _, _ = render(REPORT, context)
         self.assertNotIn("run 4 of 3", page)
         self.assertIn("the run limit is reached; decide the next step yourself", page)
+        # An earlier recorded stop is not overridden either: the page never offers the next run.
+        for kind in ("new", "saved"):
+            with self.subTest(kind=kind):
+                context["validation_run"].update(number=1, previous_report=None)
+                context["kind"] = kind
+                context["rerun"] = {"recommendation": "stop", "reasons": ["D1 needs the user's decision first."]}
+                page, _, _, _ = render(REPORT.replace("Confidence: 75%", "Confidence: 60%"), context)
+                self.assertIn("The recorded answer is stop", page)
+                self.assertNotIn("Run validation again (run", page)
+                self.assertNotIn("Run validation again instead", page)
+                self.assertNotIn("the run limit is reached", page)
+        # At run 3 a saved page states the limit whatever it recorded, and never invites a fourth run.
+        context["validation_run"].update(number=3, previous_report="/data/run-2/report.md")
+        context["kind"] = "saved"
+        for recommendation in ("stop", "no"):
+            with self.subTest(recommendation=recommendation):
+                context["rerun"] = {"recommendation": recommendation, "reasons": ["The run limit is reached."]}
+                page, _, _, _ = render(REPORT, context)
+                self.assertIn("the run limit is reached; decide the next step yourself", page)
+                self.assertNotIn("Run validation again instead", page)
+        context["kind"] = "new"
         # Git or approval drift alone does not claim the documents changed.
         plan.write_text("PLAN")
         context = self.modern_context()
@@ -1617,7 +1638,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         self.assertNotIn('data-open-tab="', page)
         summary = self.panel(page, "summary")
         self.assertEqual(summary.count('<div class="count count-none"><strong>None</strong>'), 2)
-        self.assertNotIn('<button class="count"', summary)
+        self.assertNotIn('<a class="count"', summary)
 
         # D2 holds back work, which only a Ready after approvals verdict allows.
         source = REPORT.replace("No blockers.", "Pending approvals D1 and D2.").replace("**Ready.**", "**Ready after approvals.**")
@@ -1635,8 +1656,11 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         for row in rows:
             self.assertIn('href="#section-6"', row)
         summary = self.panel(page, "summary")
-        self.assertIn('<button class="count" type="button" data-open-tab="answer"><strong>2</strong>', summary)
-        self.assertIn('<button class="count" type="button" data-open-tab="watch"><strong>4</strong><span>items on the watch list</span>', summary)
+        # Count cards are links to their panels, so they work without JavaScript too.
+        self.assertIn('<a class="count" href="#panel-answer" data-open-tab="answer"><strong>2</strong>', summary)
+        self.assertIn('<a class="count" href="#panel-watch" data-open-tab="watch"><strong>4</strong><span>items on the watch list</span>', summary)
+        self.assertIn('id="panel-answer"', page)
+        self.assertIn('id="panel-watch"', page)
         self.assertNotIn("Approve it.", summary)
         cards = re.findall(r'<article class="watch watch-(\w+)">(.*?)</article>', self.panel(page, "watch"), re.S)
         self.assertEqual([kind for kind, _ in cards], ["gap", "limit", "risk", "fixed"])
@@ -1718,6 +1742,12 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                      # A modified or non-primary click opens a new tab, so it must not switch this page's panel.
                      "event.button !== 0", "event.ctrlKey", "event.metaKey", "event.shiftKey", "event.altKey"):
             self.assertIn(text, js)
+        # A count card is a link: a plain click chooses its tab without following the link, and a
+        # modified click is left to the browser, like every other link on the page.
+        handler = re.search(r'querySelectorAll\("\[data-open-tab\]"\).*?\n  \}\);', js, re.S).group(0)
+        self.assertLess(handler.index("plainClick(event)"), handler.index("event.preventDefault()"))
+        self.assertLess(handler.index("event.preventDefault()"), handler.index("choose(tab)"))
+        self.assertIn("if (!plainClick(event)) return;", js)
 
     def test_v4_icon_follows_colour_tokens(self):
         icon = (ASSETS / "report-icon.svg").read_text()

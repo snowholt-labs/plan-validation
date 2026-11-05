@@ -68,18 +68,24 @@ if (tabs.length) {
     choose(tabs[moves[event.key]]);
   });
 
+  // A modified or non-primary click opens a new tab or window, so this page's tab stays put.
+  const plainClick = event =>
+    !(event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey);
+
+  // Count cards link to their panel for readers without JavaScript; a plain click chooses the tab instead.
   document.querySelectorAll("[data-open-tab]").forEach(card => {
-    card.addEventListener("click", () => {
+    card.addEventListener("click", event => {
       const tab = document.getElementById("tab-" + card.dataset.openTab);
-      if (tabs.includes(tab)) choose(tab);
+      if (!plainClick(event) || !tabs.includes(tab)) return;
+      event.preventDefault();
+      choose(tab);
     });
   });
 
   // A link to the hash already in the URL fires no hashchange, so open its panel on click;
   // the browser then scrolls to the now-visible target.
   document.addEventListener("click", event => {
-    // A modified or non-primary click opens a new tab or window, so this page's tab stays put.
-    if (event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    if (!plainClick(event)) return;
     const link = event.target.closest?.('a[href^="#"]');
     if (link) openPanelFor(targetOf(link.getAttribute("href")));
   });
