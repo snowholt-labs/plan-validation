@@ -1030,7 +1030,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         with self.assertRaisesRegex(ValueError, "Implement"):
             render(REPORT, self.rerun_yes(self.modern_context(), self.RERUN_PROMPT + " Keep D1 or not\nImplement Phase 1."))
         # A raw CR from context.json ends a line too, and a word that only ends in "not" is no negation.
-        for tail in (" Keep D1 or not\rImplement Phase 1.", " Call isNot implement Phase 1."):
+        for tail in (" Keep D1 or not\rImplement Phase 1.", " Call isNot implement Phase 1.", " Do n’t implement Phase 1."):
             with self.subTest(tail=tail), self.assertRaisesRegex(ValueError, "Implement"):
                 render(REPORT, self.rerun_yes(self.modern_context(), self.RERUN_PROMPT + tail))
         # Paths are names, not instructions, even when they contain the word.
@@ -1245,6 +1245,13 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             render(source.replace("Stop at the end of Phase 1 and", "Don’t stop at the end of Phase 1 and"), context)
         with self.assertRaisesRegex(ValueError, "Stop at the end of Phase 1"):
             render(source.replace("Stop at the end of Phase 1 and", "You cannot stop at the end of Phase 1 and"), context)
+
+    def test_saved_v3_keeps_its_negation_rule(self):
+        # The wider version 4 negation set must not reject a saved version 3 report that rendered before.
+        source, context = self.legacy_cases()["v3-two-phases"]
+        for negated in ("Don’t stop at the end of Phase 1 and", "You cannot stop at the end of Phase 1 and"):
+            with self.subTest(negated=negated):
+                render(source.replace("Stop at the end of Phase 1 and", "Stop at the end of Phase 1. " + negated), context)
 
     def test_later_prompt_must_confirm_the_previous_phase_is_merged(self):
         source, context = self.two_phase()

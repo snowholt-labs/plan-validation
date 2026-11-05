@@ -80,7 +80,8 @@ document fingerprints; a mismatch labels the result historical and removes the
 copy button and prompt download, and prefixes the exported text with a warning.
 Set `handoff_status` to `historical` if Git state or approvals have drifted even
 when the document hashes match. A Not ready prompt must explicitly say
-`Do not start dependent implementation.` and must not begin `Implement ...`.
+`Do not start dependent implementation.` and must not begin `Implement ...` (version 4
+adds the stricter rule for remediation prompts below).
 These are structural checks, not a substitute for reviewing the
 evidence, approvals, Git state or the generated report.
 
