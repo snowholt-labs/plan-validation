@@ -117,8 +117,7 @@ Versions 3 and 4 check the phase grouping. The renderer also checks that:
   `context.json` quoted exactly);
 - in a new (version 5) report, neither section 8 nor its prompts say `run validation
   again first` unless directly negated, as in `do not need to`, `don't have to` or
-  `no need to`, and they never name `rerun.txt` or the re-run prompt: a new report has
-  no re-run. A `kind: saved` report keeps section 8 as its run wrote it.
+  `no need to`: a new report has no re-run. A `kind: saved` report keeps section 8 as its run wrote it.
 
 Section 8 shows the phase table above the prompts, and each phase prompt has its
 own copy button. The Summary repeats the first ready prompt (or the single
