@@ -123,9 +123,10 @@ When the plan or spec changes after review, the historical warning says to run
 validation again, naming the next run (below run 3 and without a recorded stop, a saved
 re-render names none and adds "if the 3-run limit allows"), instead of more review
 rounds. At run 3 it says the run limit is reached and that revalidating the same scope
-needs the user's explicit reset (a phase-only validation counts separately), and after a recorded `stop` it names no run and says to decide
-the next step before revalidating; these two also appear when only Git state or
-approvals drifted.
+needs the user's explicit reset (once another phase has merged, a phase-only validation
+of the phases still to build counts separately), and after a recorded `stop` it names
+no run and says to decide the next step before revalidating; these two also appear when
+only Git state or approvals drifted.
 
 ## Dependency evidence within the eight sections
 

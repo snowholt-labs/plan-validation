@@ -831,11 +831,10 @@ RERUN_STYLE = {"yes": ("chip-wait", "diamond"), "no": ("chip-ok", "circle"), "st
 def historical_warning_v4(rerun, fingerprints_match, saved):
     """The historical warning; when the plan or spec changed, it names the re-run instead of more review.
     At the run limit or after a recorded stop it says what revalidating takes, whatever drifted."""
-    # The prompt still needs revalidation before use; the advice says what that takes.
     if rerun["number"] >= MAX_RUNS:
-        # A phase-only validation of the remaining phases counts on its own, so the limit names its scope.
+        # Only after a merge does a phase-only validation of the phases still to build start its own count.
         advice = ("The run limit is reached for this scope, so revalidating it needs your explicit reset of the run count "
-                  "(a phase-only validation of the remaining phases counts separately); "
+                  "(once another phase has merged, a phase-only validation of the phases still to build counts separately); "
                   "do not run more review rounds, and decide the next step yourself.")
     elif rerun["recommendation"] == "stop":
         # Drift does not override a recorded stop: its reasons say the user decides first.
