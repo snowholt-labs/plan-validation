@@ -62,7 +62,7 @@ HISTORICAL_WARNING = f'<p class="warning">{HISTORICAL_TEXT}</p>'
 # Version 5 has no re-run: drift advice says to reconcile the change or validate the changed scope again.
 V5_RECONCILE = "Reconcile the change before building, or validate the changed scope again."
 V5_DRIFT_TEXT = "The plan or spec changed or could not be read after this validation. " + V5_RECONCILE
-V5_HISTORICAL_PREFIX = f"HISTORICAL PROMPT — DO NOT EXECUTE.\nDocument identity, Git state or approvals changed. {V5_RECONCILE}\n\n"
+V5_HISTORICAL_PREFIX = f"HISTORICAL PROMPT — DO NOT EXECUTE.\nDocument identity, Git state or approvals changed or could not be checked. {V5_RECONCILE}\n\n"
 RUN_FIRST_TEXT = "Run validation again first, with the re-run prompt in the Summary; start a phase only after that run."
 RUN_FIRST_NOTE = f'<p class="warning">{RUN_FIRST_TEXT}</p>'
 # Held phase prompt files carry this note, so a copied file cannot start a phase before the re-run.
@@ -876,7 +876,7 @@ def historical_warning_v5(fingerprints_match):
     """The version 5 historical warning: reconcile the change or validate again; it names no run or limit."""
     if fingerprints_match:
         # Only Git state or approvals drifted.
-        return f'<p class="warning">This is a historical prompt. Git state or approvals changed after this validation. {V5_RECONCILE}</p>'
+        return f'<p class="warning">This is a historical prompt. Git state or approvals changed or could not be checked after this validation. {V5_RECONCILE}</p>'
     return f'<p class="warning">This is a historical prompt. {V5_DRIFT_TEXT}</p>'
 
 

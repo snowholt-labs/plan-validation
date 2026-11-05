@@ -126,7 +126,7 @@ handoff is not current. Besides `handoff.txt` (the first prompt), the renderer w
 `handoff-phase-<id>.txt` for each ready phase, with the historical warning when the
 handoff is not current. Before it writes any file, a render deletes `handoff.txt` and every `handoff-phase-*.txt` in the
 run directory, so an earlier prompt never survives a changed verdict or a failed write.
-A new report's render also deletes any `rerun.txt`. In the renderer's JSON output, a
+A new report's render, and any version 5 render, also deletes any `rerun.txt`. In the renderer's JSON output, a
 version 5 report has `"rerun": null` and `"handoff_held": false`.
 
 Saved version 4 reports keep what their run drew. When a saved Ready or Ready after
