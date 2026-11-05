@@ -1206,7 +1206,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 with self.subTest(version=version, documents=f"surrogate {surrogate!a}"):
                     context = copy.deepcopy(base)
                     context["documents"][1]["path"] += surrogate
-                    with self.assertRaisesRegex(ValueError, "valid file names"):
+                    with self.assertRaisesRegex(ValueError, "valid UTF-8"):
                         render(source, context)
             # A path with a NUL character is rejected by name, for either document, never written into the page.
             for index in (0, 1):
@@ -1237,7 +1237,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         context["rerun"] = {"recommendation": "stop", "reasons": ["The run limit is reached."]}
         page, _, _, _ = render(REPORT, context)
         self.assertNotIn("run 4 of 3", page)
-        self.assertIn("The run limit is reached, so revalidating needs your explicit reset", page)
+        self.assertIn("The run limit is reached for this scope, so revalidating it needs your explicit reset", page)
         # An earlier recorded stop is not overridden either: the page never offers the next run.
         for kind in ("new", "saved"):
             with self.subTest(kind=kind):
@@ -1258,7 +1258,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             with self.subTest(recommendation=recommendation):
                 context["rerun"] = {"recommendation": recommendation, "reasons": ["The run limit is reached."]}
                 page, _, _, _ = render(REPORT, context)
-                self.assertIn("The run limit is reached, so revalidating needs your explicit reset", page)
+                self.assertIn("The run limit is reached for this scope, so revalidating it needs your explicit reset", page)
                 self.assertNotIn("Run validation again instead", page)
         # Git or approval drift alone does not claim the documents changed.
         plan.write_text("PLAN")

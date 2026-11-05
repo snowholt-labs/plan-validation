@@ -306,7 +306,7 @@ def context_documents(context):
             # Strict UTF-8, as the page is written: os.fsencode would let U+DC80-U+DCFF through.
             doc["path"].encode("utf-8")
         except UnicodeError:
-            raise ValueError("Document paths must be valid file names (no unpaired surrogate characters)") from None
+            raise ValueError("Document paths must be valid UTF-8 (no unpaired surrogate characters) so the page can show them") from None
     return documents
 
 
@@ -833,7 +833,9 @@ def historical_warning_v4(rerun, fingerprints_match, saved):
     At the run limit or after a recorded stop it says what revalidating takes, whatever drifted."""
     # The prompt still needs revalidation before use; the advice says what that takes.
     if rerun["number"] >= MAX_RUNS:
-        advice = ("The run limit is reached, so revalidating needs your explicit reset of the run count; "
+        # A phase-only validation of the remaining phases counts on its own, so the limit names its scope.
+        advice = ("The run limit is reached for this scope, so revalidating it needs your explicit reset of the run count "
+                  "(a phase-only validation of the remaining phases counts separately); "
                   "do not run more review rounds, and decide the next step yourself.")
     elif rerun["recommendation"] == "stop":
         # Drift does not override a recorded stop: its reasons say the user decides first.
