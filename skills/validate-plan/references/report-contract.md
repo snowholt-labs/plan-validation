@@ -102,7 +102,7 @@ The re-run prompt says so: `Run this before starting any phase.`
 Only `yes` has a `prompt`. It lives only in `context.json`, never in section 8, and
 the renderer writes it to `rerun.txt`. The prompt:
 
-- has at most 80 words; a backtick-quoted absolute path counts as one word;
+- has at most 80 words; a backtick-quoted absolute path counts as one word (a path with spaces must end in a file extension; a quoted slash command counts every word);
 - starts with the invocation this run used (such as `/plan-validation:validate-plan`
   or `$validate-plan`), because the skill runs only when invoked explicitly;
 - names the PLAN, the SPEC and this run's `report.md` as the previous report;
@@ -113,7 +113,7 @@ the renderer writes it to `rerun.txt`. The prompt:
 - names what the run should focus on;
 - in a Not ready report, says `Run this after the remediation session.`; otherwise
   says `Run this before starting any phase.`;
-- has no `implement`, `implements` or `implementing` (also with a `re` or `re-` prefix), except right after `not`, `cannot`, `n't` (straight or curly apostrophe) or `never` on the same line (such as `Do not implement`), or inside a backtick-quoted absolute path with no spaces or ending in a file extension (a quoted slash command such as `/feature-dev:implement` is not a path), and says `Do not start dependent implementation.`
+- has no `implement`, `implements` or `implementing` (also with a `re` or `re-` prefix), except right after `not`, `cannot`, `n't` (straight or curly apostrophe) or `never` on the same line (such as `Do not implement`), or inside a backtick-quoted absolute path with no spaces or ending in a file extension (a path that starts with `/` needs a first segment without a colon and, without a file extension, a second segment, so a quoted slash command such as `/feature-dev:implement` or `/implement/` is not a path), and says `Do not start dependent implementation.`
 
 ```text
 /plan-validation:validate-plan PLAN: `[PLAN path]` SPEC: `[SPEC path]` FOCUS: Run validation again (run [n+1] of 3). Previous report: `[report.md path]`; read it and its context.json first. [Run this after the remediation session. (Not ready) or Run this before starting any phase.] Focus on [what to fix]. [For a phase-only run: Validate only Phases [first]-[last].] Do not start dependent implementation.

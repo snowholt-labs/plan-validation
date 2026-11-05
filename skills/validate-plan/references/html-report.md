@@ -72,7 +72,9 @@ left out and its count card says None; otherwise the count card is a link to its
 Without JavaScript every panel shows in order and the count card links to the panel;
 a link to a section, such as `#section-6`, opens Full report. Print/PDF shows every
 panel, expands details and restores their state afterward. It rejects handoffs longer
-than 80 whitespace-separated words; a backtick-quoted absolute path counts as one word.
+than 80 whitespace-separated words; a backtick-quoted absolute path counts as one word
+(in version 4, a path as the implement rule below defines it, so a quoted slash command
+counts every word).
 Target 50–80 words; do not add filler to meet a minimum.
 It renders the full report and
 writes `handoff.txt` from section 8 exactly when the handoff is current. It rejects missing sections, incorrect
@@ -108,13 +110,15 @@ Versions 3 and 4 check the phase grouping. The renderer also checks that:
   `re-` prefix; any of these forms is allowed right after `not`, `cannot`, `n't`
   (straight or curly) or `never` on the same line, or inside a backtick-quoted absolute
   path with no spaces or ending in a file extension; a path that starts with `/` needs a
-  second `/` after a first segment without a colon, so a quoted slash command such as
-  `/feature-dev:implement` is checked like other text);
-- in version 4, section 8 says `Run validation again first, with the re-run prompt in the
-  Summary; start a phase only after that run.` before its prompts exactly when the report
-  is Ready or Ready after approvals and its `rerun` answer is `yes`; the renderer rejects
-  the line when it is missing then, and rejects it in any other report, such as one whose
-  answer changed to `no` or `stop`.
+  first segment without a colon and, without a file extension, a second segment, so a
+  quoted slash command such as `/feature-dev:implement` or `/implement/` is checked like
+  other text);
+- in a new version 4 report, section 8 says `Run validation again first, with the re-run
+  prompt in the Summary; start a phase only after that run.` before its prompts exactly
+  when its `rerun` answer is `yes` and it has a ready phase, also when the handoff later
+  turns historical; the renderer rejects the line when it is missing then, and rejects
+  that exact line in any other new report, such as one whose answer changed to `no` or
+  `stop`. A `kind: saved` report keeps section 8 as its run wrote it.
 
 Section 8 shows the phase table above the prompts, and each phase prompt has its
 own copy button. In version 4 the Summary repeats the first ready prompt (or the single

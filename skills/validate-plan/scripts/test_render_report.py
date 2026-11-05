@@ -376,7 +376,8 @@ class ReportTests(unittest.TestCase):
         for instruction in ("Start implementing Phase 1.", "The fix implements Task 2.",
                             "Fix `/repo/a\nStart implementing Phase 1 now.md`.", "Keep D1 or not\nImplement Phase 1.",
                             "Reimplement Phase 1.", "Keep D1 or not\u2028Implement Phase 1.", "Keep D1 or not\rImplement Phase 1.",
-                            "Run `/feature-dev:implement` for Phase 1.", "Run `/implement` now.", "Run `/x:implement/` now."):
+                            "Run `/feature-dev:implement` for Phase 1.", "Run `/implement` now.", "Run `/x:implement/` now.",
+                            "Run `/implement/` now.", "Run `/feature-dev:implement.md` now.", "Fix `/repo/x Implement Phase 1 now`."):
             source = not_ready.replace("Implement the approved scope now.", instruction + " Do not start dependent implementation.")
             with self.subTest(instruction=instruction), self.assertRaisesRegex(ValueError, "remediation prompt"):
                 render(source, self.stop_rerun(self.modern_context()))
@@ -391,6 +392,21 @@ class ReportTests(unittest.TestCase):
             self.assertIn("Copy remediation prompt", render(source, context)[0])
         with self.assertRaisesRegex(ValueError, "remediation prompt"):
             render(not_ready.replace("Implement the approved scope now.", "Start implementing Phase 1. Do not start dependent implementation."), saved)
+
+    def test_quoted_absolute_paths_are_names_not_instructions(self):
+        not_ready = REPORT.replace("**Ready.**", "**Not ready.**")
+        for path in ("`/implement.md`", "`/My Plans/implement x.md`", "`/repo/implement`", "`~/implement`",
+                     "`C:\\implement\\plan.md`", "`/repo/docs/`"):
+            source = not_ready.replace("Implement the approved scope now.", f"Read {path}. Do not start dependent implementation.")
+            with self.subTest(path=path):
+                render(source, self.stop_rerun(self.modern_context()))
+
+    def test_quoted_slash_command_counts_every_word(self):
+        # Version 4 counts a quoted command's words; only a quoted path counts as one word.
+        command = "`/feature-dev:implement " + "detail " * 80 + "`"
+        source = REPORT.replace("Implement the approved scope now.", f"Run {command} now.")
+        with self.assertRaisesRegex(ValueError, "80 words"):
+            render(source, self.modern_context())
 
     def test_backticks_around_prose_do_not_bypass_the_word_limit(self):
         source = REPORT.replace("Implement the approved scope now.", "`" + "detail " * 81 + "` now.")
@@ -1097,16 +1113,38 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         for recommendation in ("no", "stop"):
             context = self.modern_context()
             context["rerun"]["recommendation"] = recommendation
-            with self.subTest(recommendation=recommendation), self.assertRaisesRegex(ValueError, f"Ready with {recommendation}"):
+            with self.subTest(recommendation=recommendation), self.assertRaisesRegex(ValueError, "remove that line"):
                 render(run_first(REPORT), context)
+            # Other wording that mentions running validation again is free text.
+            render(REPORT.replace("## 8. Fresh-session handoff\n", "## 8. Fresh-session handoff\n"
+                                  "You do not need to run validation again first.\n\n", 1), context)
         # A Not ready yes runs after the remediation session, so it never says run first.
         not_ready = REPORT.replace("**Ready.**", "**Not ready.**").replace(
             "Implement the approved scope now.", "Fix Task 1. Do not start dependent implementation.")
         remediation = self.rerun_yes(self.modern_context(), self.RERUN_PROMPT.replace(
             "before starting any phase", "after the remediation session"))
         render(not_ready, remediation)
-        with self.assertRaisesRegex(ValueError, "Not ready with yes"):
+        with self.assertRaisesRegex(ValueError, "remove that line"):
             render(run_first(not_ready), remediation)
+        # A historical handoff keeps the line: it does not depend on drift found later.
+        historical = self.rerun_yes(self.modern_context())
+        historical["handoff_status"] = "historical"
+        with self.assertRaisesRegex(ValueError, "must say before the prompts"):
+            render(REPORT, historical)
+        render(run_first(REPORT), historical)
+        # With no ready phase nothing waits for the re-run, so the line would contradict the page.
+        source, waiting = self.phase_1_waits(*self.pending_d1(REPORT.replace("**Ready.**", "**Ready after approvals.**"),
+                                                              self.rerun_yes(self.modern_context())))
+        render(source, waiting)
+        with self.assertRaisesRegex(ValueError, "remove that line"):
+            render(run_first(source), waiting)
+        # A saved report keeps section 8 as its run wrote it.
+        saved = self.rerun_yes(self.modern_context())
+        saved["kind"] = "saved"
+        render(REPORT, saved)
+        stale = self.modern_context()
+        stale["kind"] = "saved"
+        render(run_first(REPORT), stale)
 
     def test_held_phase_prompt_files_say_run_first(self):
         out = Path(self.directory.name) / "held"

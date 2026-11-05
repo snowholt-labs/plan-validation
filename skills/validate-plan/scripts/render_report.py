@@ -62,8 +62,7 @@ HISTORICAL_WARNING = f'<p class="warning">{HISTORICAL_TEXT}</p>'
 RUN_FIRST_TEXT = "Run validation again first, with the re-run prompt in the Summary; start a phase only after that run."
 RUN_FIRST_NOTE = f'<p class="warning">{RUN_FIRST_TEXT}</p>'
 # Held phase prompt files carry this note, so a copied file cannot start a phase before the re-run.
-HELD_PREFIX = ("HELD PROMPT — DO NOT START YET.\nRun validation again first, with the re-run prompt in rerun.txt "
-               "or the report's Summary; start a phase only after that run.\n\n")
+HELD_PREFIX = f"HELD PROMPT — DO NOT START YET.\n{RUN_FIRST_TEXT}\n\n"
 # The invocation a re-run prompt starts with: the plugin command, a bare skill command or the Codex skill.
 INVOCATION = re.compile(r"\s*(?:/(?:[\w.-]+:)?validate-plan|\$validate-plan)(?![\w-])")
 # Phase IDs become file names, so they cannot contain path separators.
@@ -78,10 +77,29 @@ IMPLEMENT_VERB = re.compile(r"\b(?:re-?)?implement(?:s|ing)?\b", re.I)
 NEGATION = re.compile(r"(?:\b(?:can)?not|[a-z]n['’]t|\bnever)\s+$", re.I)
 # Saved version 1-3 reports keep the negation rule they were rendered with.
 LEGACY_NEGATION = re.compile(r"(?:\bnot|n't|\bnever)\s+$", re.I)
-# Only path-like spans are skipped: no whitespace, or ending in a file extension. A path that starts
-# with "/" needs a second "/" after a first segment without a colon or space, so a quoted slash
-# command such as `/feature-dev:implement` or `/implement` is checked like any other text.
-QUOTED_NAME = re.compile(r"`(?:/(?=[^`\s/:]+/)|~/|[A-Za-z]:[\\/])(?:[^`\s]*|[^`\n]*\.[A-Za-z0-9]+)`")
+QUOTED_SPAN = re.compile(r"`([^`\n]*)`")
+FILE_EXTENSION = re.compile(r"\.[A-Za-z0-9]+\Z")
+
+
+def quoted_path(span):
+    """Whether a backtick-quoted span (version 4) names an absolute path rather than a command or prose.
+
+    It starts with ~/, a drive (C:\\ or C:/) or /, and has no whitespace or ends in a file extension. A /
+    path also needs a first segment without a colon and, without an extension, a second segment, so a
+    quoted slash command such as `/feature-dev:implement`, `/implement` or `/implement/` is not a path.
+    """
+    if span.startswith("/"):
+        first, _, rest = span[1:].partition("/")
+        if not first.strip() or ":" in first or not (rest.strip("/") or FILE_EXTENSION.search(span)):
+            return False
+    elif not re.match(r"~/|[A-Za-z]:[\\/]", span):
+        return False
+    return not re.search(r"\s", span) or FILE_EXTENSION.search(span) is not None
+
+
+def without_paths(text):
+    """Text with each quoted path replaced by one word, so it is neither counted nor checked as words."""
+    return QUOTED_SPAN.sub(lambda match: "path" if quoted_path(match.group(1)) else match.group(0), text)
 
 
 def spaced(text):
@@ -92,7 +110,7 @@ def spaced(text):
 def implement_instruction(text):
     """The first form of the verb outside a quoted path that does not directly follow a negation word
     on its own line. Every line break (CR and Unicode separators too) ends a negation."""
-    text = QUOTED_NAME.sub("path", "\n".join(text.splitlines()))
+    text = without_paths("\n".join(text.splitlines()))
     for match in IMPLEMENT_VERB.finditer(text):
         if not NEGATION.search(text[:match.start()].rsplit("\n", 1)[-1]):
             return match
@@ -399,9 +417,10 @@ def decision_table(source):
 QUOTED_PATH = re.compile(r"`(?:/|~/|[A-Za-z]:[\\/])[^`\n]*`")
 
 
-def word_count(handoff):
-    # A backtick-quoted absolute path is one word, even when it contains spaces.
-    return len(QUOTED_PATH.sub("path", handoff).split())
+def word_count(handoff, version=4):
+    # A backtick-quoted absolute path is one word, even when it contains spaces. Version 4 uses the
+    # same path rule as the implement check; saved version 1-3 reports keep the rule they were rendered with.
+    return len((without_paths(handoff) if version >= 4 else QUOTED_PATH.sub("path", handoff)).split())
 
 
 def section_content(source, number):
@@ -496,7 +515,7 @@ def handoff_prompts(section, version, verdict, context):
     for index, (_, _, prompt) in enumerate(prompts):
         if not prompt.strip():
             raise ValueError("Section 8 must contain one complete fenced handoff")
-        if version >= 2 and word_count(prompt) > 80:
+        if version >= 2 and word_count(prompt, version) > 80:
             raise ValueError("Fresh-session handoff must be at most 80 words; link to the plan, spec and report for details and wrap paths in backticks")
         if version >= 3:
             try:
@@ -887,28 +906,44 @@ def rerun_card(rerun, recorded, copyable):
             f'<p class="rerun-run">Run {rerun["number"]} of at most {MAX_RUNS}</p><ul>{reasons}</ul>{triggers}{prompt}</div>')
 
 
-def phases_held(context, current, pairs):
-    """Whether a version 4 report's current phase prompts wait for the re-run its rerun yes asks for.
+def waits_for_rerun(context, pairs):
+    """Whether a version 4 report's ready phases wait for the re-run its rerun yes asks for.
 
-    Only a Ready or Ready after approvals report has phase prompts, so pairs is empty for Not ready.
+    Only a Ready or Ready after approvals report with a ready phase has phase prompts (pairs).
     """
-    return bool(context.get("format_version") == 4 and current and pairs and context["rerun"]["recommendation"] == "yes")
+    return bool(context.get("format_version") == 4 and pairs and context["rerun"]["recommendation"] == "yes")
 
 
-def run_first_note(section, prompts, verdict, recommendation):
-    """Section 8 says the run-first line before its prompts exactly when the page holds the phases for a re-run."""
+def phases_held(context, current, pairs):
+    """Whether the page and prompt files hold the phase prompts: they wait for a re-run and are still current."""
+    return bool(current and waits_for_rerun(context, pairs))
+
+
+def prompt_prefix(context, current, pairs):
+    """The note that starts handoff.txt and each phase prompt file: historical, held or none."""
+    return HISTORICAL_PREFIX if not current else HELD_PREFIX if phases_held(context, current, pairs) else ""
+
+
+def run_first_note(section, prompts, context, pairs):
+    """In a new report, section 8 says the run-first line before its prompts exactly when its phases wait for a re-run.
+
+    The line does not depend on drift found later, so a historical handoff keeps it. A saved report keeps
+    its section 8 as its run wrote it.
+    """
+    if context.get("kind") != "new":
+        return
     intro = section
     for start, end, _ in reversed(prompts):
         intro = intro[:start] + intro[end:]
-    def says(text, words):
-        return words.lower() in spaced(plain(text)).lower()
-    if recommendation == "yes" and verdict.lower() != "not ready":
-        if not says(section[:prompts[0][0]], RUN_FIRST_TEXT):
-            raise ValueError(f"Section 8 of a {verdict} report that recommends running validation again "
+    def says(text):
+        return RUN_FIRST_TEXT.lower() in spaced(plain(text)).lower()
+    if waits_for_rerun(context, pairs):
+        if not says(section[:prompts[0][0]]):
+            raise ValueError("Section 8 of a report whose ready phases wait for the re-run "
                              f"must say before the prompts: {RUN_FIRST_TEXT}")
-    elif says(intro, "Run validation again first"):
-        raise ValueError("Section 8 says to run validation again first, which only a Ready or Ready after approvals "
-                         f"report whose rerun answer is yes says; this one is {verdict} with {recommendation}")
+    elif says(intro):
+        raise ValueError(f"Section 8 says: {RUN_FIRST_TEXT} Only a report whose rerun answer is yes and that has "
+                         "a ready phase says it; remove that line")
 
 
 def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pairs, current, checks):
@@ -919,8 +954,8 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
     script_hash = base64.b64encode(hashlib.sha256(js.encode()).digest()).decode()
     icon = (ASSETS / "report-icon.svg").read_text().strip().replace("<svg ", '<svg class="hero-icon" aria-hidden="true" focusable="false" ', 1)
     decisions, watch, phases, rerun = fields["decisions"], fields["watch"], context["phases"], fields["rerun"]
-    # A yes outside Not ready asks for another run before any phase starts.
-    rerun_first = rerun["recommendation"] == "yes" and verdict.lower() != "not ready"
+    # A yes with a ready phase asks for another run before any phase starts.
+    rerun_first = waits_for_rerun(context, pairs)
     # Current phase prompts wait for that run: no copy button, no download, the re-run card first.
     hold_phases = phases_held(context, current, pairs)
     fingerprints_match = all(matches for _, matches in checks)
@@ -1089,7 +1124,7 @@ def render(source, context):
             raise ValueError("A Ready verdict cannot have open decisions that hold back work; "
                              "set holds_back to Nothing or use Ready after approvals")
         fields["rerun"] = rerun_check(context, verdict, confidence, plan[1], spec[1])
-        run_first_note(parts[7][1], prompts, verdict, fields["rerun"]["recommendation"])
+        run_first_note(parts[7][1], prompts, context, pairs)
     handoff = prompts[0][2]
     if context.get("handoff_status") not in {"current", "historical"}:
         raise ValueError("Set handoff_status to current or historical after checking Git state and approvals")
@@ -1105,7 +1140,7 @@ def render(source, context):
         raise ValueError("Scope comparison needs an explanation and approval basis (or Unknown)")
     if context.get("kind") not in {"saved", "new"}:
         raise ValueError("Context kind must be saved or new")
-    marked = (HISTORICAL_PREFIX if not current else HELD_PREFIX if phases_held(context, current, pairs) else "") + handoff
+    marked = prompt_prefix(context, current, pairs) + handoff
     if version >= 4:
         page = page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pairs, current, checks)
         # A saved report's run label may be stale (later runs can exist), so only a new report writes rerun.txt.
@@ -1208,7 +1243,7 @@ def main():
         pairs = phase_handoffs(source, context)
         # Held prompts carry the run-first note in their files too, not only on the page.
         held = phases_held(context, current, pairs)
-        prefix = HISTORICAL_PREFIX if not current else HELD_PREFIX if held else ""
+        prefix = prompt_prefix(context, current, pairs)
         for phase_id, prompt in pairs:
             path = args.output.with_name(f"handoff-phase-{phase_id}.txt")
             path.write_text(prefix + prompt + "\n", encoding="utf-8")
