@@ -159,6 +159,116 @@ ZONES_DIAGRAM = {
 }
 
 
+# Version 4 saved output is frozen too: these digests are never re-pinned. Saved version 4 reports keep
+# their rerun card, held prompts and run-counting drift warning after version 5 drops them for new reports.
+# Like the legacy fixtures, these are literal copies, so later edits to REPORT, ZONES_DIAGRAM, run_first,
+# rerun_yes or stop_rerun cannot change them.
+V4_FROZEN_REPORT = """# Example validation
+
+## 1. Verdict
+**Ready.** Confidence: 75% (subjective, not a measured probability).
+
+## 2. PLAN comparison
+| Dimension | Original /10 | Revised /10 | Reason / evidence |
+|---|---|---|---|
+| Correctness and spec fit | 4 | 9 | Corrected interface. |
+| Security and privacy | 8 | 9 | Checked access boundary. |
+| Performance | 9 | 9 | Unchanged. |
+| Maintainability and complexity | 8 | 9 | Kept existing components. |
+| Execution and verification readiness | 2 | 9 | Fixed command. |
+| **Average /10** | **6.2** | **9.0** | |
+
+## 3. SPEC comparison
+| Dimension | Original /10 | Revised /10 | Reason / evidence |
+|---|---|---|---|
+| Clarity and testability | 7 | 9 | Clarified error. |
+| Correctness against the code | 8 | 9 | Verified reference. |
+| Security and privacy | 9 | 9 | Unchanged. |
+| Scope and simplicity | 9 | 9 | Unchanged. |
+| Rollout, rollback and measurement | 5 | 9 | Defined rollback. |
+| **Average /10** | **7.6** | **9.0** | |
+
+## 4. Decision confidence
+Subjective estimates, not measured probabilities.
+| Decision | Confidence | Evidence | Remaining uncertainty |
+|---|---|---|---|
+| Readiness | 75% | Recorded focused check | No browser check |
+
+## 5. Changes
+- A corrected assertion within Task 2.
+  - No new requirement.
+
+## 6. Open items
+No blockers. Browser verification runs during implementation.
+
+## 7. Verification and checkout
+Recorded focused check; no production run.
+
+## 8. Fresh-session handoff
+```text
+Implement the approved scope now.
+Keep Persian text: «سلام» and literal <code> & "quotes".
+Run /code-review and /security-review; fix confirmed findings before each PR.
+Squash into the plan branch after green checks. Ask before the normal main merge.
+Stop at the end of Phase 1; it is the last phase.
+```
+"""
+
+V4_FROZEN_RUN_FIRST_TEXT = "Run validation again first, with the re-run prompt in the Summary; start a phase only after that run."
+
+V4_FROZEN_RERUN_PROMPT = ("/plan-validation:validate-plan PLAN: `/data/PLAN.md` SPEC: `/data/SPEC.md` FOCUS: Run validation again "
+                          "(run 2 of 3). Previous report: `/data/run-1/report.md`. Run this before starting any phase. "
+                          "Focus on the delay cap. Do not start dependent implementation.")
+
+V4_FROZEN_DIAGRAM = {
+    "kind": "zones",
+    "eyebrow": "Architecture · planned",
+    "title": "Who talks to whom",
+    "description": "The caller asks the retry helper, which sends requests to the remote API.",
+    "caption": "The helper waits between tries.",
+    "zones": [
+        {"label": "Your app", "nodes": [
+            {"id": "caller", "title": "Caller", "sub": "asks for a request"},
+            {"id": "helper", "title": "Retry helper", "sub": "waits, then tries again"},
+        ], "chain": True},
+        {"label": "Remote service", "nodes": [
+            {"id": "api", "title": "API endpoint", "sub": "may answer 503"},
+        ]},
+    ],
+    "links": [
+        {"from": "helper", "to": "api", "label": "request", "sub": "HTTPS"},
+        {"from": "api", "to": "helper", "label": "result"},
+    ],
+}
+
+V4_FROZEN_CONTEXT = {
+    "title": "Example", "validation_date": "2026-10-14", "kind": "saved",
+    "review_status": "complete", "handoff_status": "current", "summary": "The approved scope is ready.",
+    "freshness": "Branch and base checked; recorded tests were not repeated.",
+    "scope": {"explanation": "Same scope.", "approval": "No expansion.", "rows": [
+        {"metric": metric, "original": "1", "revised": "1", "reason": "Unchanged."}
+        for metric in ("Delivery phases", "Implementation tasks", "Supporting tasks", "Numbered tasks", "Dependencies / services")
+    ]},
+    "format_version": 4,
+    "project": "plan-validation", "audience": "plan review for the maintainer", "title_accent": "Example",
+    "task_inventory": ["1"],
+    "phases": [{"id": "1", "title": "Example", "tasks": ["1"], "docs_only": False, "security_review": False, "status": "ready"}],
+    "diagrams": [V4_FROZEN_DIAGRAM],
+    "open_decisions": [],
+    "watch_list": [],
+    "decisions_without_reply": [],
+    "validation_run": {"number": 1, "plan_key": "PLAN.md", "scope": "full"},
+    "rerun": {"recommendation": "no", "reasons": ["Nothing is left that validation can fix."]},
+}
+
+V4_SAVED_DIGESTS = {
+    "v4-no": "fc27c4300559e6217d50b40359bf0729365987cc8c4ee6dcc560b70ed3115c4d",
+    "v4-yes-held": "f881f1d391a5024893a42f8152ab55aeb821e462799067f285d79904db64f9e6",
+    "v4-stop-historical": "90f9552dd75a324cf80d6ef6b4ee291113279d9a65385a8dd3624aee3322a437",
+    "v4-drift": "e2acc92c58e2391e757540b8a347477e9a4c5cbe91dd87b3b483b8f69c08f23e",
+}
+
+
 def run_first(source):
     """Add the line section 8 says before its prompts while a rerun yes holds a Ready report's phases."""
     return source.replace("## 8. Fresh-session handoff\n", "## 8. Fresh-session handoff\n" + render_report.RUN_FIRST_TEXT + "\n\n", 1)
@@ -204,6 +314,76 @@ class ReportTests(unittest.TestCase):
             "rerun": {"recommendation": "no", "reasons": ["Nothing is left that validation can fix."]},
         })
         return context
+
+    def v4_context(self, kind="saved"):
+        """A version 4 context with its run fields. An explicit copy, so modern_context() can change."""
+        context = copy.deepcopy(self.context)
+        context.update({
+            "format_version": 4, "kind": kind,
+            "project": "plan-validation", "audience": "plan review for the maintainer", "title_accent": "Example",
+            "task_inventory": ["1"],
+            "phases": [{"id": "1", "title": "Example", "tasks": ["1"], "docs_only": False, "security_review": False, "status": "ready"}],
+            "diagrams": [copy.deepcopy(ZONES_DIAGRAM)],
+            "open_decisions": [],
+            "watch_list": [],
+            "decisions_without_reply": [],
+            "validation_run": {"number": 1, "plan_key": "PLAN.md", "scope": "full"},
+            "rerun": {"recommendation": "no", "reasons": ["Nothing is left that validation can fix."]},
+        })
+        return context
+
+    def v5_context(self):
+        """A new version 5 context: version 4 without the run fields. Never built from modern_context()."""
+        context = self.v4_context("new")
+        del context["validation_run"], context["rerun"]
+        context["format_version"] = 5
+        return context
+
+    def test_v5_renders_without_run_fields(self):
+        page, handoff, current, rerun_prompt = render(REPORT, self.v5_context())
+        self.assertTrue(current)
+        self.assertIsNone(rerun_prompt)
+        self.assertNotIn('id="rerun"', page)
+        self.assertNotIn("Run validation again", page)
+        self.assertNotIn("of at most 3", page)
+        self.assertFalse(handoff.startswith("HELD PROMPT"))
+
+    def test_v5_rejects_run_fields(self):
+        for field, value in (("validation_run", {"number": 1, "plan_key": "PLAN.md", "scope": "full"}),
+                             ("rerun", {"recommendation": "no", "reasons": ["x"]})):
+            with self.subTest(field=field):
+                context = self.v5_context()
+                context[field] = value
+                with self.assertRaisesRegex(ValueError, "no validation_run or rerun"):
+                    render(REPORT, context)
+
+    def test_v5_rejects_run_first_line(self):
+        with self.assertRaisesRegex(ValueError, "run validation again first"):
+            render(run_first(REPORT), self.v5_context())
+
+    def test_v5_drift_warning_names_no_run(self):
+        context = self.v5_context()
+        plan = Path(context["documents"][0]["path"])
+        plan.write_text("Changed")
+        self.addCleanup(plan.write_text, "PLAN")
+        page, handoff, current, _ = render(REPORT, context)
+        self.assertFalse(current)
+        self.assertTrue(handoff.startswith(render_report.V5_HISTORICAL_PREFIX))
+        self.assertIn(render_report.V5_DRIFT_TEXT, page)
+        self.assertIn("Reconcile before starting", page)
+        for text in ("run 2 of 3", "3-run limit", "review rounds", "run limit", "Revalidate the changed scope", "Revalidate before starting"):
+            self.assertNotIn(text, page)
+
+    def test_v5_main_writes_no_rerun_file(self):
+        out = Path(self.directory.name) / "v5"
+        out.mkdir()
+        (out / "rerun.txt").write_text("old\n")
+        result = self.run_renderer(out, REPORT, self.v5_context())
+        self.assertEqual(result.returncode, 0, result.stderr)
+        output = json.loads(result.stdout)
+        self.assertIsNone(output["rerun"])
+        self.assertFalse(output["handoff_held"])
+        self.assertFalse((out / "rerun.txt").exists())
 
     def stop_rerun(self, context):
         """A Not ready report fires a re-run trigger, so it cannot recommend no."""
@@ -722,9 +902,9 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
     def test_new_reports_require_version_4(self):
         context = self.modern_context()
         context["format_version"] = 3
-        with self.assertRaisesRegex(ValueError, "format_version 4"):
+        with self.assertRaisesRegex(ValueError, "format_version 4 or 5"):
             render(REPORT, context)
-        context["format_version"] = 5
+        context["format_version"] = 6
         with self.assertRaisesRegex(ValueError, "format_version"):
             render(REPORT, context)
         render(REPORT, self.v3_saved_context())
@@ -2185,6 +2365,46 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         }
         self.assertEqual(actual, LEGACY_DIGESTS)
 
+
+    def v4_saved_cases(self):
+        """Saved version 4 renders: a no, a held yes, a historical stop and a changed plan."""
+        documents = self.legacy_documents()
+
+        def context(**changes):
+            result = copy.deepcopy(V4_FROZEN_CONTEXT)
+            result["documents"] = copy.deepcopy(documents)
+            result.update(changes)
+            return result
+
+        held_source = V4_FROZEN_REPORT.replace("## 8. Fresh-session handoff\n",
+                                               "## 8. Fresh-session handoff\n" + V4_FROZEN_RUN_FIRST_TEXT + "\n\n", 1)
+        yes = {"recommendation": "yes", "reasons": ["The delay cap is still open."], "prompt": V4_FROZEN_RERUN_PROMPT}
+        stop = {"recommendation": "stop", "reasons": ["The blocker needs the maintainer's decision."]}
+        # The changed plan keeps the name PLAN.md, so validation_run.plan_key still ends its path,
+        # and lives in its own folder, so the other cases still render as current.
+        drift = context()
+        changed = Path(self.directory.name) / "drift" / "PLAN.md"
+        changed.parent.mkdir(exist_ok=True)
+        changed.write_text("Changed")
+        drift["documents"][0]["path"] = str(changed)
+        return {
+            "v4-no": (V4_FROZEN_REPORT, context()),
+            "v4-yes-held": (held_source, context(rerun=yes)),
+            "v4-stop-historical": (V4_FROZEN_REPORT, context(rerun=stop, handoff_status="historical")),
+            "v4-drift": (V4_FROZEN_REPORT, drift),
+        }
+
+    def test_v4_saved_output_is_frozen(self):
+        actual = {}
+        for key, (source, context) in self.v4_saved_cases().items():
+            rendered = render(source, context)
+            blob = "\0".join((normalized(rendered[0], self.directory.name), rendered[1], rendered.prefix,
+                               *(f"{phase}:{prompt}" for phase, prompt in rendered.pairs)))
+            actual[key] = hashlib.sha256(blob.encode()).hexdigest()
+            # Each case still shows what it pins: held prompts, a historical stop, a changed plan.
+            self.assertEqual(rendered.held, key == "v4-yes-held", key)
+            self.assertEqual(rendered[2], key in ("v4-no", "v4-yes-held"), key)
+        self.assertEqual(actual, V4_SAVED_DIGESTS)
 
 if __name__ == "__main__":
     unittest.main()
