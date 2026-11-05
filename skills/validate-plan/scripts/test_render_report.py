@@ -377,7 +377,9 @@ class ReportTests(unittest.TestCase):
                             "Fix `/repo/a\nStart implementing Phase 1 now.md`.", "Keep D1 or not\nImplement Phase 1.",
                             "Reimplement Phase 1.", "Keep D1 or not\u2028Implement Phase 1.", "Keep D1 or not\rImplement Phase 1.",
                             "Run `/feature-dev:implement` for Phase 1.", "Run `/implement` now.", "Run `/x:implement/` now.",
-                            "Run `/implement/` now.", "Run `/feature-dev:implement.md` now.", "Fix `/repo/x Implement Phase 1 now`."):
+                            "Run `/implement/` now.", "Run `/feature-dev:implement.md` now.", "Fix `/repo/x Implement Phase 1 now`.",
+                            "Run `/implement /home/u/plan.md` now.", "Run `/implement docs/plan.md` now.",
+                            "Fix `/repo/ Implement Phase 1 now.md`."):
             source = not_ready.replace("Implement the approved scope now.", instruction + " Do not start dependent implementation.")
             with self.subTest(instruction=instruction), self.assertRaisesRegex(ValueError, "remediation prompt"):
                 render(source, self.stop_rerun(self.modern_context()))
@@ -395,11 +397,17 @@ class ReportTests(unittest.TestCase):
 
     def test_quoted_absolute_paths_are_names_not_instructions(self):
         not_ready = REPORT.replace("**Ready.**", "**Not ready.**")
-        for path in ("`/implement.md`", "`/My Plans/implement x.md`", "`/repo/implement`", "`~/implement`",
-                     "`C:\\implement\\plan.md`", "`/repo/docs/`"):
+        for path in ("`/implement.md`", "`/repo/implement`", "`~/implement`", "`C:\\implement\\plan.md`", "`/repo/docs/`"):
             source = not_ready.replace("Implement the approved scope now.", f"Read {path}. Do not start dependent implementation.")
             with self.subTest(path=path):
                 render(source, self.stop_rerun(self.modern_context()))
+
+    def test_quoted_repository_path_with_spaces_is_one_word(self):
+        # A repository path with spaces and no extension still counts as one word.
+        path = "`/Users/Jane Doe/" + "my repo " * 40 + "`"
+        source = REPORT.replace("Implement the approved scope now.", f"Work in {path}. Implement the approved scope now.")
+        _, prompt, _, _ = render(source, self.modern_context())
+        self.assertIn(path, prompt)
 
     def test_quoted_slash_command_counts_every_word(self):
         # Version 4 counts a quoted command's words; only a quoted path counts as one word.
@@ -910,6 +918,10 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 "Previous report: `/data/run-1/report.md`. Run this before starting any phase. Focus on the delay cap. "
                 "Do not start dependent implementation.")
 
+    def rerun_prompt_for(self, out):
+        """The re-run prompt naming the report.md that main() writes into out."""
+        return self.RERUN_PROMPT.replace("/data/run-1/report.md", str((out / "report.md").resolve()))
+
     def rerun_yes(self, context, prompt=None):
         context["rerun"] = {"recommendation": "yes", "reasons": ["The delay cap is still open."],
                             "prompt": self.RERUN_PROMPT if prompt is None else prompt}
@@ -1093,7 +1105,19 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 saved = self.rerun_yes(self.modern_context(), prompt)
                 saved["kind"] = "saved"
                 render(run_first(REPORT), saved)
-        for invocation in ("$validate-plan", "/validate-plan", "  /plan-validation:validate-plan"):
+        # The earlier run's report is not this run's.
+        second = self.rerun_yes(self.modern_context(), self.RERUN_PROMPT.replace("run 2 of 3", "run 3 of 3"))
+        second["validation_run"].update(number=2, previous_report="/data/run-1/report.md")
+        with self.assertRaisesRegex(ValueError, "earlier run's report"):
+            render(run_first(REPORT), second)
+        # main() checks that the prompt names the report.md it writes.
+        out = Path(self.directory.name) / "named"
+        out.mkdir()
+        code, _, err = self.run_main(out, run_first(REPORT), self.rerun_yes(self.modern_context()))
+        self.assertEqual(code, 1)
+        self.assertIn("this run's report.md", err)
+        self.assertFalse((out / "report.html").exists())
+        for invocation in ("$validate-plan", "/validate-plan", "  /plan-validation:validate-plan", "`/plan-validation:validate-plan`"):
             with self.subTest(invocation=invocation):
                 render(run_first(REPORT), self.rerun_yes(self.modern_context(), self.RERUN_PROMPT.replace(
                     "/plan-validation:validate-plan", invocation, 1)))
@@ -1118,6 +1142,10 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             # Other wording that mentions running validation again is free text.
             render(REPORT.replace("## 8. Fresh-session handoff\n", "## 8. Fresh-session handoff\n"
                                   "You do not need to run validation again first.\n\n", 1), context)
+            # A reworded run-first line still tells the reader to hold the phases.
+            with self.assertRaisesRegex(ValueError, "remove that line"):
+                render(REPORT.replace("## 8. Fresh-session handoff\n", "## 8. Fresh-session handoff\n"
+                                      "Run validation again first, then start Phase 1.\n\n", 1), context)
         # A Not ready yes runs after the remediation session, so it never says run first.
         not_ready = REPORT.replace("**Ready.**", "**Not ready.**").replace(
             "Implement the approved scope now.", "Fix Task 1. Do not start dependent implementation.")
@@ -1149,7 +1177,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
     def test_held_phase_prompt_files_say_run_first(self):
         out = Path(self.directory.name) / "held"
         out.mkdir()
-        code, stdout, err = self.run_main(out, run_first(REPORT), self.rerun_yes(self.modern_context()))
+        code, stdout, err = self.run_main(out, run_first(REPORT), self.rerun_yes(self.modern_context(), self.rerun_prompt_for(out)))
         self.assertEqual(code, 0, err)
         result = json.loads(stdout)
         self.assertTrue(result["handoff_current"])
@@ -1164,7 +1192,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         self.assertEqual(code, 0, err)
         self.assertFalse(json.loads(stdout)["handoff_held"])
         self.assertTrue((out / "handoff-phase-1.txt").read_text(encoding="utf-8").startswith("Implement the approved scope now."))
-        historical = self.rerun_yes(self.modern_context())
+        historical = self.rerun_yes(self.modern_context(), self.rerun_prompt_for(out))
         historical["handoff_status"] = "historical"
         code, stdout, err = self.run_main(out, run_first(REPORT), historical)
         self.assertEqual(code, 0, err)
@@ -1234,7 +1262,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
     def test_rerun_file_lifecycle(self):
         out = Path(self.directory.name) / "rerun"
         out.mkdir()
-        context = self.rerun_yes(self.modern_context())
+        context = self.rerun_yes(self.modern_context(), self.rerun_prompt_for(out))
         for status in ("current", "historical"):
             with self.subTest(status=status):
                 context["handoff_status"] = status
@@ -1242,13 +1270,13 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(json.loads(result.stdout)["rerun"], str((out / "rerun.txt").resolve()))
                 # The re-run prompt starts a validation, so it never carries the implementation warning.
-                self.assertEqual((out / "rerun.txt").read_text(encoding="utf-8"), self.RERUN_PROMPT + "\n")
+                self.assertEqual((out / "rerun.txt").read_text(encoding="utf-8"), self.rerun_prompt_for(out) + "\n")
         result = self.run_renderer(out, REPORT, self.modern_context())
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIsNone(json.loads(result.stdout)["rerun"])
         self.assertFalse((out / "rerun.txt").exists())
         # A failed render leaves the earlier files alone.
-        self.run_renderer(out, run_first(REPORT), self.rerun_yes(self.modern_context()))
+        self.run_renderer(out, run_first(REPORT), self.rerun_yes(self.modern_context(), self.rerun_prompt_for(out)))
         result = self.run_renderer(out, run_first(REPORT), self.rerun_yes(self.modern_context(), "Run it again."))
         self.assertNotEqual(result.returncode, 0)
         self.assertTrue((out / "rerun.txt").exists())
@@ -1256,7 +1284,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
     def test_saved_rerender_keeps_the_latest_rerun_file(self):
         out = Path(self.directory.name) / "rerun-saved"
         out.mkdir()
-        context = self.rerun_yes(self.modern_context())
+        context = self.rerun_yes(self.modern_context(), self.rerun_prompt_for(out))
         code, _, err = self.run_main(out, run_first(REPORT), context)
         self.assertEqual(code, 0, err)
         context["kind"] = "saved"
@@ -1264,7 +1292,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         self.assertEqual(code, 0, err)
         # The JSON names the kept file, so the reply can still give its path.
         self.assertEqual(json.loads(stdout)["rerun"], str((out / "rerun.txt").resolve()))
-        self.assertEqual((out / "rerun.txt").read_text(encoding="utf-8"), self.RERUN_PROMPT + "\n")
+        self.assertEqual((out / "rerun.txt").read_text(encoding="utf-8"), self.rerun_prompt_for(out) + "\n")
 
     def test_saved_drift_warning_names_no_run_number(self):
         context = self.modern_context()
@@ -1279,11 +1307,17 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
     def test_failed_write_never_leaves_an_old_rerun_prompt(self):
         out = Path(self.directory.name) / "rerun-fail"
         out.mkdir()
-        code, _, err = self.run_main(out, run_first(REPORT), self.rerun_yes(self.modern_context()))
+        code, _, err = self.run_main(out, run_first(REPORT), self.rerun_yes(self.modern_context(), self.rerun_prompt_for(out)))
         self.assertEqual(code, 0, err)
         self.assertTrue((out / "rerun.txt").exists())
         # A later write fails after report.html is written; the old yes prompt must already be gone.
-        with mock.patch.object(render_report, "phase_handoffs", side_effect=OSError("disk full")):
+        write_text = Path.write_text
+
+        def failing(path, *args, **kwargs):
+            if path.name == "handoff.txt":
+                raise OSError("disk full")
+            return write_text(path, *args, **kwargs)
+        with mock.patch.object(Path, "write_text", failing):
             code, _, err = self.run_main(out, REPORT, self.modern_context())
         self.assertEqual(code, 1)
         self.assertIn("disk full", err)
