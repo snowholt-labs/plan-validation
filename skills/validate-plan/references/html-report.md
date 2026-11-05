@@ -80,7 +80,8 @@ document fingerprints; a mismatch labels the result historical and removes the
 copy button and prompt download, and prefixes the exported text with a warning.
 Set `handoff_status` to `historical` if Git state or approvals have drifted even
 when the document hashes match. A Not ready prompt must explicitly say
-`Do not start dependent implementation.` and must not begin `Implement ...`.
+`Do not start dependent implementation.` and must contain no unnegated `Implement`
+instruction anywhere (version 4 adds the stricter rule for remediation prompts below).
 These are structural checks, not a substitute for reviewing the
 evidence, approvals, Git state or the generated report.
 
@@ -101,12 +102,20 @@ Versions 3 and 4 check the phase grouping. The renderer also checks that:
 - in a new report, each ready prompt after the first says `Confirm Phase <previous> is merged`
   for the ready phase before it, never negated;
 - a Not ready report, or one whose first phase waits, has exactly one prompt that
-  says `Do not start dependent implementation.` and has no `Implement` instruction.
+  says `Do not start dependent implementation.` and has no `Implement` instruction
+  (in a version 4 report, no `implements` or `implementing` either, also with a `re` or
+  `re-` prefix; any of these forms is allowed right after `not`, `cannot`, `n't`
+  (straight or curly) or `never` on the same line, or inside a backtick-quoted absolute
+  path with no spaces or ending in a file extension).
 
 Section 8 shows the phase table above the prompts, and each phase prompt has its
 own copy button. In version 4 the Summary repeats the first ready prompt (or the single
 remediation prompt) with its own copy button, or with the historical warning when the
-handoff is not current. Besides `handoff.txt` (the first prompt), the renderer writes
+handoff is not current. When a current Ready or Ready after approvals report with at
+least one ready phase recommends running validation again (`yes`), the phase prompts in the Summary and section 8 show
+`Run validation again first, with the re-run prompt in the Summary; start a phase only
+after that run.` instead of a copy button, the header has no **Prompt .txt** link, and
+the Summary puts the re-run card above the next session. Besides `handoff.txt` (the first prompt), the renderer writes
 `handoff-phase-<id>.txt` for each ready phase, with the historical warning when the
 handoff is not current. A re-render first deletes every `handoff-phase-*.txt` in the
 run directory, so an earlier phase prompt never survives a changed verdict.
@@ -338,7 +347,9 @@ evidence and the final defaults record. Confirm both five-row tables and average
 confidence/evidence, scope comparison, limits and the entire prompt are present.
 Confirm applicable dependency/alternative tables and recorded choices are inside
 the report, and that the copied prompt references their complete saved record.
-Check that each copied prompt matches `handoff.txt` or its `handoff-phase-<id>.txt`.
+Check that each copied prompt matches `handoff.txt` or its `handoff-phase-<id>.txt`;
+while phase prompts are held for a re-run, check instead that each shows the run-first
+note and has no copy button.
 Confirm the Run validation again card shows this run's number and answer, and for
 a new report with `yes` that the copied re-run prompt matches `rerun.txt`. Provide a clickable absolute link
 to `report.html`; a short local preview URL may accompany it. If serving locally,
