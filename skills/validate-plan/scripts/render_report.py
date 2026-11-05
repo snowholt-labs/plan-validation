@@ -690,7 +690,8 @@ def rerun_check(context, verdict, confidence, plan_revised, spec_revised, run_fi
     else:
         if not isinstance(prompt, str) or not prompt.strip():
             raise ValueError("A yes rerun recommendation needs a prompt")
-        names = recorded_names(context, run_files) | {previous_report_named(prompt)}
+        # The named previous report is not trusted as a name: only main()'s exact run files are.
+        names = recorded_names(context, run_files)
         if word_count(prompt, 4, names) > 80:
             raise ValueError("The rerun prompt must be at most 80 words; wrap paths in backticks")
         # Compare with single spaces, so a wrapped prompt still says each sentence.
@@ -1274,7 +1275,9 @@ def main():
         # The next run reads this run's report.md, the copy written beside report.html.
         if rerun_prompt is not None:
             named = previous_report_named(rerun_prompt)
-            if Path(named).resolve() != args.output.with_suffix(".md").resolve():
+            report_md = args.output.with_suffix(".md")
+            # The exact path as given, absolute or resolved; a ".." detour is not the same name.
+            if named not in {str(report_md), str(report_md.absolute()), str(report_md.resolve())}:
                 raise ValueError(f"The rerun prompt must name this run's report.md as the previous report: "
                                  f"{args.output.with_suffix('.md').resolve()}")
         args.output.parent.mkdir(parents=True, exist_ok=True, mode=0o700)

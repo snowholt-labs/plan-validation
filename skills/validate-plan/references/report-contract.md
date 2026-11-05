@@ -102,7 +102,7 @@ The re-run prompt says so: `Run this before starting any phase.`
 Only `yes` has a `prompt`. It lives only in `context.json`, never in section 8, and
 the renderer writes it to `rerun.txt`. The prompt:
 
-- has at most 80 words; a backtick-quoted absolute path counts as one word (only a path with no spaces, or the PLAN or SPEC path, this run's `report.md` or `context.json`, or the previous report, quoted exactly; a quoted slash command counts every word);
+- has at most 80 words; a backtick-quoted absolute path counts as one word (only a path with no spaces, or the PLAN or SPEC path, this run's `report.md` or `context.json`, quoted exactly; a quoted slash command counts every word);
 - starts with the invocation this run used (such as `/plan-validation:validate-plan`
   or `$validate-plan`), because the skill runs only when invoked explicitly;
 - names the PLAN, the SPEC and this run's `report.md` as the previous report;

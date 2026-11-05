@@ -114,7 +114,7 @@ Versions 3 and 4 check the phase grouping. The renderer also checks that:
   and, without a file extension, a second segment, so a quoted slash command such as
   `/feature-dev:implement` or `/implement/` is checked like other text; a quoted span
   with spaces is text too, except a PLAN or SPEC `path`, this run's `report.md` or
-  `context.json` (or, in the re-run prompt, the previous report) quoted exactly);
+  `context.json` quoted exactly);
 - in a new version 4 report, section 8 says `Run validation again first, with the re-run
   prompt in the Summary; start a phase only after that run.` before its prompts exactly
   when its `rerun` answer is `yes` and it has a ready phase, also when the handoff later
@@ -298,7 +298,8 @@ Version 4 fields:
   report it must start with the validate-plan invocation (bare or in backticks), quote
   the PLAN and SPEC `path` values exactly in backticks, and say `Previous report:` followed by a
   backtick-quoted absolute path ending in `report.md` (the last such label counts), not
-  the `previous_report` of this run; the helper also checks that it is the `report.md` it writes beside `report.html`. A `kind: saved` report keeps its invocation, document, scope and order sentences
+  the `previous_report` of this run; the helper also checks that it names exactly the `report.md` it writes beside
+  `report.html` (as given, absolute or resolved; no `..` detour). A `kind: saved` report keeps its invocation, document, scope and order sentences
   as its run wrote them. The
   page shows the recommendation as a header pill and a Summary card with the run
   number and reasons; only `yes` has a copy button. A saved or historical page labels the
