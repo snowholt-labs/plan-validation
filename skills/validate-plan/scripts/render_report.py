@@ -1139,8 +1139,8 @@ def render(source, context, run_files=()):
     version = context.get("format_version", 1)
     if type(version) is not int or version not in (1, 2, 3, 4, 5):
         raise ValueError("format_version must be 1 (legacy), 2, 3, 4 or 5")
-    if context.get("kind") == "new" and version not in (4, 5):
-        raise ValueError("New reports require format_version 4 or 5; earlier versions render saved reports only")
+    if context.get("kind") == "new" and version != 5:
+        raise ValueError("New reports require format_version 5; earlier versions render saved reports only")
     source = source.replace("\r\n", "\n").replace("\r", "\n")
     overview = feature_overview(context.get("feature")) if version in (2, 3) else ''
     defaults = defaulted_decisions(context.get("decisions_without_reply")) if version >= 2 else ''
