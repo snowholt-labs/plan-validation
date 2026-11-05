@@ -1204,7 +1204,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 context["validation_run"].update(number=1, previous_report=None)
                 context["kind"] = kind
                 context["rerun"] = {"recommendation": "stop", "reasons": ["D1 needs the user's decision first."]}
-                page, _, _, _ = render(REPORT.replace("Confidence: 75%", "Confidence: 60%"), context)
+                page, _, _, _ = render(REPORT, context)
                 self.assertIn("The recorded answer is stop", page)
                 self.assertNotIn("Run validation again (run", page)
                 self.assertNotIn("Run validation again instead", page)
@@ -1218,7 +1218,6 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 page, _, _, _ = render(REPORT, context)
                 self.assertIn("the run limit is reached; decide the next step yourself", page)
                 self.assertNotIn("Run validation again instead", page)
-        context["kind"] = "new"
         # Git or approval drift alone does not claim the documents changed.
         plan.write_text("PLAN")
         context = self.modern_context()
