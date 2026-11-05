@@ -72,7 +72,10 @@ left out and its count card says None; otherwise the count card is a link to its
 Without JavaScript every panel shows in order and the count card links to the panel;
 a link to a section, such as `#section-6`, opens Full report. Print/PDF shows every
 panel, expands details and restores their state afterward. It rejects handoffs longer
-than 80 whitespace-separated words; a backtick-quoted absolute path counts as one word.
+than 80 whitespace-separated words; a backtick-quoted absolute path counts as one word
+(in version 4, a path as the implement rule below defines it, so a quoted slash command
+or a quoted path with spaces counts every word, except a PLAN or SPEC `path` or this
+run's `report.md` or `context.json` quoted exactly).
 Target 50–80 words; do not add filler to meet a minimum.
 It renders the full report and
 writes `handoff.txt` from section 8 exactly when the handoff is current. It rejects missing sections, incorrect
@@ -107,7 +110,18 @@ Versions 3 and 4 check the phase grouping. The renderer also checks that:
   (in a version 4 report, no `implements` or `implementing` either, also with a `re` or
   `re-` prefix; any of these forms is allowed right after `not`, `cannot`, `n't`
   (straight or curly) or `never` on the same line, or inside a backtick-quoted absolute
-  path with no spaces or ending in a file extension).
+  path with no spaces; a path that starts with `/` needs a first segment without a colon
+  and, without a file extension, a second segment, so a quoted slash command such as
+  `/feature-dev:implement` or `/implement/` is checked like other text; a quoted span
+  with spaces is text too, except a PLAN or SPEC `path`, this run's `report.md` or
+  `context.json` quoted exactly);
+- in a new version 4 report, section 8 says `Run validation again first, with the re-run
+  prompt in the Summary; start a phase only after that run.` before its prompts exactly
+  when its `rerun` answer is `yes` and it has a ready phase, also when the handoff later
+  turns historical; the renderer rejects the line when it is missing then. In any other
+  new report, such as one whose answer changed to `no` or `stop`, it rejects any
+  `run validation again first` in section 8 unless directly negated, as in `do not need
+  to`, `don't have to` or `no need to`. A `kind: saved` report keeps section 8 as its run wrote it.
 
 Section 8 shows the phase table above the prompts, and each phase prompt has its
 own copy button. In version 4 the Summary repeats the first ready prompt (or the single
@@ -118,8 +132,11 @@ least one ready phase recommends running validation again (`yes`), the phase pro
 after that run.` instead of a copy button, the header has no **Prompt .txt** link, and
 the Summary puts the re-run card above the next session. Besides `handoff.txt` (the first prompt), the renderer writes
 `handoff-phase-<id>.txt` for each ready phase, with the historical warning when the
-handoff is not current. A re-render first deletes every `handoff-phase-*.txt` in the
-run directory, so an earlier phase prompt never survives a changed verdict.
+handoff is not current. While the phase prompts are held for a re-run, `handoff.txt` and
+each `handoff-phase-<id>.txt` instead start with `HELD PROMPT — DO NOT START YET.` and a
+note to run validation again first, and the renderer's JSON output says `"handoff_held": true` (`false`
+otherwise); never hand such a file to a session before the re-run. Before it writes any file, a render deletes `handoff.txt` and every `handoff-phase-*.txt` in the
+run directory, so an earlier prompt never survives a changed verdict or a failed write.
 For a version 4 report whose `rerun` recommendation is `yes`, the renderer also writes
 the re-run prompt to `rerun.txt`, even when the handoff is historical, because running
 validation again is the answer to drift. A new report's re-render first deletes any
@@ -277,8 +294,13 @@ Version 4 fields:
 - `rerun`: `recommendation` (`yes`, `no` or `stop`), `reasons` (1–4 short, nonempty
   strings) and, only for `yes`, `prompt`. The rules are in report-contract.md, "Run
   validation again". The renderer computes the triggers and rejects a `no` that a
-  trigger forbids, a `yes` at run 3, and a prompt that breaks the prompt rules (a
-  `kind: saved` report keeps its scope and order sentences as its run wrote them). The
+  trigger forbids, a `yes` at run 3, and a prompt that breaks the prompt rules: in a new
+  report it must start with the validate-plan invocation (bare or in backticks), quote
+  the PLAN and SPEC `path` values exactly in backticks, and say `Previous report:` followed by a
+  backtick-quoted absolute path ending in `report.md` (the last such label counts), not
+  the `previous_report` of this run; the helper also checks that it names exactly the `report.md` it writes beside
+  `report.html` (as given, absolute or resolved; no `..` detour). A `kind: saved` report keeps its invocation, document, scope and order sentences
+  as its run wrote them. The
   page shows the recommendation as a header pill and a Summary card with the run
   number and reasons; only `yes` has a copy button. A saved or historical page labels the
   recommendation "Recorded", because it predates the change.
