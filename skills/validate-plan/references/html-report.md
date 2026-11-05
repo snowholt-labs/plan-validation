@@ -46,7 +46,7 @@ After validation, save:
   phase grouping in `task_inventory` and `phases`. Version 5 is version 4 without the
   run fields `validation_run` and `rerun`. Saved version 4 contexts keep those fields,
   and the renderer still checks them.
-- `revised-plan.md` and `revised-spec.md`: copies of the validated revisions, refreshed when the end-of-run answers in the same run change PLAN or SPEC.
+- `revised-plan.md` and `revised-spec.md`: copies of the validated revisions.
 - A local research ledger and source evidence when research ran or was declined,
   including sent, declined or unavailable lookups. Record only public query text;
   preserve dates and evidence limits. No research requires no empty ledger.
