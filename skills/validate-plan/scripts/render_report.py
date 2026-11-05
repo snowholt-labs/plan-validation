@@ -592,7 +592,8 @@ def rerun_check(context, verdict, confidence, plan_revised, spec_revised):
     if (not isinstance(key, str) or not key.strip() or is_absolute(key) or key.startswith("\\")
             or ".." in re.split(r"[\\/]", key)):
         raise ValueError("validation_run plan_key must be the plan's path relative to the repository root")
-    plans = [doc for doc in context.get("documents", []) if isinstance(doc, dict) and doc.get("label") == "PLAN"]
+    documents = context.get("documents")
+    plans = [doc for doc in documents if isinstance(doc, dict) and doc.get("label") == "PLAN"] if isinstance(documents, list) else []
     if len(plans) != 1 or not isinstance(plans[0].get("path"), str) \
             or not plans[0]["path"].replace("\\", "/").endswith("/" + key.replace("\\", "/")):
         raise ValueError("validation_run plan_key must end the PLAN document's path")
@@ -818,7 +819,8 @@ def historical_warning_v4(rerun, fingerprints_match, saved):
     if fingerprints_match:
         return HISTORICAL_WARNING
     if rerun["number"] >= MAX_RUNS:
-        advice = "Do not run more review rounds: the run limit is reached; decide the next step yourself."
+        advice = ("The run limit is reached, so revalidating needs your explicit reset of the run count; "
+                  "do not run more review rounds, and decide the next step yourself.")
     elif rerun["recommendation"] == "stop":
         # Drift does not override a recorded stop: its reasons say the user decides first.
         advice = "The recorded answer is stop, so decide the next step yourself before revalidating; do not run more review rounds."

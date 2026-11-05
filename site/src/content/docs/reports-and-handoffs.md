@@ -63,7 +63,7 @@ Each new report says whether to run validation again: **yes** (another run is li
 - In a Not ready report, use the remediation prompt first. A remediation session is not a validation run; the re-run prompt then validates the fix as the next counted run.
 - A yes comes with a copyable re-run prompt of at most 80 words, saved as `rerun.txt` beside the report. A report re-rendered from saved evidence shows the prompt without a copy button and leaves `rerun.txt` as its run wrote it. It invokes the skill with the plan, the spec and the previous report, says which run it starts, keeps a phase-only run's scope, and never starts implementation.
 - Runs are counted per plan path (relative to the repository) and scope, across all worktrees of the repository. A re-render is not a new run. A phase-only validation after merges starts its own count. A fourth run needs your explicit reset.
-- If the plan or spec changes after review, the historical warning says to run validation again, naming the next run, instead of more review rounds. At run 3 it says the run limit is reached, and after a recorded stop it says to decide the next step yourself before revalidating.
+- If the plan or spec changes after review, the historical warning says to run validation again, naming the next run, instead of more review rounds. At run 3 it says the run limit is reached, so revalidating needs your explicit reset, and after a recorded stop it says to decide the next step yourself before revalidating.
 
 ## Starting implementation
 

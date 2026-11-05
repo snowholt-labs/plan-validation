@@ -1182,6 +1182,13 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 with self.assertRaisesRegex(ValueError, "reset"):
                     render(REPORT, context)
 
+    def test_v4_rejects_documents_that_are_not_a_list(self):
+        # A malformed context is rejected with a message, never a traceback.
+        context = self.modern_context()
+        context["documents"] = None
+        with self.assertRaises(ValueError):
+            render(REPORT, context)
+
     def test_v4_historical_says_rerun(self):
         context = self.modern_context()
         plan = Path(context["documents"][0]["path"])
@@ -1197,7 +1204,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         context["rerun"] = {"recommendation": "stop", "reasons": ["The run limit is reached."]}
         page, _, _, _ = render(REPORT, context)
         self.assertNotIn("run 4 of 3", page)
-        self.assertIn("the run limit is reached; decide the next step yourself", page)
+        self.assertIn("The run limit is reached, so revalidating needs your explicit reset", page)
         # An earlier recorded stop is not overridden either: the page never offers the next run.
         for kind in ("new", "saved"):
             with self.subTest(kind=kind):
@@ -1208,7 +1215,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 self.assertIn("The recorded answer is stop", page)
                 self.assertNotIn("Run validation again (run", page)
                 self.assertNotIn("Run validation again instead", page)
-                self.assertNotIn("the run limit is reached", page)
+                self.assertNotIn("run limit is reached", page)
         # At run 3 a saved page states the limit whatever it recorded, and never invites a fourth run.
         context["validation_run"].update(number=3, previous_report="/data/run-2/report.md")
         context["kind"] = "saved"
@@ -1216,7 +1223,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             with self.subTest(recommendation=recommendation):
                 context["rerun"] = {"recommendation": recommendation, "reasons": ["The run limit is reached."]}
                 page, _, _, _ = render(REPORT, context)
-                self.assertIn("the run limit is reached; decide the next step yourself", page)
+                self.assertIn("The run limit is reached, so revalidating needs your explicit reset", page)
                 self.assertNotIn("Run validation again instead", page)
         # Git or approval drift alone does not claim the documents changed.
         plan.write_text("PLAN")
