@@ -1184,7 +1184,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
 
     def test_malformed_documents_get_a_message(self):
         # A malformed context is rejected with a message that names the field, never a traceback.
-        cases = {"v4": (REPORT, self.modern_context()), "v3": (LEGACY_REPORT, self.v3_saved_context())}
+        cases = {"v4": (REPORT, self.modern_context()), **self.legacy_cases()}
         for version, (source, base) in cases.items():
             plan, spec = base["documents"]
             fields = [[plan, {key: value for key, value in spec.items() if key != "path"}],
@@ -1195,6 +1195,12 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                     context["documents"] = documents
                     with self.assertRaisesRegex(ValueError, "documents must be a list of objects"):
                         render(source, context)
+            # A missing documents field names the documents, not a field that reads them.
+            with self.subTest(version=version, documents="missing"):
+                context = copy.deepcopy(base)
+                del context["documents"]
+                with self.assertRaisesRegex(ValueError, "exactly PLAN and SPEC"):
+                    render(source, context)
 
     def test_v4_historical_says_rerun(self):
         context = self.modern_context()

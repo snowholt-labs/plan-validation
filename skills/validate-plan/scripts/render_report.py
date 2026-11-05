@@ -293,16 +293,15 @@ def context_documents(context):
             isinstance(doc, dict) and all(isinstance(doc.get(field), str) for field in ("label", "path", "sha256"))
             for doc in documents):
         raise ValueError("Context documents must be a list of objects with label, path and sha256 strings")
+    if len(documents) != 2 or {doc["label"] for doc in documents} != {"PLAN", "SPEC"}:
+        raise ValueError("Context must identify exactly PLAN and SPEC")
     return documents
 
 
 def document_checks(context):
-    documents = context_documents(context)
-    if len(documents) != 2 or {doc.get("label") for doc in documents} != {"PLAN", "SPEC"}:
-        raise ValueError("Context must identify exactly PLAN and SPEC")
     results = []
-    for doc in documents:
-        expected = doc.get("sha256", "")
+    for doc in context_documents(context):
+        expected = doc["sha256"]
         if not re.fullmatch(r"[0-9a-f]{64}", expected):
             raise ValueError("Each document needs its full recorded SHA256")
         path = Path(doc["path"])
@@ -602,9 +601,8 @@ def rerun_check(context, verdict, confidence, plan_revised, spec_revised):
     if (not isinstance(key, str) or not key.strip() or is_absolute(key) or key.startswith("\\")
             or ".." in re.split(r"[\\/]", key)):
         raise ValueError("validation_run plan_key must be the plan's path relative to the repository root")
-    plans = [doc for doc in context_documents(context) if doc.get("label") == "PLAN"]
-    if len(plans) != 1 \
-            or not plans[0]["path"].replace("\\", "/").endswith("/" + key.replace("\\", "/")):
+    plan = next(doc for doc in context_documents(context) if doc["label"] == "PLAN")
+    if not plan["path"].replace("\\", "/").endswith("/" + key.replace("\\", "/")):
         raise ValueError("validation_run plan_key must end the PLAN document's path")
 
     rerun = context.get("rerun")
