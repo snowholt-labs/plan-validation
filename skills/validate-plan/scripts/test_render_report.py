@@ -1208,6 +1208,16 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 self.assertIn("The recorded answer is stop", page)
                 self.assertNotIn("Run validation again (run", page)
                 self.assertNotIn("Run validation again instead", page)
+                self.assertNotIn("the run limit is reached", page)
+        # At run 3 a saved page states the limit whatever it recorded, and never invites a fourth run.
+        context["validation_run"].update(number=3, previous_report="/data/run-2/report.md")
+        context["kind"] = "saved"
+        for recommendation in ("stop", "no"):
+            with self.subTest(recommendation=recommendation):
+                context["rerun"] = {"recommendation": recommendation, "reasons": ["The run limit is reached."]}
+                page, _, _, _ = render(REPORT, context)
+                self.assertIn("the run limit is reached; decide the next step yourself", page)
+                self.assertNotIn("Run validation again instead", page)
         context["kind"] = "new"
         # Git or approval drift alone does not claim the documents changed.
         plan.write_text("PLAN")
@@ -1628,7 +1638,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         self.assertNotIn('data-open-tab="', page)
         summary = self.panel(page, "summary")
         self.assertEqual(summary.count('<div class="count count-none"><strong>None</strong>'), 2)
-        self.assertNotIn('<button class="count"', summary)
+        self.assertNotIn('<a class="count"', summary)
 
         # D2 holds back work, which only a Ready after approvals verdict allows.
         source = REPORT.replace("No blockers.", "Pending approvals D1 and D2.").replace("**Ready.**", "**Ready after approvals.**")
