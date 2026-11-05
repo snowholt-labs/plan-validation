@@ -302,6 +302,10 @@ def context_documents(context):
             raise ValueError("Document paths must be absolute")
         if "\0" in doc["path"]:
             raise ValueError("Document paths cannot contain a NUL character")
+        try:
+            os.fsencode(doc["path"])
+        except UnicodeError:
+            raise ValueError("Document paths must be valid file names (no unpaired surrogate characters)") from None
     return documents
 
 
@@ -824,9 +828,8 @@ RERUN_STYLE = {"yes": ("chip-wait", "diamond"), "no": ("chip-ok", "circle"), "st
 
 
 def historical_warning_v4(rerun, fingerprints_match, saved):
-    """The historical warning; when the plan or spec changed, it names the re-run instead of more review."""
-    if fingerprints_match:
-        return HISTORICAL_WARNING
+    """The historical warning; when the plan or spec changed, it names the re-run instead of more review.
+    At the run limit or after a recorded stop it says what revalidating takes, whatever drifted."""
     # The prompt still needs revalidation before use; the advice says what that takes.
     if rerun["number"] >= MAX_RUNS:
         advice = ("The run limit is reached, so revalidating needs your explicit reset of the run count; "
@@ -834,11 +837,15 @@ def historical_warning_v4(rerun, fingerprints_match, saved):
     elif rerun["recommendation"] == "stop":
         # Drift does not override a recorded stop: its reasons say the user decides first.
         advice = "The recorded answer is stop, so decide the next step yourself before revalidating; do not run more review rounds."
+    elif fingerprints_match:
+        # Only Git state or approvals drifted, so the shared sentence is the whole advice.
+        return HISTORICAL_WARNING
     else:
         # Later runs may exist, so a saved report names no run number.
         advice = ("Run validation again instead of more review rounds, if the 3-run limit allows." if saved
                   else f"Run validation again (run {rerun['number'] + 1} of {MAX_RUNS}) instead of more review rounds.")
-    return f'<p class="warning">{HISTORICAL_TEXT} The plan or spec changed or could not be read after this validation. {advice}</p>'
+    changed = "" if fingerprints_match else " The plan or spec changed or could not be read after this validation."
+    return f'<p class="warning">{HISTORICAL_TEXT}{changed} {advice}</p>'
 
 
 def rerun_label(rerun, recorded):

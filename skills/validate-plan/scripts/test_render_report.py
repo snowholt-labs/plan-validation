@@ -1201,6 +1201,12 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 context["documents"][0]["path"] = "PLAN.md"
                 with self.assertRaisesRegex(ValueError, "Document paths must be absolute"):
                     render(source, context)
+            # A path that is not a valid file name is rejected by name, not with an encoding traceback.
+            with self.subTest(version=version, documents="surrogate"):
+                context = copy.deepcopy(base)
+                context["documents"][1]["path"] += "\ud800"
+                with self.assertRaisesRegex(ValueError, "valid file names"):
+                    render(source, context)
             # A path with a NUL character is rejected by name, for either document, never written into the page.
             for index in (0, 1):
                 with self.subTest(version=version, documents=f"nul {index}"):
@@ -1261,6 +1267,18 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         self.assertIn("This is a historical prompt.", page)
         self.assertNotIn("The plan or spec changed", page)
         self.assertNotIn("Run validation again (run", page)
+        self.assertNotIn("run limit is reached", page)
+        # With Git or approval drift alone, the run limit and a recorded stop still say what revalidating takes.
+        for number, recommendation, advice in ((3, "no", "The run limit is reached"), (3, "stop", "The run limit is reached"),
+                                               (1, "stop", "The recorded answer is stop")):
+            with self.subTest(number=number, recommendation=recommendation):
+                context = self.modern_context()
+                context["handoff_status"] = "historical"
+                context["validation_run"].update(number=number, previous_report=f"/data/run-{number - 1}/report.md" if number > 1 else None)
+                context["rerun"] = {"recommendation": recommendation, "reasons": ["Recorded reason."]}
+                page, _, _, _ = render(REPORT, context)
+                self.assertIn(advice, page)
+                self.assertNotIn("The plan or spec changed", page)
 
     def two_phase(self):
         context = self.modern_context()
