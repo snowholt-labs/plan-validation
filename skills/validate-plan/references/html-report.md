@@ -46,7 +46,7 @@ After validation, save:
   phase grouping in `task_inventory` and `phases`. Version 5 is version 4 without the
   run fields `validation_run` and `rerun`. Saved version 4 contexts keep those fields,
   and the renderer still checks them.
-- `revised-plan.md` and `revised-spec.md`: copies of the validated revisions.
+- `revised-plan.md` and `revised-spec.md`: copies of the validated revisions, refreshed when the end-of-run answers in the same run change PLAN or SPEC.
 - A local research ledger and source evidence when research ran or was declined,
   including sent, declined or unavailable lookups. Record only public query text;
   preserve dates and evidence limits. No research requires no empty ledger.
@@ -116,8 +116,9 @@ Versions 3 and later check the phase grouping. The renderer also checks that:
   with spaces is text too, except a PLAN or SPEC `path`, this run's `report.md` or
   `context.json` quoted exactly);
 - in a new (version 5) report, neither section 8 nor its prompts say `run validation
-  again first` unless directly negated, as in `do not need to`, `don't have to` or
-  `no need to`: a new report has no re-run. A `kind: saved` report keeps section 8 as its run wrote it.
+  again first` unless it directly follows `not`, `never` or `n't` with `need to` or `have to`
+  (as in `do not need to`, `don't have to`), or `no need to`; a plain `Do not run validation again
+  first` is rejected too, so reword it: a new report has no re-run. A `kind: saved` report keeps section 8 as its run wrote it.
 
 Section 8 shows the phase table above the prompts, and each phase prompt has its
 own copy button. The Summary repeats the first ready prompt (or the single
@@ -318,7 +319,8 @@ test results and exact handoff, and state that it is being rendered rather than
 revalidated. Check current documents and Git state first. If approvals or Git
 state changed, mark the old prompt historical in the report and provide a
 remediation/resume prompt; unchanged file hashes alone do not establish readiness.
-Never replace the recorded hashes just to make an old report appear current.
+Never replace the recorded hashes just to make an old report appear current. Only
+the end-of-run answers in the same run refresh them, for the revision they produce (SKILL.md step 8).
 
 ## Delivery
 
