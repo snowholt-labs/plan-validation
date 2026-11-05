@@ -327,8 +327,9 @@ Count runs in workflow step 1, before validating:
   limit is reached and that they decide the next step. Count again from 1 only when the
   user explicitly resets the count; never assume a reset. The reset run is run 1, sets
   `validation_run.reset` to `true` and records the user's words in Open items
-  (section 6) as their approval, never in `decisions_without_reply`, which lists defaults. Later counts ignore matching runs whose folder timestamp
-  is older than the latest matching run with `reset: true`.
+  (section 6) as their approval, never in `decisions_without_reply`, which lists
+  defaults. Later counts ignore matching runs whose folder timestamp is older than the
+  latest matching run with `reset: true`.
 - A re-render never counts: it keeps the `validation_run` already recorded in that run
   directory's `context.json` and does not search again. When the re-render follows a
   recorded answer, update `rerun` for the new verdict, confidence and scores, so a

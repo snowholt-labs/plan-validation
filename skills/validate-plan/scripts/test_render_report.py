@@ -1182,12 +1182,16 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 with self.assertRaisesRegex(ValueError, "reset"):
                     render(REPORT, context)
 
-    def test_v4_rejects_documents_that_are_not_a_list(self):
-        # A malformed context is rejected with a message, never a traceback.
-        context = self.modern_context()
-        context["documents"] = None
-        with self.assertRaises(ValueError):
-            render(REPORT, context)
+    def test_malformed_documents_get_a_message(self):
+        # A malformed context is rejected with a message that names the field, never a traceback.
+        cases = {"v4": (REPORT, self.modern_context()), "v3": (LEGACY_REPORT, self.v3_saved_context())}
+        for version, (source, base) in cases.items():
+            for documents in (None, "PLAN", {"label": "PLAN"}, base["documents"] + [42], [base["documents"][0], None]):
+                with self.subTest(version=version, documents=documents):
+                    context = copy.deepcopy(base)
+                    context["documents"] = documents
+                    with self.assertRaisesRegex(ValueError, "documents must be a list of objects"):
+                        render(source, context)
 
     def test_v4_historical_says_rerun(self):
         context = self.modern_context()
@@ -1211,7 +1215,9 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 context["validation_run"].update(number=1, previous_report=None)
                 context["kind"] = kind
                 context["rerun"] = {"recommendation": "stop", "reasons": ["D1 needs the user's decision first."]}
-                page, _, _, _ = render(REPORT, context)
+                # A firing trigger (confidence below 70%) does not override the recorded stop either.
+                page, _, _, _ = render(REPORT.replace("Confidence: 75%", "Confidence: 60%"), context)
+                self.assertIn("confidence below 70%", page)
                 self.assertIn("The recorded answer is stop", page)
                 self.assertNotIn("Run validation again (run", page)
                 self.assertNotIn("Run validation again instead", page)

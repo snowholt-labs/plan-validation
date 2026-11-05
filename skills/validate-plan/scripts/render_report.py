@@ -286,8 +286,16 @@ def scores(section):
     return means
 
 
-def document_checks(context):
+def context_documents(context):
+    """The documents list, checked for shape first so a malformed context gets a message, not a traceback."""
     documents = context.get("documents", [])
+    if not isinstance(documents, list) or not all(isinstance(doc, dict) for doc in documents):
+        raise ValueError("Context documents must be a list of objects with label, path and sha256")
+    return documents
+
+
+def document_checks(context):
+    documents = context_documents(context)
     if len(documents) != 2 or {doc.get("label") for doc in documents} != {"PLAN", "SPEC"}:
         raise ValueError("Context must identify exactly PLAN and SPEC")
     results = []
@@ -592,8 +600,7 @@ def rerun_check(context, verdict, confidence, plan_revised, spec_revised):
     if (not isinstance(key, str) or not key.strip() or is_absolute(key) or key.startswith("\\")
             or ".." in re.split(r"[\\/]", key)):
         raise ValueError("validation_run plan_key must be the plan's path relative to the repository root")
-    documents = context.get("documents")
-    plans = [doc for doc in documents if isinstance(doc, dict) and doc.get("label") == "PLAN"] if isinstance(documents, list) else []
+    plans = [doc for doc in context_documents(context) if doc.get("label") == "PLAN"]
     if len(plans) != 1 or not isinstance(plans[0].get("path"), str) \
             or not plans[0]["path"].replace("\\", "/").endswith("/" + key.replace("\\", "/")):
         raise ValueError("validation_run plan_key must end the PLAN document's path")
