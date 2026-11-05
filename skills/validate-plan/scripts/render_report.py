@@ -973,19 +973,22 @@ def run_first_note(section, prompts, context, pairs):
                              f"must say before the prompts: {RUN_FIRST_TEXT}")
         return
     # Any "run validation again first" tells the reader to hold the phases, unless directly negated:
-    # "You do not need to run validation again first", "There is no need to run validation again first".
+    # "You do not need to run validation again first", "There is no need to run validation again first",
+    # "You need not run ...", or a sentence or list item that starts "Do not", "Don't" or "Never". A conditional
+    # such as "If you do not run validation again first, ..." still sends the reader to a re-run.
+    excused = re.compile(r"(?:(?:\b(?:not|never)\s+(?:need|have)\s+to|n['’]t\s+(?:need|have)\s+to|\bno\s+need\s+to|\bneed\s+not)"
+                         r"|(?:^|[.!?;:]\s*|(?:^|\s)-\s+)(?:do\s+not|don['’]t|never))\s+$", re.I)
     # Version 5 has no re-run at all, so its prompts cannot send the next session to one either.
-    text = spaced(plain(section if context.get("format_version", 1) >= 5 else intro))
-    # A direct "Do not", "Don't" or "Never" excuses it too.
-    excused = re.compile(r"(?:\b(?:not|never)\s+(?:need|have)\s+to|n['’]t\s+(?:need|have)\s+to|\bno\s+need\s+to"
-                         r"|\bdo\s+not|\bdon['’]t|\bnever)\s+$", re.I)
-    for match in re.finditer(r"\brun validation again first\b", text, re.I):
-        if not excused.search(text[:match.start()]):
-            if context.get("format_version", 1) >= 5:
-                raise ValueError("Section 8 says to run validation again first, but new reports have no re-run; remove that line")
-            raise ValueError("Section 8 says to run validation again first, which only a report whose rerun answer "
-                             "is yes and that has a ready phase says; remove that line")
-
+    # Each prompt is read on its own, so its first sentence starts at the beginning of the text.
+    v5 = context.get("format_version", 1) >= 5
+    for chunk in [intro] + ([text for _, _, text in prompts] if v5 else []):
+        text = spaced(plain(chunk))
+        for match in re.finditer(r"\brun validation again first\b", text, re.I):
+            if not excused.search(text[:match.start()]):
+                if v5:
+                    raise ValueError("Section 8 says to run validation again first, but new reports have no re-run; remove that line")
+                raise ValueError("Section 8 says to run validation again first, which only a report whose rerun answer "
+                                 "is yes and that has a ready phase says; remove that line")
 
 def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pairs, current, checks):
     """Return the version 4 or 5 page: header card, score strip, tabs (Summary, answers, watch list, full report).
