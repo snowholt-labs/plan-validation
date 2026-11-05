@@ -1295,27 +1295,25 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         prompt = "Run validation again first, with the re-run prompt in rerun.txt. Implement the approved scope now."
         with self.assertRaisesRegex(ValueError, "remove that line"):
             render(REPORT.replace("Implement the approved scope now.", prompt), self.modern_context())
-        for conditional in ("If you do not run validation again first, Phase 1 builds on a stale plan.",
-                            "Agents that never run validation again first build on stale plans.",
-                            "If you don't run validation again first, stop.",
-                            "Do not run validation again first unless the plan changed.",
-                            "Never run validation again first except after a rebase.",
-                            "Do not hesitate - never run validation again first."):
-            with self.subTest(conditional=conditional), self.assertRaisesRegex(ValueError, "remove that line"):
-                render(REPORT.replace("Implement the approved scope now.", conditional + " Implement the approved scope now."),
+        # Only "need to" negations right before the phrase excuse it; a wrapped or spaced phrase still counts.
+        for other in ("If you do not run validation again first, Phase 1 builds on a stale plan.",
+                      "Agents that never run validation again first build on stale plans.",
+                      "Do not run validation again first unless the plan changed.",
+                      "Run validation\nagain first.", "Run  validation again\u00a0first."):
+            with self.subTest(other=other), self.assertRaisesRegex(ValueError, "remove that line"):
+                render(REPORT.replace("Implement the approved scope now.", other + " Implement the approved scope now."),
                        self.modern_context())
-        for negated in ("You do not need to run validation again first.", "Do not run validation again first.",
-                        "Don’t run validation again first.", "Never run validation again first.",
-                        "You need not run validation again first.", "- Do not run validation again first.",
-                        "* Do not run validation again first.", "1) Do not run validation again first.",
-                        "_Do not_ run validation again first.", "Keep tests\nDo not run validation again first."):
+        for negated in ("You do not need to run validation again first.", "There is no need to run validation again first.",
+                        "You don’t have to run validation again first.", "You do not need to\nrun validation again first.",
+                        "_You do not need to_ run validation again first."):
             with self.subTest(negated=negated):
                 render(REPORT.replace("Implement the approved scope now.", negated + " Implement the approved scope now."),
                        self.modern_context())
 
     def test_v5_section_8_names_no_rerun_file_or_prompt(self):
         # Version 5 writes no rerun.txt and has no re-run prompt, so section 8 cannot send a reader to either.
-        for text in ("Use the re-run prompt before you start.", "Read `rerun.txt` first.", "Then open rerun.txt."):
+        for text in ("Use the re-run prompt before you start.", "Read `rerun.txt` first.", "Then open rerun.txt.",
+                     "Use the re-run prompts first.", "Open the re-run\nprompt first.", "Use the rerun-prompt."):
             with self.subTest(text=text), self.assertRaisesRegex(ValueError, "no re-run prompt or rerun.txt"):
                 render(REPORT.replace("Implement the approved scope now.", text + " Implement the approved scope now."),
                        self.modern_context())

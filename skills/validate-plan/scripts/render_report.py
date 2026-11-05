@@ -922,49 +922,32 @@ def prompt_prefix(context, current, pairs):
     return HELD_PREFIX if phases_held(context, current, pairs) else ""
 
 
-# The start of a sentence that negates what follows: "Do not", "Don't", "Never", "You need not",
-# "You do not need to", "There is no need to". The whole lead must be the negation, so a conditional such as
-# "If you do not run validation again first, ..." is not excused.
-NEGATED_LEAD = re.compile(r"(?:(?:you|we)\s+)?(?:do\s+not|don['’]t|never|cannot|can['’]t|must\s+not|need\s+not"
-                          r"|(?:do\s+not|don['’]t|never)\s+(?:need|have)\s+to|(?:there\s+is\s+)?no\s+need\s+to)\s+", re.I)
-# A condition after the phrase still sends the reader to a re-run in some cases.
-CONDITION = re.compile(r"\b(?:unless|except|if|until|when|once)\b", re.I)
-LIST_MARKER = re.compile(r"\s*(?:[-+*]|\d+[.)])\s+")
+# "run validation again first" is excused only right after "not/never need to", "n't need to" or "no need to",
+# as in "You do not need to run validation again first". Any other wording tells the reader to hold the phases.
 RUN_FIRST = re.compile(r"\brun validation again first\b", re.I)
-RERUN_MENTION = re.compile(r"\brerun\.txt\b|\bre-?run prompt\b", re.I)
-
-
-def sentences(chunk):
-    """Each sentence of a section 8 chunk, line by line, without emphasis or a list marker. A line break ends
-    a sentence, as it ends a negation in implement_instruction."""
-    for line in re.sub(r"[*_`]", "", chunk).splitlines():
-        line = LIST_MARKER.sub("", line, count=1) if LIST_MARKER.match(line) else line
-        for sentence in re.split(r"(?<=[.!?;])\s+", line):
-            if sentence.strip():
-                yield sentence.strip()
+RUN_FIRST_EXCUSED = re.compile(r"(?:\b(?:not|never)\s+(?:need|have)\s+to|n['’]t\s+(?:need|have)\s+to|\bno\s+need\s+to)\s+$", re.I)
+RERUN_MENTION = re.compile(r"\brerun\.txt\b|\bre-?run[\s-]*prompts?\b", re.I)
 
 
 def run_first_note(section, prompts, context):
     """A new (version 5) report has no re-run, so section 8 and its prompts never send the reader to one.
 
-    "Run validation again first" is allowed only in a sentence that starts by negating it and adds no condition.
-    rerun.txt and the re-run prompt are never named. A saved report keeps its section 8 as its run wrote it.
+    Each part (the text around the prompts, and each prompt) is read with its whitespace joined, so a wrapped
+    phrase still matches. A saved report keeps its section 8 as its run wrote it.
     """
     if context.get("kind") != "new":
         return
     intro = section
     for start, end, _ in reversed(prompts):
         intro = intro[:start] + intro[end:]
-    # Each prompt is read on its own, so its first sentence starts at the beginning of the text.
     for chunk in [intro] + [text for _, _, text in prompts]:
-        for sentence in sentences(chunk):
-            for match in RUN_FIRST.finditer(sentence):
-                if NEGATED_LEAD.fullmatch(sentence[:match.start()]) and not CONDITION.search(sentence[match.end():]):
-                    continue
+        text = spaced(re.sub(r"[*_`]", "", chunk))
+        for match in RUN_FIRST.finditer(text):
+            if not RUN_FIRST_EXCUSED.search(text[:match.start()]):
                 raise ValueError("Section 8 says to run validation again first, but new reports have no re-run; remove that line")
-            if RERUN_MENTION.search(sentence):
-                raise ValueError("Section 8 names the re-run prompt or rerun.txt, but new reports have no re-run prompt "
-                                 "or rerun.txt; remove that line")
+        if RERUN_MENTION.search(text):
+            raise ValueError("Section 8 names the re-run prompt or rerun.txt, but new reports have no re-run prompt "
+                             "or rerun.txt; remove that line")
 
 
 def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pairs, current, checks):
@@ -1098,7 +1081,8 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
 
 
 class Rendered(tuple):
-    """The result of render(): it unpacks as (page, handoff, current, rerun_prompt).
+    """The result of render(): it unpacks as (page, handoff, current, rerun_prompt); rerun_prompt is always None now,
+    kept so callers that unpack four values still work.
 
     Attributes for main(): pairs, the (phase_id, prompt) of each ready phase; prefix, the note that
     starts handoff.txt and each phase prompt file; held, whether those prompts wait for a re-run (version 4 only).
@@ -1195,8 +1179,7 @@ def render(source, context, run_files=()):
     marked = prefix + handoff
     if version >= 4:
         page = page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pairs, current, checks)
-        # A saved report's run label may be stale (later runs can exist), so only a new report writes rerun.txt.
-        # Only a new version 4 run wrote rerun.txt; version 4 now renders saved reports only.
+        # No report writes rerun.txt any more: only a new version 4 run did, and version 4 renders saved reports only.
         return Rendered((page, marked, current, None), pairs, prefix)
     css = (ASSETS / "report.css").read_text()
     js = (ASSETS / "report.js").read_text()
