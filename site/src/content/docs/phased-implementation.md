@@ -7,7 +7,7 @@ A validated plan can be built in one long session, but long sessions are expensi
 
 ## How the report helps
 
-The validator groups the plan's existing tasks into small phases. It does not change the plan: the grouping lives only in the report and its `context.json`.
+The validator groups the plan's existing tasks into small phases. The grouping does not change the plan: it lives only in the report and its `context.json`.
 
 - Every validated task is in exactly one phase, in plan order. No task is split or moved.
 - A phase never crosses a phase boundary the plan already defines. A large plan phase is split into consecutive sub-phases, aiming for 3–5 tasks each.
