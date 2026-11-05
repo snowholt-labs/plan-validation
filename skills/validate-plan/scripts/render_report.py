@@ -924,16 +924,15 @@ def prompt_prefix(context, current, pairs):
 
 # "run validation again first" is excused only right after "not/never need to", "n't need to" or "no need to",
 # as in "You do not need to run validation again first". Any other wording tells the reader to hold the phases.
-RUN_FIRST = re.compile(r"\brun validation again first\b", re.I)
+RUN_FIRST = re.compile(r"\brun validation again first(?![\w-])", re.I)
 RUN_FIRST_EXCUSED = re.compile(r"(?:\b(?:not|never)\s+(?:need|have)\s+to|n['’]t\s+(?:need|have)\s+to|\bno\s+need\s+to)\s+$", re.I)
-RERUN_MENTION = re.compile(r"\brerun\.txt\b|\bre-?run[\s-]*prompts?\b", re.I)
 
 
 def run_first_note(section, prompts, context):
     """A new (version 5) report has no re-run, so section 8 and its prompts never send the reader to one.
 
     Each part (the text around the prompts, and each prompt) is read with its whitespace joined, so a wrapped
-    phrase still matches. A saved report keeps its section 8 as its run wrote it.
+    phrase still matches, and with quoted paths read as names. A saved report keeps its section 8 as its run wrote it.
     """
     if context.get("kind") != "new":
         return
@@ -941,13 +940,10 @@ def run_first_note(section, prompts, context):
     for start, end, _ in reversed(prompts):
         intro = intro[:start] + intro[end:]
     for chunk in [intro] + [text for _, _, text in prompts]:
-        text = spaced(re.sub(r"[*_`]", "", chunk))
+        text = spaced(plain(without_paths(chunk, recorded_names(context))))
         for match in RUN_FIRST.finditer(text):
             if not RUN_FIRST_EXCUSED.search(text[:match.start()]):
                 raise ValueError("Section 8 says to run validation again first, but new reports have no re-run; remove that line")
-        if RERUN_MENTION.search(text):
-            raise ValueError("Section 8 names the re-run prompt or rerun.txt, but new reports have no re-run prompt "
-                             "or rerun.txt; remove that line")
 
 
 def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pairs, current, checks):
@@ -1272,7 +1268,7 @@ def main():
         rerun_path = args.output.with_name("rerun.txt")
         # A saved version 1-4 re-render keeps the rerun.txt an earlier version 4 run wrote. Version 5 has no
         # re-run, so its render deletes any.
-        if context.get("kind") != "saved" or context.get("format_version", 1) >= 5:
+        if context.get("format_version", 1) >= 5 or context.get("kind") != "saved":
             rerun_path.unlink(missing_ok=True)
         args.output.with_name("handoff.txt").unlink(missing_ok=True)
         for stale in args.output.parent.glob("handoff-phase-*.txt"):

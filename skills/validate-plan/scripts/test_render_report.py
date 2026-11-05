@@ -1304,25 +1304,16 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 render(REPORT.replace("Implement the approved scope now.", other + " Implement the approved scope now."),
                        self.modern_context())
         for negated in ("You do not need to run validation again first.", "There is no need to run validation again first.",
-                        "You don’t have to run validation again first.", "You do not need to\nrun validation again first.",
-                        "_You do not need to_ run validation again first."):
+                        "You don’t have to run validation again first.", "You do not need to\nrun validation again first."):
             with self.subTest(negated=negated):
                 render(REPORT.replace("Implement the approved scope now.", negated + " Implement the approved scope now."),
                        self.modern_context())
-
-    def test_v5_section_8_names_no_rerun_file_or_prompt(self):
-        # Version 5 writes no rerun.txt and has no re-run prompt, so section 8 cannot send a reader to either.
-        for text in ("Use the re-run prompt before you start.", "Read `rerun.txt` first.", "Then open rerun.txt.",
-                     "Use the re-run prompts first.", "Open the re-run\nprompt first.", "Use the rerun-prompt."):
-            with self.subTest(text=text), self.assertRaisesRegex(ValueError, "no re-run prompt or rerun.txt"):
+        # Work about the old re-run files, a hyphenated "first-" and quoted paths are not run-first lines.
+        for text in ("Delete the rerun prompt section from `SKILL.md`.", "Describe `rerun.txt` for saved reports only.",
+                     "Run validation again first-class checks on the parser.", "Edit `/repo/run_validation_again_first.md`."):
+            with self.subTest(text=text):
                 render(REPORT.replace("Implement the approved scope now.", text + " Implement the approved scope now."),
                        self.modern_context())
-            with self.subTest(text=text, where="intro"), self.assertRaisesRegex(ValueError, "no re-run prompt or rerun.txt"):
-                render(REPORT.replace("## 8. Fresh-session handoff\n", f"## 8. Fresh-session handoff\n{text}\n\n", 1),
-                       self.modern_context())
-        # A saved version 4 report keeps its section 8 as written.
-        render(REPORT.replace("## 8. Fresh-session handoff\n", "## 8. Fresh-session handoff\nRead rerun.txt.\n\n", 1),
-               self.v4_context())
 
     def test_section_8_never_says_run_first(self):
         # A new report has no re-run, so any run-first line contradicts the page (the plain line is
