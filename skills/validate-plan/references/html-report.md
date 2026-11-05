@@ -4,8 +4,7 @@ Read this when creating the baseline or publishing/repeating a validation result
 The HTML is the full report, not an abridged alternative. The chat response gives
 the verdict, the report link and any immediate blocker in at most three bullets.
 If the user explicitly asks for the full report in chat, print all eight sections too,
-with the diagram descriptions, open decisions, watch list, defaulted decisions and
-the re-run recommendation (run number, answer, reasons and any re-run prompt).
+with the diagram descriptions, open decisions, watch list and defaulted decisions.
 
 ## Files and rendering
 
@@ -41,11 +40,12 @@ After validation, save:
 - `context.json`: the small context record below. Use verified facts; use
   `Unknown` for unrecovered counts. Full document hashes identify the revisions
   that were actually validated, not whatever file happens to exist later.
-  New reports (`kind: new`) must use `format_version: 4`, with the header fields,
+  New reports (`kind: new`) must use `format_version: 5`, with the header fields,
   `diagrams`, `open_decisions` and `watch_list` (rules below), an explicit
   `decisions_without_reply` list (empty when no routine defaults were used), and the
-  phase grouping in `task_inventory` and `phases`, and the run fields
-  `validation_run` and `rerun` (see "Run counting" below).
+  phase grouping in `task_inventory` and `phases`. Version 5 is version 4 without the
+  run fields `validation_run` and `rerun`. Saved version 4 contexts keep those fields,
+  and the renderer still checks them.
 - `revised-plan.md` and `revised-spec.md`: copies of the validated revisions.
 - A local research ledger and source evidence when research ran or was declined,
   including sent, declined or unavailable lookups. Record only public query text;
@@ -115,42 +115,36 @@ Versions 3 and 4 check the phase grouping. The renderer also checks that:
   `/feature-dev:implement` or `/implement/` is checked like other text; a quoted span
   with spaces is text too, except a PLAN or SPEC `path`, this run's `report.md` or
   `context.json` quoted exactly);
-- in a new version 4 report, section 8 says `Run validation again first, with the re-run
-  prompt in the Summary; start a phase only after that run.` before its prompts exactly
-  when its `rerun` answer is `yes` and it has a ready phase, also when the handoff later
-  turns historical; the renderer rejects the line when it is missing then. In any other
-  new report, such as one whose answer changed to `no` or `stop`, it rejects any
-  `run validation again first` in section 8 unless directly negated, as in `do not need
-  to`, `don't have to` or `no need to`. A `kind: saved` report keeps section 8 as its run wrote it.
+- in a new (version 5) report, neither section 8 nor its prompts say `run validation
+  again first`, unless a sentence starts by negating it (such as `Do not` or `You do not
+  need to`) and adds no condition after it: a new report has no re-run. A `kind: saved`
+  report keeps section 8 as its run wrote it.
 
 Section 8 shows the phase table above the prompts, and each phase prompt has its
-own copy button. In version 4 the Summary repeats the first ready prompt (or the single
+own copy button. The Summary repeats the first ready prompt (or the single
 remediation prompt) with its own copy button, or with the historical warning when the
-handoff is not current. When a current Ready or Ready after approvals report with at
-least one ready phase recommends running validation again (`yes`), the phase prompts in the Summary and section 8 show
-`Run validation again first, with the re-run prompt in the Summary; start a phase only
-after that run.` instead of a copy button, the header has no **Prompt .txt** link, and
-the Summary puts the re-run card above the next session. Besides `handoff.txt` (the first prompt), the renderer writes
+handoff is not current. Besides `handoff.txt` (the first prompt), the renderer writes
 `handoff-phase-<id>.txt` for each ready phase, with the historical warning when the
-handoff is not current. While the phase prompts are held for a re-run, `handoff.txt` and
-each `handoff-phase-<id>.txt` instead start with `HELD PROMPT — DO NOT START YET.` and a
-note to run validation again first, and the renderer's JSON output says `"handoff_held": true` (`false`
-otherwise); never hand such a file to a session before the re-run. Before it writes any file, a render deletes `handoff.txt` and every `handoff-phase-*.txt` in the
+handoff is not current. Before it writes any file, a render deletes `handoff.txt` and every `handoff-phase-*.txt` in the
 run directory, so an earlier prompt never survives a changed verdict or a failed write.
-For a version 4 report whose `rerun` recommendation is `yes`, the renderer also writes
-the re-run prompt to `rerun.txt`, even when the handoff is historical, because running
-validation again is the answer to drift. A new report's re-render first deletes any
-`rerun.txt`, so a `no` or `stop` report leaves none. A `kind: saved` re-render shows the
-prompt without a copy button, writes no `rerun.txt` and leaves the one its run wrote,
-because later runs may exist; its drift warning names no run number. The renderer's
-JSON output names `rerun.txt` under `rerun` whenever one is beside the report
-(`null` when there is none).
+A new report's render also deletes any `rerun.txt`. In the renderer's JSON output, a
+version 5 report has `"rerun": null` and `"handoff_held": false`.
+
+Saved version 4 reports keep what their run drew. When a saved Ready or Ready after
+approvals report recorded `yes` with at least one ready phase, its phase prompts show
+`Run validation again first, with the re-run prompt in the Summary; start a phase only
+after that run.` instead of a copy button, the header has no **Prompt .txt** link, the
+Summary puts the re-run card (shown without a copy button) above the next session,
+`handoff.txt` and each `handoff-phase-<id>.txt` start with `HELD PROMPT — DO NOT START
+YET.`, and the JSON output says `"handoff_held": true`; never hand such a file to a
+session. A `kind: saved` re-render writes no `rerun.txt` and leaves the one its run
+wrote, which the JSON output names under `rerun`. Its drift warning names no run number.
 
 Example context shape (replace every example value; do not invent a review):
 
 ```json
 {
-  "format_version": 4,
+  "format_version": 5,
   "project": "repository-name",
   "audience": "plan review for the maintainer",
   "title": "Feature name",
@@ -207,8 +201,6 @@ Example context shape (replace every example value; do not invent a review):
     {"kind": "limit", "title": "Checked in Chromium only", "body": "The layout was not checked in other browsers."}
   ],
   "decisions_without_reply": [],
-  "validation_run": {"number": 1, "plan_key": "docs/plans/feature.md", "scope": "full"},
-  "rerun": {"recommendation": "no", "reasons": ["Nothing is left that validation can fix."]},
   "task_inventory": ["1", "2", "3"],
   "phases": [
     {"id": "1", "title": "Renderer", "tasks": ["1", "2"], "docs_only": false,
@@ -235,7 +227,7 @@ Example context shape (replace every example value; do not invent a review):
 }
 ```
 
-Version 4 fields:
+Version 4 and 5 fields:
 
 - `project` (at most 40 characters, usually the repository name) and `audience` (at most
   60, for example "plan review for the maintainer") form the kicker with the validation
@@ -282,8 +274,10 @@ Version 4 fields:
   follow-up in section 6 and stays out of `open_decisions`.
 - `watch_list`: a list, `[]` when none. Each item has `kind` (`gap`, `limit`, `risk` or
   `fixed`), a `title` (at most 60 characters) and a one- or two-sentence `body`.
-- `feature` is rejected in version 4; diagrams replace it.
-- `validation_run`: `number` (1–3), `plan_key` (the PLAN path relative to the
+- `feature` is rejected in versions 4 and 5; diagrams replace it.
+- A version 5 context has no `validation_run` or `rerun`; the renderer rejects either key.
+  The two fields below exist only in saved version 4 contexts, which the renderer still checks.
+- `validation_run` (saved version 4 only): `number` (1–3), `plan_key` (the PLAN path relative to the
   repository root, never absolute or with a `..` segment, or the PLAN's file name when
   the PLAN is outside the repository; the PLAN document's `path` must end with `/` and
   this key), `scope` (`full`, or `phases:<first>-<last>` for a
@@ -291,19 +285,13 @@ Version 4 fields:
   string), `previous_report` (the absolute path of the previous run's `report.md`,
   required from run 2) and `reset` (`true` only on run 1 after the user's explicit
   reset; omit it otherwise).
-- `rerun`: `recommendation` (`yes`, `no` or `stop`), `reasons` (1–4 short, nonempty
-  strings) and, only for `yes`, `prompt`. The rules are in report-contract.md, "Run
-  validation again". The renderer computes the triggers and rejects a `no` that a
-  trigger forbids, a `yes` at run 3, and a prompt that breaks the prompt rules: in a new
-  report it must start with the validate-plan invocation (bare or in backticks), quote
-  the PLAN and SPEC `path` values exactly in backticks, and say `Previous report:` followed by a
-  backtick-quoted absolute path ending in `report.md` (the last such label counts), not
-  the `previous_report` of this run; the helper also checks that it names exactly the `report.md` it writes beside
-  `report.html` (as given, absolute or resolved; no `..` detour). A `kind: saved` report keeps its invocation, document, scope and order sentences
-  as its run wrote them. The
-  page shows the recommendation as a header pill and a Summary card with the run
-  number and reasons; only `yes` has a copy button. A saved or historical page labels the
-  recommendation "Recorded", because it predates the change.
+- `rerun` (saved version 4 only): `recommendation` (`yes`, `no` or `stop`), `reasons` (1–4 short, nonempty
+  strings) and, only for `yes`, `prompt`. The renderer computes the re-run triggers and rejects a `no` that a
+  trigger forbids, a `yes` at run 3, and a `yes` prompt over 80 words, without `run <n+1> of 3`, with an
+  `implement` instruction or without `Do not start dependent implementation.`. A saved report keeps its
+  invocation, document, scope and order sentences as its run wrote them. The page shows the recommendation
+  as a header pill and a Summary card with the run number and reasons, labeled "Recorded" and without a
+  copy button.
 
 `task_inventory` lists every validated task ID as a string, in plan order
 (`"5b"` and `"5"` are different tasks). Each phase has an `id`, a `title`, its
@@ -322,7 +310,7 @@ Versions 2 and 3 keep their "Feature at a glance" page and render exactly as bef
 Their `feature` has a nonempty `summary`, an optional `layout` (`flow`, the default, for
 a sequence with arrows, or `blocks` for independent parts) and 3–7 `steps`, each with a
 nonempty `title` and `description`. Do not modify existing reports, plans or specs to
-migrate the format. New validation runs use version 4; versions 1–3 render saved
+migrate the format. New validation runs use version 5; versions 1–4 render saved
 reports only, and legacy support is for recovery, not a way around the new writing
 requirements. Unsupported versions are rejected.
 
@@ -333,36 +321,6 @@ state changed, mark the old prompt historical in the report and provide a
 remediation/resume prompt; unchanged file hashes alone do not establish readiness.
 Never replace the recorded hashes just to make an old report appear current.
 
-### Run counting
-
-Count runs in workflow step 1, before validating:
-
-- Look in `~/.local/share/plan-validation/<repo-name>/*/context.json` for contexts
-  with `format_version` 4, a `validation_run`, and the same `plan_key` and `scope` as
-  this run. Version 1–3 reports have no run number, so the count starts at 1 with the
-  first version 4 report. Skip the current run directory.
-- If an earlier `context.json` cannot be read or parsed, do not guess its number:
-  name it in section 7 and count the rest.
-- The new number is the highest earlier number plus one, or 1 when none matches. From
-  run 2, `previous_report` is the `report.md` of that highest-numbered run.
-- When the new number would be above 3, stop before validating: tell the user the run
-  limit is reached and that they decide the next step. Count again from 1 only when the
-  user explicitly resets the count; never assume a reset. The reset run is run 1, sets
-  `validation_run.reset` to `true` and records the user's words in Open items
-  (section 6) as their approval, never in `decisions_without_reply`, which lists
-  defaults, and never in `open_decisions`, because the user has already answered.
-  Later counts ignore matching runs whose folder timestamp is older than the latest
-  matching run with `reset: true`.
-- A re-render never counts: it keeps the `validation_run` already recorded in that run
-  directory's `context.json` and does not search again. When the re-render follows a
-  recorded answer, update `rerun` for the new verdict, confidence and scores, so a
-  stale `yes` and its reasons do not survive.
-- A phase-only validation counts separately, because its `scope` differs. It keeps the
-  earlier report's phase IDs, so its `scope` string stays the same across its runs
-  until another phase merges; a new first phase then starts a new count, as the spec
-  intends. Never regroup or rename phases to start a new count. A changed spec path does not
-  reset the count.
-
 ## Delivery
 
 Open or inspect the generated page. For new reports, confirm the Summary diagrams
@@ -372,11 +330,8 @@ evidence and the final defaults record. Confirm both five-row tables and average
 confidence/evidence, scope comparison, limits and the entire prompt are present.
 Confirm applicable dependency/alternative tables and recorded choices are inside
 the report, and that the copied prompt references their complete saved record.
-Check that each copied prompt matches `handoff.txt` or its `handoff-phase-<id>.txt`;
-while phase prompts are held for a re-run, check instead that each shows the run-first
-note and has no copy button.
-Confirm the Run validation again card shows this run's number and answer, and for
-a new report with `yes` that the copied re-run prompt matches `rerun.txt`. Provide a clickable absolute link
+Check that each copied prompt matches `handoff.txt` or its `handoff-phase-<id>.txt`.
+Provide a clickable absolute link
 to `report.html`; a short local preview URL may accompany it. If serving locally,
 bind to `127.0.0.1`, serve only this report directory, and keep that preview alive.
 No dependency install or external hosting is needed. Render a new run's report with `--open`,
@@ -442,6 +397,9 @@ To print or download, use the local `report.html`.
 Update an existing artifact only when the user asks to publish or update it, for
 example with a re-render of a run whose directory has `artifact.json`; a plain
 re-render, including one after a recorded answer, stays local, like any saved report.
+The one exception is the end-of-run re-render in the same run (SKILL.md workflow step 8):
+after the user's answers to the end-of-run questions, it updates this run's own artifact
+through the update steps below without being asked.
 When asked, and the line still reads exactly `true`, update that artifact instead of
 creating a new one. If the run has no `artifact.json` and the user gives no artifact
 URL, follow steps 1–7 as a first publish instead. For an update, follow steps 1–3,

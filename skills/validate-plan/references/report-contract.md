@@ -59,74 +59,11 @@ Keep the eight evidence sections below in this order. Add the unnumbered **Summa
 3. **SPEC comparison:** the same columns and average, using all five SPEC dimensions.
 4. **Decision confidence:** `Decision | Confidence | Evidence | Remaining uncertainty`. Include the verdict's material dependencies, and label the percentages as subjective estimates. Do not omit the table when there are no new decisions; report the readiness decision and its evidence.
 5. **Changes:** begin with a scope/complexity comparison: `Measure | Original | Revised | Reason / evidence`. Include delivery phases, unique numbered tasks, implementation/supporting tasks and dependencies/services; add PR count or repeated checks when they change. Explain task mappings, real added work versus regrouping, and the precise approval basis. Then give short groups for bugs fixed, PLAN changes, and SPEC changes with section and reason. Write `None` for an empty group; use `Unknown` for an unrecovered baseline.
-6. **Open items:** distinguish implementation blockers, pending approvals, accepted limitations and separately scoped follow-ups. Record actual authorized actions (including a user's explicit reset of the run count) and remaining research limits, installation, service and external-action gates here, with their approval basis or repository instruction reference. State `None` when appropriate; do not call the same unresolved item both blocking and ready. Never infer permissions from a recommendation or an unanswered question.
+6. **Open items:** distinguish implementation blockers, pending approvals, accepted limitations and separately scoped follow-ups. Record actual authorized actions and remaining research limits, installation, service and external-action gates here, with their approval basis or repository instruction reference. State `None` when appropriate; do not call the same unresolved item both blocking and ready. Never infer permissions from a recommendation or an unanswered question.
 7. **Verification and checkout:** actual dry-run commands/results, reviewed versus executed checks, checks not run, tested SHA, changed files, commit status and worktree cleanup. Never replace an actual test count with an inferred new total.
-8. **Fresh-session handoff:** a one-line suggested effort covering all phases, then one fenced launch prompt per ready phase, in phase order, following `../handoff-template.md`. The renderer adds the phase table from `context.json` above the prompts and a heading for each prompt, and shows all other section 8 text above the table, so write only the effort line, the between-phases note and, for a Ready or Ready after approvals `yes`, the run-again-first note from the template and the fenced prompts. Each prompt targets 50–80 words with an 80-word maximum, names one phase and its tasks, and says `Stop at the end of Phase <id>` for its own phase. Reference verified plan/spec/report/context paths; keep full decisions, permissions and evidence in those sources. For **Ready after approvals**, give prompts only for ready phases before the first waiting phase and name the waiting decision; if the first phase waits, give one prompt that names what to resolve and says `Do not start dependent implementation.` For **Not ready**, use one short remediation prompt naming the blocker and explicitly prohibiting dependent implementation; no phase prompts. Both kinds of remediation prompt follow the template's rule on the word `implement`.
+8. **Fresh-session handoff:** a one-line suggested effort covering all phases, then one fenced launch prompt per ready phase, in phase order, following `../handoff-template.md`. The renderer adds the phase table from `context.json` above the prompts and a heading for each prompt, and shows all other section 8 text above the table, so write only the effort line, the between-phases note and the fenced prompts. Each prompt targets 50–80 words with an 80-word maximum, names one phase and its tasks, and says `Stop at the end of Phase <id>` for its own phase. Reference verified plan/spec/report/context paths; keep full decisions, permissions and evidence in those sources. For **Ready after approvals**, give prompts only for ready phases before the first waiting phase and name the waiting decision; if the first phase waits, give one prompt that names what to resolve and says `Do not start dependent implementation.` For **Not ready**, use one short remediation prompt naming the blocker and explicitly prohibiting dependent implementation; no phase prompts. Both kinds of remediation prompt follow the template's rule on the word `implement`.
 
-## Run validation again
-
-Every new report says whether to run validation again, in `context.json` `rerun`
-(fields and run counting in [html-report.md](html-report.md)). It is not one of the
-eight sections; the page shows it as a header pill and a Summary card with
-"Run <n> of at most 3".
-
-- **yes:** another run is likely to fix something. The reasons say what.
-- **no:** nothing is left that validation can fix. The reasons say why.
-- **stop:** do not run again; the user decides the next step. The reasons say what
-  remains, or what to decide.
-
-Give 1–4 short reasons. The renderer computes these mechanical triggers:
-
-- confidence `Unknown` or below 70%;
-- a revised PLAN or SPEC average below 8.0, or `Unknown`;
-- the verdict Not ready.
-
-Rules:
-
-- **Runs 1 and 2:** when a trigger fires, answer `yes` or `stop`, never `no`. Use
-  `stop` when another run cannot help, for example when the blocker needs the user's
-  decision; its reasons name what to decide. `yes` without a trigger is allowed when
-  validation could fix gaps it did not reach; its reasons name them.
-- **Run 3:** never `yes`. Answer `stop`, or `no` when no trigger fires.
-- **Pending approvals** are never a trigger. Recording an answer stays the same-run
-  re-render, or a phase-only validation after merges.
-
-In a Not ready report with `yes`, the section 8 remediation prompt comes first: it fixes
-the blocker, and a remediation session is not a validation run. The re-run prompt then
-validates the result as the next counted run, and it says so:
-`Run this after the remediation session.`
-In a Ready or Ready after approvals report with `yes`, run validation again before
-starting any phase: another run is likely to change the plan the phase prompts build.
-The re-run prompt says so: `Run this before starting any phase.`
-
-Only `yes` has a `prompt`. It lives only in `context.json`, never in section 8, and
-the renderer writes it to `rerun.txt`. The prompt:
-
-- has at most 80 words; a backtick-quoted absolute path counts as one word (only a path with no spaces, or the PLAN or SPEC path, this run's `report.md` or `context.json`, quoted exactly; a quoted slash command counts every word);
-- starts with the invocation this run used (such as `/plan-validation:validate-plan`
-  or `$validate-plan`), because the skill runs only when invoked explicitly;
-- names the PLAN, the SPEC and this run's `report.md` as the previous report;
-- says `run <n+1> of 3`, where `<n>` is this run's number;
-- for a phase-only validation, keeps this run's scope with `Validate only Phases
-  <first>-<last>.` (hyphen or en dash; `Validate only Phase <id>.` for one phase), so the next run
-  counts under the same scope;
-- names what the run should focus on;
-- in a Not ready report, says `Run this after the remediation session.`; otherwise
-  says `Run this before starting any phase.`;
-- has no `implement`, `implements` or `implementing` (also with a `re` or `re-` prefix), except right after `not`, `cannot`, `n't` (straight or curly apostrophe) or `never` on the same line (such as `Do not implement`), or inside a backtick-quoted absolute path with no spaces (a path that starts with `/` needs a first segment without a colon and, without a file extension, a second segment, so a quoted slash command such as `/feature-dev:implement` or `/implement/` is not a path; a quoted span with spaces is text, except a PLAN or SPEC path, or this run's `report.md` or `context.json`, quoted exactly), and says `Do not start dependent implementation.`
-
-```text
-/plan-validation:validate-plan PLAN: `[PLAN path]` SPEC: `[SPEC path]` FOCUS: Run validation again (run [n+1] of 3). Previous report: `[report.md path]`; read it and its context.json first. [Run this after the remediation session. (Not ready) or Run this before starting any phase.] Focus on [what to fix]. [For a phase-only run: Validate only Phases [first]-[last].] Do not start dependent implementation.
-```
-
-When the plan or spec changes after review, the historical warning says to run
-validation again, naming the next run (below run 3 and without a recorded stop, a saved
-re-render names none and adds "if the 3-run limit allows"), instead of more review
-rounds. At run 3 it says the run limit is reached and that revalidating the same scope
-needs the user's explicit reset (once another phase has merged, a phase-only validation
-of the phases still to build counts separately), and after a recorded `stop` it names
-no run and says to decide the next step before revalidating; these two also appear when
-only Git state or approvals drifted.
+**Drift warning.** When the plan or spec changes after review, or Git state or approvals change, the report's prompts become historical. In a version 5 report the historical warning says the documents changed and to reconcile the change before building, or validate the changed scope again. It names no run number and no limit. Saved version 4 reports keep the warning their renderer draws (the run number, the 3-run limit and the reset).
 
 ## Dependency evidence within the eight sections
 
