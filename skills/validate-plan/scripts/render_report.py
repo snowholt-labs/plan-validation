@@ -300,6 +300,8 @@ def context_documents(context):
             raise ValueError("Each document needs its full recorded SHA256")
         if not Path(doc["path"]).is_absolute():
             raise ValueError("Document paths must be absolute")
+        if "\0" in doc["path"]:
+            raise ValueError("Document paths cannot contain a NUL character")
     return documents
 
 
@@ -309,7 +311,7 @@ def document_checks(context):
         expected, path = doc["sha256"], Path(doc["path"])
         try:
             actual = hashlib.sha256(path.read_bytes()).hexdigest()
-        except (OSError, ValueError):  # ValueError: a path with a NUL byte cannot be read either
+        except OSError:
             actual = None
         results.append((doc, actual == expected))
     return results

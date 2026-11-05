@@ -1201,11 +1201,13 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 context["documents"][0]["path"] = "PLAN.md"
                 with self.assertRaisesRegex(ValueError, "Document paths must be absolute"):
                     render(source, context)
-            # A path that cannot be read, even one with a NUL byte, is unavailable, not a crash.
-            with self.subTest(version=version, documents="nul"):
-                context = copy.deepcopy(base)
-                context["documents"][0]["path"] += "\0"
-                self.assertFalse(render_report.document_checks(context)[0][1])
+            # A path with a NUL character is rejected by name, for either document, never written into the page.
+            for index in (0, 1):
+                with self.subTest(version=version, documents=f"nul {index}"):
+                    context = copy.deepcopy(base)
+                    context["documents"][index]["path"] += "\0"
+                    with self.assertRaisesRegex(ValueError, "cannot contain a NUL character"):
+                        render(source, context)
             # A missing documents field names the documents, not a field that reads them.
             with self.subTest(version=version, documents="missing"):
                 context = copy.deepcopy(base)
