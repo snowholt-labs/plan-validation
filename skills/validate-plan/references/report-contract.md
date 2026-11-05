@@ -59,7 +59,7 @@ Keep the eight evidence sections below in this order. Add the unnumbered **Summa
 3. **SPEC comparison:** the same columns and average, using all five SPEC dimensions.
 4. **Decision confidence:** `Decision | Confidence | Evidence | Remaining uncertainty`. Include the verdict's material dependencies, and label the percentages as subjective estimates. Do not omit the table when there are no new decisions; report the readiness decision and its evidence.
 5. **Changes:** begin with a scope/complexity comparison: `Measure | Original | Revised | Reason / evidence`. Include delivery phases, unique numbered tasks, implementation/supporting tasks and dependencies/services; add PR count or repeated checks when they change. Explain task mappings, real added work versus regrouping, and the precise approval basis. Then give short groups for bugs fixed, PLAN changes, and SPEC changes with section and reason. Write `None` for an empty group; use `Unknown` for an unrecovered baseline.
-6. **Open items:** distinguish implementation blockers, pending approvals, accepted limitations and separately scoped follow-ups. Record actual authorized actions and remaining research limits, installation, service and external-action gates here, with their approval basis or repository instruction reference. State `None` when appropriate; do not call the same unresolved item both blocking and ready. Never infer permissions from a recommendation or an unanswered question.
+6. **Open items:** distinguish implementation blockers, pending approvals, accepted limitations and separately scoped follow-ups. Record actual authorized actions (including a user's explicit reset of the run count) and remaining research limits, installation, service and external-action gates here, with their approval basis or repository instruction reference. State `None` when appropriate; do not call the same unresolved item both blocking and ready. Never infer permissions from a recommendation or an unanswered question.
 7. **Verification and checkout:** actual dry-run commands/results, reviewed versus executed checks, checks not run, tested SHA, changed files, commit status and worktree cleanup. Never replace an actual test count with an inferred new total.
 8. **Fresh-session handoff:** a one-line suggested effort covering all phases, then one fenced launch prompt per ready phase, in phase order, following `../handoff-template.md`. The renderer adds the phase table from `context.json` above the prompts and a heading for each prompt, and shows all other section 8 text above the table, so write only the effort line, the between-phases note and, for a Ready or Ready after approvals `yes`, the run-again-first note from the template and the fenced prompts. Each prompt targets 50–80 words with an 80-word maximum, names one phase and its tasks, and says `Stop at the end of Phase <id>` for its own phase. Reference verified plan/spec/report/context paths; keep full decisions, permissions and evidence in those sources. For **Ready after approvals**, give prompts only for ready phases before the first waiting phase and name the waiting decision; if the first phase waits, give one prompt that names what to resolve and says `Do not start dependent implementation.` For **Not ready**, use one short remediation prompt naming the blocker and explicitly prohibiting dependent implementation; no phase prompts. Both kinds of remediation prompt follow the template's rule on the word `implement`.
 
@@ -120,9 +120,13 @@ the renderer writes it to `rerun.txt`. The prompt:
 ```
 
 When the plan or spec changes after review, the historical warning says to run
-validation again, naming the next run, instead of more review rounds; at run 3 it says
-the run limit is reached, and after a recorded `stop` it says to decide the next step
-instead of running again.
+validation again, naming the next run (below run 3 and without a recorded stop, a saved
+re-render names none and adds "if the 3-run limit allows"), instead of more review
+rounds. At run 3 it says the run limit is reached and that revalidating the same scope
+needs the user's explicit reset (once another phase has merged, a phase-only validation
+of the phases still to build counts separately), and after a recorded `stop` it names
+no run and says to decide the next step before revalidating; these two also appear when
+only Git state or approvals drifted.
 
 ## Dependency evidence within the eight sections
 
