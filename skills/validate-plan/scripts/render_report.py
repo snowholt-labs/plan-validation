@@ -62,8 +62,8 @@ HISTORICAL_WARNING = f'<p class="warning">{HISTORICAL_TEXT}</p>'
 RUN_FIRST_TEXT = "Run validation again first, with the re-run prompt in the Summary; start a phase only after that run."
 RUN_FIRST_NOTE = f'<p class="warning">{RUN_FIRST_TEXT}</p>'
 # Held phase prompt files carry this note, so a copied file cannot start a phase before the re-run.
-HELD_PREFIX = ("HELD PROMPT — DO NOT START YET.\nRun validation again first, with the re-run prompt in the report's "
-               "Summary or its rerun.txt; start a phase only after that run.\n\n")
+HELD_PREFIX = ("HELD PROMPT — DO NOT START YET.\nRun validation again first, with the re-run prompt from this "
+               "validation report; start a phase only after that run.\n\n")
 # The invocation a re-run prompt starts with: the plugin command, a bare skill command or the Codex skill.
 INVOCATION = re.compile(r"\s*`?(?:/(?:[\w.-]+:)?validate-plan|\$validate-plan)(?![\w-])")
 # Phase IDs become file names, so they cannot contain path separators.
@@ -99,13 +99,43 @@ def quoted_path(span, spaces):
     return spaces or not re.search(r"\s", span)
 
 
-def without_paths(text, spaces):
-    """Text with each quoted path replaced by one word.
+PATH_PUNCTUATION = "/\\._-"
 
-    The word count passes spaces=True, so a repository path with spaces is still one word. The implement
-    check passes spaces=False: a quoted span with whitespace is read as text, so it cannot hide an instruction.
+
+def path_words(span):
+    """How many words a quoted path with spaces counts as: one, plus one for each space-separated piece
+    between the first and the last that holds no path separator, so prose cannot hide inside a path."""
+    pieces = span.split()
+    return 1 + sum(1 for piece in pieces[1:-1] if not re.search(r"[\\/]", piece))
+
+
+def without_paths(text):
+    """Text for the word count: each quoted path becomes as many words as path_words counts."""
+    return QUOTED_SPAN.sub(lambda match: " ".join(["path"] * path_words(match.group(1)))
+                           if quoted_path(match.group(1), spaces=True) else match.group(0), text)
+
+
+def without_names(text):
+    """Text for the implement check, with quoted paths read as names.
+
+    A quoted path without whitespace becomes one word. In a quoted path with whitespace, a form of the
+    verb that touches path punctuation (such as /implement-retry.md) is a name; a form that stands
+    between spaces is still read as an instruction. A space is put around each replacement, so a word
+    right after the closing backtick stays a separate word.
     """
-    return QUOTED_SPAN.sub(lambda match: "path" if quoted_path(match.group(1), spaces) else match.group(0), text)
+    def name(match):
+        span = match.group(1)
+        if not quoted_path(span, spaces=True):
+            return match.group(0)
+        if not re.search(r"\s", span):
+            return " path "
+        def masked(verb):
+            before = span[verb.start() - 1:verb.start()]
+            after = span[verb.end():verb.end() + 1]
+            touches = any(char and char in PATH_PUNCTUATION for char in (before, after))
+            return "name" if touches else verb.group(0)
+        return " " + IMPLEMENT_VERB.sub(masked, span) + " "
+    return QUOTED_SPAN.sub(name, text)
 
 
 def spaced(text):
@@ -116,7 +146,7 @@ def spaced(text):
 def implement_instruction(text):
     """The first form of the verb outside a quoted path that does not directly follow a negation word
     on its own line. Every line break (CR and Unicode separators too) ends a negation."""
-    text = without_paths("\n".join(text.splitlines()), spaces=False)
+    text = without_names("\n".join(text.splitlines()))
     for match in IMPLEMENT_VERB.finditer(text):
         if not NEGATION.search(text[:match.start()].rsplit("\n", 1)[-1]):
             return match
@@ -426,7 +456,7 @@ QUOTED_PATH = re.compile(r"`(?:/|~/|[A-Za-z]:[\\/])[^`\n]*`")
 def word_count(handoff, version=4):
     # A backtick-quoted absolute path is one word, even when it contains spaces. Version 4 uses the
     # same path rule as the implement check; saved version 1-3 reports keep the rule they were rendered with.
-    return len((without_paths(handoff, spaces=True) if version >= 4 else QUOTED_PATH.sub("path", handoff)).split())
+    return len((without_paths(handoff) if version >= 4 else QUOTED_PATH.sub("path", handoff)).split())
 
 
 def section_content(source, number):
@@ -616,10 +646,10 @@ def is_absolute(path):
 
 
 def previous_report_named(prompt):
-    """The absolute report.md path a re-run prompt names after "Previous report:", or None."""
-    match = re.search(r"previous report:?\s*`([^`\n]*)`", prompt, re.I)
-    if match and is_absolute(match.group(1)) and re.search(r"(?:^|[\\/])report\.md\Z", match.group(1)):
-        return match.group(1)
+    """The absolute report.md path a re-run prompt names after the last "Previous report:" label, or None."""
+    matches = re.findall(r"previous report:\s*`([^`\n]*)`", prompt, re.I)
+    if matches and is_absolute(matches[-1]) and re.search(r"(?:^|[\\/])report\.md\Z", matches[-1]):
+        return matches[-1]
     return None
 
 
@@ -803,13 +833,8 @@ def identity_details(checks, context):
 
 
 def phase_handoffs(source, context):
-    """Return (phase_id, prompt) for each ready phase of a version 3 or 4 Ready report."""
-    version = context.get("format_version", 1)
-    parts = sections(source.replace("\r\n", "\n").replace("\r", "\n"))
-    verdict_match = re.match(r"(Ready after approvals|Not ready|Ready)\b", plain(parts[0][1]), re.I)
-    if type(version) is not int or version < 3 or not verdict_match:
-        return []
-    return handoff_prompts(parts[7][1], version, verdict_match.group(1), context)[1]
+    """Return (phase_id, prompt) for each ready phase, exactly as main() writes them."""
+    return render(source, context).pairs
 
 
 SHAPES = {
@@ -958,11 +983,11 @@ def run_first_note(section, prompts, context, pairs):
                              f"must say before the prompts: {RUN_FIRST_TEXT}")
         return
     # Any unnegated "run validation again first" tells the reader to hold the phases; a negation earlier
-    # in the same sentence ("You do not need to run validation again first") does not.
+    # in the same clause ("You do not need to run validation again first") does not.
     text = spaced(plain(intro))
     for match in re.finditer(r"\brun validation again first\b", text, re.I):
-        sentence = re.split(r"[.!?]\s", text[:match.start()])[-1]
-        if not re.search(r"\b(?:not|never|no)\b|n['’]t\b", sentence, re.I):
+        clause = re.split(r"[.!?,;:]", text[:match.start()])[-1]
+        if not re.search(r"\b(?:not|never|no)\b|n['’]t\b", clause, re.I):
             raise ValueError("Section 8 says to run validation again first, which only a report whose rerun answer "
                              "is yes and that has a ready phase says; remove that line")
 
@@ -1092,14 +1117,15 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
 
 
 class Rendered(tuple):
-    """(page, handoff, current, rerun_prompt), with the phase prompts and prompt-file prefix main() writes.
+    """The result of render(): it unpacks as (page, handoff, current, rerun_prompt).
 
-    It unpacks like the plain 4-tuple, so callers that need only those values stay unchanged.
+    Attributes for main(): pairs, the (phase_id, prompt) of each ready phase; prefix, the note that
+    starts handoff.txt and each phase prompt file; held, whether those prompts wait for a re-run.
     """
 
-    def __new__(cls, values, pairs, prefix):
+    def __new__(cls, values, pairs, prefix, held):
         result = super().__new__(cls, values)
-        result.pairs, result.prefix = pairs, prefix
+        result.pairs, result.prefix, result.held = pairs, prefix, held
         return result
 
 
@@ -1178,7 +1204,7 @@ def render(source, context):
     if version >= 4:
         page = page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pairs, current, checks)
         # A saved report's run label may be stale (later runs can exist), so only a new report writes rerun.txt.
-        return Rendered((page, marked, current, fields["rerun"]["prompt"] if context["kind"] == "new" else None), pairs, prefix)
+        return Rendered((page, marked, current, fields["rerun"]["prompt"] if context["kind"] == "new" else None), pairs, prefix, phases_held(context, current, pairs))
     css = (ASSETS / "report.css").read_text()
     js = (ASSETS / "report.js").read_text()
     favicon = base64.b64encode((ASSETS / "favicon.svg").read_bytes()).decode()
@@ -1208,7 +1234,7 @@ def render(source, context):
 {identity_details(checks, context)}
 {defaults}
 </main><footer>Local report · No external fonts, scripts, analytics or network requests. Scores describe document quality; they do not guarantee implementation success.</footer><script>{js}</script></body></html>'''
-    return Rendered((page, marked, current, None), pairs, prefix)
+    return Rendered((page, marked, current, None), pairs, prefix, phases_held(context, current, pairs))
 
 
 def foreground(browser):
@@ -1282,7 +1308,7 @@ def main():
             stale.unlink()
         phase_files = []
         # The phase files get the same historical or held note as handoff.txt, chosen once by render().
-        held = rendered.prefix == HELD_PREFIX
+        held = rendered.held
         for phase_id, prompt in rendered.pairs:
             path = args.output.with_name(f"handoff-phase-{phase_id}.txt")
             path.write_text(rendered.prefix + prompt + "\n", encoding="utf-8")

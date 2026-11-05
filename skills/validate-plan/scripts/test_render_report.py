@@ -379,7 +379,8 @@ class ReportTests(unittest.TestCase):
                             "Run `/feature-dev:implement` for Phase 1.", "Run `/implement` now.", "Run `/x:implement/` now.",
                             "Run `/implement/` now.", "Run `/feature-dev:implement.md` now.", "Fix `/repo/x Implement Phase 1 now`.",
                             "Run `/implement /home/u/plan.md` now.", "Run `/implement docs/plan.md` now.",
-                            "Fix `/repo/ Implement Phase 1 now.md`."):
+                            "Fix `/repo/ Implement Phase 1 now.md`.", "Read `/repo/plan.md`implement it.",
+                            "Fix `/home/u/My Repo/x implement now.md`."):
             source = not_ready.replace("Implement the approved scope now.", instruction + " Do not start dependent implementation.")
             with self.subTest(instruction=instruction), self.assertRaisesRegex(ValueError, "remediation prompt"):
                 render(source, self.stop_rerun(self.modern_context()))
@@ -397,17 +398,22 @@ class ReportTests(unittest.TestCase):
 
     def test_quoted_absolute_paths_are_names_not_instructions(self):
         not_ready = REPORT.replace("**Ready.**", "**Not ready.**")
-        for path in ("`/implement.md`", "`/repo/implement`", "`~/implement`", "`C:\\implement\\plan.md`", "`/repo/docs/`"):
+        for path in ("`/implement.md`", "`/repo/implement`", "`~/implement`", "`C:\\implement\\plan.md`", "`/repo/docs/`",
+                     "`/home/u/My Repo/docs/plans/implement-retry.md`", "`/home/u/implement tools/repo`",
+                     "`C:\\Users\\Jane Doe\\implementing\\plan.md`"):
             source = not_ready.replace("Implement the approved scope now.", f"Read {path}. Do not start dependent implementation.")
             with self.subTest(path=path):
                 render(source, self.stop_rerun(self.modern_context()))
 
     def test_quoted_repository_path_with_spaces_is_one_word(self):
         # A repository path with spaces and no extension still counts as one word.
-        path = "`/Users/Jane Doe/" + "my repo " * 40 + "`"
-        source = REPORT.replace("Implement the approved scope now.", f"Work in {path}. Implement the approved scope now.")
-        _, prompt, _, _ = render(source, self.modern_context())
-        self.assertIn(path, prompt)
+        self.assertEqual(render_report.word_count("Work in `/Users/Jane Doe/my repo`."), 3)
+        self.assertEqual(render_report.word_count("Read `C:\\Users\\Jane Doe\\plan.md` now."), 3)
+        # Prose between the first and last piece of a quoted "path" still counts, one word per piece.
+        self.assertEqual(render_report.word_count("`/a/b then seventy more words`"), 4)
+        source = REPORT.replace("Implement the approved scope now.", "Run `/a/b " + "detail " * 80 + "z.md` now.")
+        with self.assertRaisesRegex(ValueError, "80 words"):
+            render(source, self.modern_context())
 
     def test_quoted_slash_command_counts_every_word(self):
         # Version 4 counts a quoted command's words; only a quoted path counts as one word.
@@ -422,7 +428,7 @@ class ReportTests(unittest.TestCase):
             render(source, self.modern_context())
 
     def test_backtick_quoted_paths_count_as_one_word(self):
-        path = "`/Users/x/My Projects/" + "deep folder " * 40 + "plan.md`"
+        path = "`/Users/x/My Projects/" + "deep folder/" * 40 + "plan.md`"
         source = REPORT.replace("Implement the approved scope now.", f"Implement the plan in {path} now.")
         _, prompt, _, _ = render(source, self.modern_context())
         self.assertIn(path, prompt)
@@ -1110,6 +1116,18 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         second["validation_run"].update(number=2, previous_report="/data/run-1/report.md")
         with self.assertRaisesRegex(ValueError, "earlier run's report"):
             render(run_first(REPORT), second)
+        # Only the last "Previous report:" label names the report; a mention without the label does not.
+        mention = self.RERUN_PROMPT.replace("FOCUS:", "FOCUS: Compare with previous report `/old/report.md`.")
+        self.assertEqual(render_report.previous_report_named(mention), "/data/run-1/report.md")
+        # A plan path with spaces may hold the verb in a file name.
+        spaced_plan = self.modern_context()
+        plan = Path(self.directory.name) / "My Repo" / "implement-retry.md"
+        plan.parent.mkdir()
+        plan.write_text("PLAN")
+        spaced_plan["documents"][0]["path"] = str(plan)
+        spaced_plan["validation_run"]["plan_key"] = "implement-retry.md"
+        render(run_first(REPORT), self.rerun_yes(spaced_plan, self.RERUN_PROMPT.replace(
+            self.context["documents"][0]["path"], str(plan))))
         # main() checks that the prompt names the report.md it writes.
         out = Path(self.directory.name) / "named"
         out.mkdir()
@@ -1142,10 +1160,12 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             # Other wording that mentions running validation again is free text.
             render(REPORT.replace("## 8. Fresh-session handoff\n", "## 8. Fresh-session handoff\n"
                                   "You do not need to run validation again first.\n\n", 1), context)
-            # A reworded run-first line still tells the reader to hold the phases.
-            with self.assertRaisesRegex(ValueError, "remove that line"):
-                render(REPORT.replace("## 8. Fresh-session handoff\n", "## 8. Fresh-session handoff\n"
-                                      "Run validation again first, then start Phase 1.\n\n", 1), context)
+            # A reworded run-first line still tells the reader to hold the phases, and a negation in
+            # another clause of the sentence does not excuse it.
+            for line in ("Run validation again first, then start Phase 1.",
+                         "There are no open decisions, so run validation again first."):
+                with self.assertRaisesRegex(ValueError, "remove that line"):
+                    render(REPORT.replace("## 8. Fresh-session handoff\n", f"## 8. Fresh-session handoff\n{line}\n\n", 1), context)
         # A Not ready yes runs after the remediation session, so it never says run first.
         not_ready = REPORT.replace("**Ready.**", "**Not ready.**").replace(
             "Implement the approved scope now.", "Fix Task 1. Do not start dependent implementation.")
@@ -1546,7 +1566,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             render(source, context)
         remediation = REPORT.replace("**Ready.**", "**Not ready.**").replace(
             "Implement the approved scope now.", "Resume validation. Do not start dependent implementation.")
-        self.assertEqual(phase_handoffs(remediation, context), [])
+        self.assertEqual(phase_handoffs(remediation, self.stop_rerun(context)), [])
 
     def run_renderer(self, directory, source, context):
         (directory / "in.md").write_text(source, encoding="utf-8")
