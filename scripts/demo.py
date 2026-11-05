@@ -188,7 +188,10 @@ Do not start dependent implementation. Report results and any defaults chosen, t
     spec = importlib.util.spec_from_file_location("renderer", module_path)
     renderer = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(renderer)
-    page, prompt, current, rerun_prompt = renderer.render(report, context)
+    # The prompts quote this run's own files, which may sit under a folder with spaces.
+    run_files = {str(path) for file in (output / "report.md", output / "context.json")
+                 for path in (file, file.absolute(), file.resolve())}
+    page, prompt, current, rerun_prompt = renderer.render(report, context, run_files)
     if not current:
         raise SystemExit("Demo document identity check failed")
     for name, content in (("report.md", report), ("report.html", page), ("handoff.txt", prompt + "\n"),

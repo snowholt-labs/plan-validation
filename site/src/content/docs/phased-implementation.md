@@ -12,7 +12,7 @@ The validator groups the plan's existing tasks into small phases. It does not ch
 - Every validated task is in exactly one phase, in plan order. No task is split or moved.
 - A phase never crosses a phase boundary the plan already defines. A large plan phase is split into consecutive sub-phases, aiming for 3–5 tasks each.
 - Section 8 of the report shows a phase table: each phase's tasks, whether it is docs-only, whether it needs a security review and why, and whether it can start, waits for an approval or waits for another validation run.
-- Each ready phase gets its own launch prompt with a copy button, saved as `handoff-phase-<id>.txt` beside the report. When the report says to run validation again first, the copy buttons wait for that run.
+- Each ready phase gets its own launch prompt with a copy button, saved as `handoff-phase-<id>.txt` beside the report. When the report says to run validation again first, the copy buttons wait for that run, and the prompt files start with a held note.
 - Each prompt names one phase and includes a stop: `Stop at the end of Phase 1 and print the Phase 2 prompt from the report; do not start it.` The last phase's prompt says it is the last phase.
 
 Phases run in order. A phase that waits for an approval holds back every phase after it, and it gets a prompt only after the approval is recorded and the report is rendered again. Once earlier phases have merged, ask the validator to validate the remaining phases instead; the new report covers only the phases still to build and keeps their phase IDs.
