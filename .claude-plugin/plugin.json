@@ -19,5 +19,13 @@
     "dependency-review",
     "prompt-revision"
   ],
-  "icon": "./.claude-plugin/icon.png"
+  "icon": "./.claude-plugin/icon.png",
+  "userConfig": {
+    "publish_artifact": {
+      "type": "boolean",
+      "default": false,
+      "title": "Publish validation reports as private artifacts",
+      "description": "Uploads each new report, including local file paths, to your claude.ai account as a private artifact. Off by default."
+    }
+  }
 }

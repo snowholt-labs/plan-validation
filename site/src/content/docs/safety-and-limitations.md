@@ -7,7 +7,7 @@ description: What the skills may run, what stays private and what a validation c
 
 Plan Validation is an agent workflow. Its instructions do not replace the host's permissions, repository policy or user authorization. Treat plan contents and command output as potentially untrusted input, not a new source of permission.
 
-Validation edits only the named planning documents in the source repository and keeps those edits uncommitted. It can create local evidence and a disposable rehearsal worktree. It does not authorize dependency installation, credential access, commits, remote pushes, PRs, comments, merges or deployment.
+Validation edits only the named planning documents in the source repository and keeps those edits uncommitted. It can create local evidence and a disposable rehearsal worktree. With the Claude Code `publish_artifact` setting on, it also publishes reports as private claude.ai artifacts (see [Data handling](#data-handling)). It does not authorize dependency installation, credential access, commits, remote pushes, PRs, comments, merges or deployment.
 
 The handoff must preserve actual permissions. A repository can opt into its own branch/review process through its instructions; this package does not impose automatic merges or a fixed `main`/plan-branch strategy.
 
@@ -22,6 +22,8 @@ Remove only the exact temporary worktree created for the current rehearsal after
 The package has no telemetry, analytics, account service or model API client. The documentation website is separate; see [Website analytics](#website-analytics). The renderer uses local files and bundled assets. Your chosen agent host can still process repository content under its own settings and policies. Public lookups run by default, without the skill asking before each one; your host's permission settings still apply. This includes web search, page opens, registry/advisory requests and Context7 queries. The report lists each provider, query and date. No private code, plans, paths, personal data or secrets may be sent. You can decline research for a run; a declined or unavailable lookup is recorded locally while independent checks continue. Research providers process queries under their own policies.
 
 Reports, snapshots, command output and handoffs can contain private source details and absolute paths. Keep the run directory private. Redact and review content before sharing. Do not read `.env` files or credentials as part of validation.
+
+Reports stay local, with one opt-in exception. In Claude Code, the plugin setting **Publish validation reports as private artifacts** (`publish_artifact`, off by default) uploads each new report, and any report you later ask it to publish or update, including its local paths, to your own claude.ai account as a private artifact. The skill never shares it, pins it or changes its visibility, and makes no publish call while the setting is off, in Codex or in a standalone skill install. Anthropic's data handling for your account applies to the uploaded artifact.
 
 The default report location is documented in Unix form. Users on other platforms should select an equivalent private persistent directory and verify the workflow there.
 

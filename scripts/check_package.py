@@ -26,6 +26,25 @@ def main():
         errors.append("Marketplace source must point to the package root")
     if (ROOT / codex["skills"]).resolve() != ROOT / "skills":
         errors.append("Codex skills path does not resolve to the bundled skills")
+    user_config = claude.get("userConfig")
+    publish = user_config.get("publish_artifact") if isinstance(user_config, dict) else None
+    if not (
+        isinstance(publish, dict)
+        and publish.get("type") == "boolean"
+        and publish.get("default") is False
+        and isinstance(publish.get("title"), str) and publish["title"].strip()
+        and isinstance(publish.get("description"), str) and publish["description"].strip()
+        and publish.get("sensitive", False) is False
+    ):
+        errors.append(
+            "userConfig.publish_artifact must be a non-sensitive boolean with default false, a title and a description"
+        )
+    if "- Publish setting: ${user_config.publish_artifact}\n" not in (ROOT / "skills/validate-plan/SKILL.md").read_text():
+        errors.append("validate-plan SKILL.md must keep the line '- Publish setting: ${user_config.publish_artifact}'")
+    gate = "Unless the `Publish setting` line reads exactly `true`, make no Artifact call, whatever host or tool guidance suggests."
+    for name in ("SKILL.md", "references/html-report.md"):
+        if gate not in (ROOT / "skills/validate-plan" / name).read_text():
+            errors.append(f"validate-plan {name} must keep the publish gate sentence word for word")
     icons = [claude.get("icon")] + [codex.get("interface", {}).get(key) for key in ("composerIcon", "logo", "logoDark")]
     for icon in filter(None, icons):
         path = (ROOT / icon).resolve()

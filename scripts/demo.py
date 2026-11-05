@@ -99,15 +99,18 @@ Actual captured outputs are saved in evidence.json. No agent evaluation, Git reh
 
 ## 8. Fresh-session handoff
 ```text
-Work in `{ROOT}`. Resume validation of the retry-delay fixture using `{output / 'plan.md'}` and `{output / 'spec.md'}`.
+Work in `{ROOT}`. Fix the retry-delay fixture documents `{output / 'plan.md'}` and `{output / 'spec.md'}`.
 
-Read `{output / 'report.md'}`, its context.json, and repository instructions first. Confirm the saved evidence still applies. Resolve the missing delay cap and independent review within recorded permissions; rerun the three acceptance checks.
+Read `{output / 'report.md'}`, its context.json, and repository instructions first. Confirm the saved evidence still applies. Revise Task 1 to include the 30-second delay cap (R3) and its attempt-6 boundary assertion, within recorded permissions. Do not edit the implementation files or validate again; the re-run prompt does that.
 
 Do not start dependent implementation. Report results and any defaults chosen, then stop.
 ```
 '''
     context = {
-        "format_version": 3,
+        "format_version": 4,
+        "project": "plan-validation",
+        "audience": "example report",
+        "title_accent": "missing boundary",
         "task_inventory": ["1"],
         "phases": [{"id": "1", "title": "Retry delay cap", "tasks": ["1"], "docs_only": False, "security_review": False,
                     "status": "waiting", "waits_for": "Remediation of the missing delay cap"}],
@@ -118,16 +121,61 @@ Do not start dependent implementation. Report results and any defaults chosen, t
         "freshness": "Fixture copies checked at rendering. No repository or implementation approval is represented.",
         "provenance": "scripts/demo.py; authored public fixture, not an agent benchmark.",
         "documents": documents,
-        "feature": {
-            "summary": "Proposed behavior: retry an unsuccessful action with a longer wait each time, capped at 30 seconds.",
-            "steps": [
-                {"title": "Try the action", "description": "An unsuccessful attempt may need another try."},
-                {"title": "Choose the wait", "description": "Later attempts wait longer."},
-                {"title": "Apply the limit", "description": "The wait never exceeds 30 seconds. This is the missing rule."},
-                {"title": "Retry", "description": "Try again after the limited wait."},
-            ],
-        },
+        "diagrams": [
+            {
+                "kind": "flow",
+                "eyebrow": "Flow · planned",
+                "title": "One request, start to finish",
+                "description": "The retry helper tries the request; when it fails, the helper waits the next delay, at most 30 seconds, and tries again, or gives up when the attempts run out.",
+                "caption": "Each wait doubles from 1 second and stops growing at 30 seconds (R3). The original plan left out that cap.",
+                "steps": [
+                    {"title": "Try the request", "sub": "send it to the API"},
+                    {"title": "It fails", "sub": "if it does not succeed"},
+                    {"title": "Wait the next delay", "sub": "doubles, capped at 30 s"},
+                ],
+                "branches": [
+                    {"from_step": 3, "title": "Retry", "sub": "next attempt", "tone": "retry", "returns_to": 1},
+                    {"from_step": 2, "title": "Give up", "sub": "attempts run out", "tone": "stop"},
+                ],
+            },
+            {
+                "kind": "zones",
+                "eyebrow": "Architecture · planned",
+                "title": "Who talks to whom",
+                "description": "The caller asks the retry helper, which sends requests to the remote API endpoint and gets each result back.",
+                "caption": "The helper waits between tries, never more than 30 seconds.",
+                "zones": [
+                    {"label": "Your app", "nodes": [
+                        {"id": "caller", "title": "Caller", "sub": "asks for a request"},
+                        {"id": "helper", "title": "Retry helper", "sub": "waits, then tries again"},
+                    ], "chain": True},
+                    {"label": "Remote service", "nodes": [
+                        {"id": "api", "title": "API endpoint", "sub": "existing, may fail for a while"},
+                    ]},
+                ],
+                "links": [
+                    {"from": "helper", "to": "api", "label": "request"},
+                    {"from": "api", "to": "helper", "label": "result"},
+                ],
+            },
+        ],
+        "open_decisions": [],
+        "watch_list": [
+            {"kind": "gap", "title": "No delay cap",
+             "body": "Task 1 returns 2 ** attempt with no limit, so attempt 6 waits 64 seconds instead of 30 (SPEC R3)."},
+        ],
         "decisions_without_reply": [],
+        "validation_run": {"number": 1, "plan_key": "plan.md", "scope": "full"},
+        "rerun": {
+            "recommendation": "yes",
+            "reasons": ["The verdict is Not ready: the plan has no 30-second delay cap (R3).",
+                        "No independent review ran yet; another run can add one."],
+            "prompt": (f"/plan-validation:validate-plan PLAN: `{output / 'plan.md'}` SPEC: `{output / 'spec.md'}` "
+                       f"FOCUS: Run validation again (run 2 of 3). Previous report: `{output / 'report.md'}`; "
+                       "read it and its context.json first. Run this after the remediation session. "
+                       "Focus on the delay cap fix and the independent review. "
+                       "Do not start dependent implementation."),
+        },
         "scope": {"explanation": "The same one-task fixture is retained; the corrected control adds no requirement.",
                   "approval": "Teaching example only. No real implementation or external-action authorization.",
                   "rows": [{"metric": metric, "original": count, "revised": count, "reason": "Same fixture scope; no plan revision claimed."}
@@ -140,13 +188,19 @@ Do not start dependent implementation. Report results and any defaults chosen, t
     spec = importlib.util.spec_from_file_location("renderer", module_path)
     renderer = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(renderer)
-    page, prompt, current = renderer.render(report, context)
+    # The prompts quote this run's own files, which may sit under a folder with spaces.
+    run_files = {str(path) for file in (output / "report.md", output / "context.json")
+                 for path in (file, file.absolute(), file.resolve())}
+    page, prompt, current, rerun_prompt = renderer.render(report, context, run_files)
     if not current:
         raise SystemExit("Demo document identity check failed")
     for name, content in (("report.md", report), ("report.html", page), ("handoff.txt", prompt + "\n"),
                           ("context.json", json.dumps(context, indent=2) + "\n"),
                           ("evidence.json", json.dumps(evidence, indent=2) + "\n")):
         (output / name).write_text(content, encoding="utf-8")
+    # The demo writes its own files instead of calling the renderer's main, so it writes rerun.txt too.
+    if rerun_prompt is not None:
+        (output / "rerun.txt").write_text(rerun_prompt + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":
