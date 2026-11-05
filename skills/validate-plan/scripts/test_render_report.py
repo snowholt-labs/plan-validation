@@ -1202,11 +1202,12 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 with self.assertRaisesRegex(ValueError, "Document paths must be absolute"):
                     render(source, context)
             # A path that is not a valid file name is rejected by name, not with an encoding traceback.
-            with self.subTest(version=version, documents="surrogate"):
-                context = copy.deepcopy(base)
-                context["documents"][1]["path"] += "\ud800"
-                with self.assertRaisesRegex(ValueError, "valid file names"):
-                    render(source, context)
+            for surrogate in ("\ud800", "\udc80"):
+                with self.subTest(version=version, documents=f"surrogate {surrogate!a}"):
+                    context = copy.deepcopy(base)
+                    context["documents"][1]["path"] += surrogate
+                    with self.assertRaisesRegex(ValueError, "valid file names"):
+                        render(source, context)
             # A path with a NUL character is rejected by name, for either document, never written into the page.
             for index in (0, 1):
                 with self.subTest(version=version, documents=f"nul {index}"):

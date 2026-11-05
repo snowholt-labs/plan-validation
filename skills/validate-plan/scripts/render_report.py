@@ -303,7 +303,8 @@ def context_documents(context):
         if "\0" in doc["path"]:
             raise ValueError("Document paths cannot contain a NUL character")
         try:
-            os.fsencode(doc["path"])
+            # Strict UTF-8, as the page is written: os.fsencode would let U+DC80-U+DCFF through.
+            doc["path"].encode("utf-8")
         except UnicodeError:
             raise ValueError("Document paths must be valid file names (no unpaired surrogate characters)") from None
     return documents
