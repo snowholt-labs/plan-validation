@@ -922,13 +922,14 @@ def prompt_prefix(context, current, pairs):
     return HELD_PREFIX if phases_held(context, current, pairs) else ""
 
 
-# "run validation again first" is excused only right after "not/never need to", "n't need to" or "no need to",
+# "run validation again first" is excused only right after "not/never/n't need to", "not/never/n't have to" or "no need to",
 # as in "You do not need to run validation again first". Any other wording tells the reader to hold the phases.
-RUN_FIRST = re.compile(r"\brun validation again first(?![\w-])", re.I)
+# Underscores around the phrase are emphasis, so they do not hide it; letters, digits or a hyphen next to it do.
+RUN_FIRST = re.compile(r"(?<![A-Za-z0-9])run validation again first(?![A-Za-z0-9-])", re.I)
 RUN_FIRST_EXCUSED = re.compile(r"(?:\b(?:not|never)\s+(?:need|have)\s+to|n['’]t\s+(?:need|have)\s+to|\bno\s+need\s+to)\s+$", re.I)
 
 
-def run_first_note(section, prompts, context):
+def run_first_note(section, prompts, context, run_files=()):
     """A new (version 5) report has no re-run, so section 8 and its prompts never send the reader to one.
 
     Each part (the text around the prompts, and each prompt) is read with its whitespace joined, so a wrapped
@@ -936,11 +937,12 @@ def run_first_note(section, prompts, context):
     """
     if context.get("kind") != "new":
         return
+    names = recorded_names(context, run_files)
     intro = section
     for start, end, _ in reversed(prompts):
         intro = intro[:start] + intro[end:]
     for chunk in [intro] + [text for _, _, text in prompts]:
-        text = spaced(plain(without_paths(chunk, recorded_names(context))))
+        text = spaced(plain(without_paths(chunk, names)))
         for match in RUN_FIRST.finditer(text):
             if not RUN_FIRST_EXCUSED.search(text[:match.start()]):
                 raise ValueError("Section 8 says to run validation again first, but new reports have no re-run; remove that line")
@@ -1155,7 +1157,7 @@ def render(source, context, run_files=()):
             if "validation_run" in context or "rerun" in context:
                 raise ValueError("Version 5 reports have no validation_run or rerun; re-validation was removed")
             fields["rerun"] = None
-        run_first_note(parts[7][1], prompts, context)
+        run_first_note(parts[7][1], prompts, context, run_files)
     handoff = prompts[0][2]
     if context.get("handoff_status") not in {"current", "historical"}:
         raise ValueError("Set handoff_status to current or historical after checking Git state and approvals")

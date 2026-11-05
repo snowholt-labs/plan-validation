@@ -1299,7 +1299,8 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         for other in ("If you do not run validation again first, Phase 1 builds on a stale plan.",
                       "Agents that never run validation again first build on stale plans.",
                       "Do not run validation again first unless the plan changed.",
-                      "Run validation\nagain first.", "Run  validation again\u00a0first."):
+                      "Run validation\nagain first.", "Run  validation again\u00a0first.",
+                      "_Run validation again first_, then start Phase 1.", "__Run validation again first__."):
             with self.subTest(other=other), self.assertRaisesRegex(ValueError, "remove that line"):
                 render(REPORT.replace("Implement the approved scope now.", other + " Implement the approved scope now."),
                        self.modern_context())
@@ -1314,6 +1315,12 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             with self.subTest(text=text):
                 render(REPORT.replace("Implement the approved scope now.", text + " Implement the approved scope now."),
                        self.modern_context())
+        # This run's report.md, quoted exactly, is a name even when its folder holds the phrase.
+        report_md = "/work/run validation again first/report.md"
+        quoted = REPORT.replace("Implement the approved scope now.", f"Read `{report_md}`. Implement the approved scope now.")
+        render(quoted, self.modern_context(), {report_md})
+        with self.assertRaisesRegex(ValueError, "remove that line"):
+            render(quoted, self.modern_context())
 
     def test_section_8_never_says_run_first(self):
         # A new report has no re-run, so any run-first line contradicts the page (the plain line is
