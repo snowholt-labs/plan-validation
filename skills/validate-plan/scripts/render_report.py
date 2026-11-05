@@ -83,8 +83,8 @@ def spaced(text):
 
 
 def implement_instruction(text):
-    """The first form of the verb that is outside a quoted path and not negated earlier on its own line.
-    Every line break (CR and Unicode separators too) ends a negation."""
+    """The first form of the verb outside a quoted path that does not directly follow a negation word
+    on its own line. Every line break (CR and Unicode separators too) ends a negation."""
     text = QUOTED_NAME.sub("path", "\n".join(text.splitlines()))
     for match in IMPLEMENT_VERB.finditer(text):
         if not NEGATION.search(text[:match.start()].rsplit("\n", 1)[-1]):
