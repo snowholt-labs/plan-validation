@@ -821,7 +821,7 @@ def historical_warning_v4(rerun, fingerprints_match, saved):
     if rerun["recommendation"] == "stop":
         # Drift does not override a recorded stop: its reasons say the user decides first.
         advice = limit if rerun["number"] >= MAX_RUNS else (
-            "Do not run more review rounds or another validation yet: the recorded answer is stop; decide the next step yourself.")
+            "The recorded answer is stop, so decide the next step yourself before revalidating; do not run more review rounds.")
     elif saved:
         # Later runs may exist, so a saved report names no run number.
         advice = "Run validation again instead of more review rounds, if the 3-run limit allows."

@@ -1205,7 +1205,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 context["kind"] = kind
                 context["rerun"] = {"recommendation": "stop", "reasons": ["D1 needs the user's decision first."]}
                 page, _, _, _ = render(REPORT.replace("Confidence: 75%", "Confidence: 60%"), context)
-                self.assertIn("the recorded answer is stop", page)
+                self.assertIn("The recorded answer is stop", page)
                 self.assertNotIn("Run validation again (run", page)
                 self.assertNotIn("Run validation again instead", page)
         context["kind"] = "new"
@@ -1732,6 +1732,12 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                      # A modified or non-primary click opens a new tab, so it must not switch this page's panel.
                      "event.button !== 0", "event.ctrlKey", "event.metaKey", "event.shiftKey", "event.altKey"):
             self.assertIn(text, js)
+        # A count card is a link: a plain click chooses its tab without following the link, and a
+        # modified click is left to the browser, like every other link on the page.
+        handler = re.search(r'querySelectorAll\("\[data-open-tab\]"\).*?\n  \}\);', js, re.S).group(0)
+        self.assertLess(handler.index("plainClick(event)"), handler.index("event.preventDefault()"))
+        self.assertLess(handler.index("event.preventDefault()"), handler.index("choose(tab)"))
+        self.assertIn("if (!plainClick(event)) return;", js)
 
     def test_v4_icon_follows_colour_tokens(self):
         icon = (ASSETS / "report-icon.svg").read_text()
