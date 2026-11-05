@@ -2121,7 +2121,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 self.assertNotIn('data-copy-target="summary-handoff', summary)
                 self.assertIn("This is a historical prompt.", summary)
                 self.assertEqual(change == "document", render_report.V5_DRIFT_TEXT in summary)
-                self.assertEqual(change == "status", "Git state or approvals changed after this validation." in summary)
+                self.assertEqual(change == "status", "Git state or approvals changed or could not be checked after this validation." in summary)
                 self.assertNotIn("Revalidate", page)
                 self.assertNotIn("Run validation again", summary)
                 self.assertIn('<pre id="summary-handoff-1"', summary)
