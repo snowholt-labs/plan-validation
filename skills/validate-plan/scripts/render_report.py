@@ -286,18 +286,34 @@ def scores(section):
     return means
 
 
-def document_checks(context):
+def context_documents(context):
+    """The documents list, checked for shape first so a malformed context gets a message, not a traceback."""
     documents = context.get("documents", [])
-    if len(documents) != 2 or {doc.get("label") for doc in documents} != {"PLAN", "SPEC"}:
+    if not isinstance(documents, list) or not all(
+            isinstance(doc, dict) and all(isinstance(doc.get(field), str) for field in ("label", "path", "sha256"))
+            for doc in documents):
+        raise ValueError("Context documents must be a list of objects with label, path and sha256 strings")
+    if len(documents) != 2 or {doc["label"] for doc in documents} != {"PLAN", "SPEC"}:
         raise ValueError("Context must identify exactly PLAN and SPEC")
-    results = []
     for doc in documents:
-        expected = doc.get("sha256", "")
-        if not re.fullmatch(r"[0-9a-f]{64}", expected):
+        if not re.fullmatch(r"[0-9a-f]{64}", doc["sha256"]):
             raise ValueError("Each document needs its full recorded SHA256")
-        path = Path(doc["path"])
-        if not path.is_absolute():
+        if not Path(doc["path"]).is_absolute():
             raise ValueError("Document paths must be absolute")
+        if "\0" in doc["path"]:
+            raise ValueError("Document paths cannot contain a NUL character")
+        try:
+            # Strict UTF-8, as the page is written: os.fsencode would let U+DC80-U+DCFF through.
+            doc["path"].encode("utf-8")
+        except UnicodeError:
+            raise ValueError("Document paths must be valid UTF-8 (no unpaired surrogate characters) so the page can show them") from None
+    return documents
+
+
+def document_checks(context):
+    results = []
+    for doc in context_documents(context):
+        expected, path = doc["sha256"], Path(doc["path"])
         try:
             actual = hashlib.sha256(path.read_bytes()).hexdigest()
         except OSError:
@@ -592,9 +608,8 @@ def rerun_check(context, verdict, confidence, plan_revised, spec_revised):
     if (not isinstance(key, str) or not key.strip() or is_absolute(key) or key.startswith("\\")
             or ".." in re.split(r"[\\/]", key)):
         raise ValueError("validation_run plan_key must be the plan's path relative to the repository root")
-    plans = [doc for doc in context.get("documents", []) if isinstance(doc, dict) and doc.get("label") == "PLAN"]
-    if len(plans) != 1 or not isinstance(plans[0].get("path"), str) \
-            or not plans[0]["path"].replace("\\", "/").endswith("/" + key.replace("\\", "/")):
+    plan = next(doc for doc in context_documents(context) if doc["label"] == "PLAN")
+    if not plan["path"].replace("\\", "/").endswith("/" + key.replace("\\", "/")):
         raise ValueError("validation_run plan_key must end the PLAN document's path")
 
     rerun = context.get("rerun")
@@ -814,20 +829,25 @@ RERUN_STYLE = {"yes": ("chip-wait", "diamond"), "no": ("chip-ok", "circle"), "st
 
 
 def historical_warning_v4(rerun, fingerprints_match, saved):
-    """The historical warning; when the plan or spec changed, it names the re-run instead of more review."""
-    if fingerprints_match:
-        return HISTORICAL_WARNING
+    """The historical warning; when the plan or spec changed, it names the re-run instead of more review.
+    At the run limit or after a recorded stop it says what revalidating takes, whatever drifted."""
     if rerun["number"] >= MAX_RUNS:
-        advice = "Do not run more review rounds: the run limit is reached; decide the next step yourself."
+        # Only after a merge does a phase-only validation of the phases still to build start its own count.
+        advice = ("The run limit is reached for this scope, so revalidating it needs your explicit reset of the run count "
+                  "(once another phase has merged, a phase-only validation of the phases still to build counts separately); "
+                  "do not run more review rounds, and decide the next step yourself.")
     elif rerun["recommendation"] == "stop":
         # Drift does not override a recorded stop: its reasons say the user decides first.
         advice = "The recorded answer is stop, so decide the next step yourself before revalidating; do not run more review rounds."
-    elif saved:
-        # Later runs may exist, so a saved report names no run number.
-        advice = "Run validation again instead of more review rounds, if the 3-run limit allows."
+    elif fingerprints_match:
+        # Only Git state or approvals drifted, so the shared sentence is the whole advice.
+        return HISTORICAL_WARNING
     else:
-        advice = f"Run validation again (run {rerun['number'] + 1} of {MAX_RUNS}) instead of more review rounds."
-    return f'<p class="warning">{HISTORICAL_TEXT} The plan or spec changed or could not be read after this validation. {advice}</p>'
+        # Later runs may exist, so a saved report names no run number.
+        advice = ("Run validation again instead of more review rounds, if the 3-run limit allows." if saved
+                  else f"Run validation again (run {rerun['number'] + 1} of {MAX_RUNS}) instead of more review rounds.")
+    changed = "" if fingerprints_match else " The plan or spec changed or could not be read after this validation."
+    return f'<p class="warning">{HISTORICAL_TEXT}{changed} {advice}</p>'
 
 
 def rerun_label(rerun, recorded):

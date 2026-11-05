@@ -1182,6 +1182,46 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                 with self.assertRaisesRegex(ValueError, "reset"):
                     render(REPORT, context)
 
+    def test_malformed_documents_get_a_message(self):
+        # A malformed context is rejected with a message that names the field, never a traceback.
+        cases = {"v4": (REPORT, self.modern_context()), **self.legacy_cases()}
+        for version, (source, base) in cases.items():
+            plan, spec = base["documents"]
+            fields = [[plan, {key: value for key, value in spec.items() if key != "path"}],
+                      [plan, dict(spec, sha256=5)], [plan, dict(spec, label=["SPEC"])], [plan, dict(spec, path=7)]]
+            for documents in [None, "PLAN", {"label": "PLAN"}, base["documents"] + [42], [plan, None]] + fields:
+                with self.subTest(version=version, documents=documents):
+                    context = copy.deepcopy(base)
+                    context["documents"] = documents
+                    with self.assertRaisesRegex(ValueError, "documents must be a list of objects"):
+                        render(source, context)
+            # A relative path is named as such, not blamed on plan_key, which reads it.
+            with self.subTest(version=version, documents="relative"):
+                context = copy.deepcopy(base)
+                context["documents"][0]["path"] = "PLAN.md"
+                with self.assertRaisesRegex(ValueError, "Document paths must be absolute"):
+                    render(source, context)
+            # A path that is not a valid file name is rejected by name, not with an encoding traceback.
+            for surrogate in ("\ud800", "\udc80"):
+                with self.subTest(version=version, documents=f"surrogate {surrogate!a}"):
+                    context = copy.deepcopy(base)
+                    context["documents"][1]["path"] += surrogate
+                    with self.assertRaisesRegex(ValueError, "valid UTF-8"):
+                        render(source, context)
+            # A path with a NUL character is rejected by name, for either document, never written into the page.
+            for index in (0, 1):
+                with self.subTest(version=version, documents=f"nul {index}"):
+                    context = copy.deepcopy(base)
+                    context["documents"][index]["path"] += "\0"
+                    with self.assertRaisesRegex(ValueError, "cannot contain a NUL character"):
+                        render(source, context)
+            # A missing documents field names the documents, not a field that reads them.
+            with self.subTest(version=version, documents="missing"):
+                context = copy.deepcopy(base)
+                del context["documents"]
+                with self.assertRaisesRegex(ValueError, "exactly PLAN and SPEC"):
+                    render(source, context)
+
     def test_v4_historical_says_rerun(self):
         context = self.modern_context()
         plan = Path(context["documents"][0]["path"])
@@ -1197,18 +1237,20 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         context["rerun"] = {"recommendation": "stop", "reasons": ["The run limit is reached."]}
         page, _, _, _ = render(REPORT, context)
         self.assertNotIn("run 4 of 3", page)
-        self.assertIn("the run limit is reached; decide the next step yourself", page)
+        self.assertIn("The run limit is reached for this scope, so revalidating it needs your explicit reset", page)
         # An earlier recorded stop is not overridden either: the page never offers the next run.
         for kind in ("new", "saved"):
             with self.subTest(kind=kind):
                 context["validation_run"].update(number=1, previous_report=None)
                 context["kind"] = kind
                 context["rerun"] = {"recommendation": "stop", "reasons": ["D1 needs the user's decision first."]}
+                # A firing trigger (confidence below 70%) does not override the recorded stop either.
                 page, _, _, _ = render(REPORT.replace("Confidence: 75%", "Confidence: 60%"), context)
+                self.assertIn("confidence below 70%", page)
                 self.assertIn("The recorded answer is stop", page)
                 self.assertNotIn("Run validation again (run", page)
                 self.assertNotIn("Run validation again instead", page)
-                self.assertNotIn("the run limit is reached", page)
+                self.assertNotIn("run limit is reached", page)
         # At run 3 a saved page states the limit whatever it recorded, and never invites a fourth run.
         context["validation_run"].update(number=3, previous_report="/data/run-2/report.md")
         context["kind"] = "saved"
@@ -1216,9 +1258,8 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             with self.subTest(recommendation=recommendation):
                 context["rerun"] = {"recommendation": recommendation, "reasons": ["The run limit is reached."]}
                 page, _, _, _ = render(REPORT, context)
-                self.assertIn("the run limit is reached; decide the next step yourself", page)
+                self.assertIn("The run limit is reached for this scope, so revalidating it needs your explicit reset", page)
                 self.assertNotIn("Run validation again instead", page)
-        context["kind"] = "new"
         # Git or approval drift alone does not claim the documents changed.
         plan.write_text("PLAN")
         context = self.modern_context()
@@ -1227,6 +1268,18 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         self.assertIn("This is a historical prompt.", page)
         self.assertNotIn("The plan or spec changed", page)
         self.assertNotIn("Run validation again (run", page)
+        self.assertNotIn("run limit is reached", page)
+        # With Git or approval drift alone, the run limit and a recorded stop still say what revalidating takes.
+        for number, recommendation, advice in ((3, "no", "The run limit is reached"), (3, "stop", "The run limit is reached"),
+                                               (1, "stop", "The recorded answer is stop")):
+            with self.subTest(number=number, recommendation=recommendation):
+                context = self.modern_context()
+                context["handoff_status"] = "historical"
+                context["validation_run"].update(number=number, previous_report=f"/data/run-{number - 1}/report.md" if number > 1 else None)
+                context["rerun"] = {"recommendation": recommendation, "reasons": ["Recorded reason."]}
+                page, _, _, _ = render(REPORT, context)
+                self.assertIn(advice, page)
+                self.assertNotIn("The plan or spec changed", page)
 
     def two_phase(self):
         context = self.modern_context()
