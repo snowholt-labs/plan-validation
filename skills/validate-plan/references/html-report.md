@@ -63,7 +63,7 @@ When publishing or an artifact update will run (the `Publish setting` line in `S
 and the Artifact tool and a session scratchpad are available), leave out `--open`
 for a new run, and for an update or a publish on request even when the user asked to see it, and follow "Private artifact (Claude Code, opt-in)" below.
 
-The helper uses only Python's standard library. A version 4 page has a header card,
+The helper uses only Python's standard library. A version 4 or 5 page has a header card,
 a score strip and four tabs: **Summary** (the diagrams, two count cards, the next
 session's phases and first prompt), **Needs your answer** (from `open_decisions`),
 **Watch list** (from `watch_list`) and **Full report** (the eight evidence sections,
@@ -73,7 +73,7 @@ Without JavaScript every panel shows in order and the count card links to the pa
 a link to a section, such as `#section-6`, opens Full report. Print/PDF shows every
 panel, expands details and restores their state afterward. It rejects handoffs longer
 than 80 whitespace-separated words; a backtick-quoted absolute path counts as one word
-(in version 4, a path as the implement rule below defines it, so a quoted slash command
+(in version 4 and later, a path as the implement rule below defines it, so a quoted slash command
 or a quoted path with spaces counts every word, except a PLAN or SPEC `path` or this
 run's `report.md` or `context.json` quoted exactly).
 Target 50–80 words; do not add filler to meet a minimum.
@@ -85,11 +85,11 @@ copy button and prompt download, and prefixes the exported text with a warning.
 Set `handoff_status` to `historical` if Git state or approvals have drifted even
 when the document hashes match. A Not ready prompt must explicitly say
 `Do not start dependent implementation.` and must contain no unnegated `Implement`
-instruction anywhere (version 4 adds the stricter rule for remediation prompts below).
+instruction anywhere (version 4 and later add the stricter rule for remediation prompts below).
 These are structural checks, not a substitute for reviewing the
 evidence, approvals, Git state or the generated report.
 
-Versions 3 and 4 check the phase grouping. The renderer also checks that:
+Versions 3 and later check the phase grouping. The renderer also checks that:
 
 - the phases cover `task_inventory` exactly once, in plan order, with no empty phase;
 - phase IDs are unique ignoring case and safe as file names (1–16 letters, digits,
@@ -98,7 +98,7 @@ Versions 3 and 4 check the phase grouping. The renderer also checks that:
   both true, a security review has a `security_reason`, and a waiting phase names
   what it `waits_for`;
 - once a phase waits, every later phase waits, and a `Ready` verdict has no waiting phase;
-- in version 4, with a `Ready after approvals` verdict, the `waits_for` of a waiting
+- in version 4 and later, with a `Ready after approvals` verdict, the `waits_for` of a waiting
   phase names each open decision that holds back work, by its exact ID (list each
   ID, never a range such as `D1-D3`);
 - section 8 has one fenced prompt per ready phase, in order, each within 80 words and
@@ -107,7 +107,7 @@ Versions 3 and 4 check the phase grouping. The renderer also checks that:
   for the ready phase before it, never negated;
 - a Not ready report, or one whose first phase waits, has exactly one prompt that
   says `Do not start dependent implementation.` and has no `Implement` instruction
-  (in a version 4 report, no `implements` or `implementing` either, also with a `re` or
+  (in a version 4 or later report, no `implements` or `implementing` either, also with a `re` or
   `re-` prefix; any of these forms is allowed right after `not`, `cannot`, `n't`
   (straight or curly) or `never` on the same line, or inside a backtick-quoted absolute
   path with no spaces; a path that starts with `/` needs a first segment without a colon

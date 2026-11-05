@@ -1,6 +1,6 @@
 # Fresh-session handoff
 
-Write one launch prompt per ready phase, each targeting **50–80 words**, with an 80-word maximum for new reports. Fill paths, phase IDs and task lists from verified evidence; leave no placeholders. A shorter prompt is fine when sufficient. Do not paste hashes, test logs, dependency inventories, decision history or workflow instructions into it: those stay in the linked report and repository instructions.
+Write one launch prompt per ready phase, each targeting **50–80 words**, with an 80-word maximum for new reports. Fill paths, phase IDs and task lists from verified evidence; leave no placeholders. A shorter prompt is fine when sufficient. Do not paste hashes, test logs, dependency inventories, decision history or workflow instructions into it: those stay in the linked report, the plan's Phase workflow and repository instructions.
 
 Each prompt names exactly one phase from the phase grouping in `context.json`, in plan order, and stops at the end of that phase. Never expand a phase review to the whole plan. Pasting a prompt requests only the named phase; it grants no additional external-action permissions.
 
@@ -33,7 +33,7 @@ After the first phase, the plan branch has moved: earlier phases are merged into
 
 The implementing session reads the report, not this template, so in section 8 put this one-line note before the prompts when there is more than one phase: `Between phases, earlier phases merged into the plan branch and ticked task checkboxes are expected; compare the plan and spec with revised-plan.md and revised-spec.md in this run directory and reconcile any other change first.`
 
-When an approval is recorded before any phase has merged, apply it and re-render the report as usual. Once earlier phases have merged, do not re-render the old report: the live plan no longer matches its recorded hash, and its merged phases would get prompts again. Instead, validate the remaining phases as a phase-only validation in a new run directory, so the new report groups and prompts only the phases still to build. Keep the earlier report's phase IDs for those phases, so `Confirm Phase [previous] is merged` names a phase the maintainer knows.
+When an approval is recorded before any phase has merged, apply it and re-render the report as usual; a version 4 report is not re-rendered or migrated, so validate the plan again instead (the new run uses version 5). Once earlier phases have merged, do not re-render the old report: the live plan no longer matches its recorded hash, and its merged phases would get prompts again. Instead, validate the remaining phases as a phase-only validation in a new run directory, so the new report groups and prompts only the phases still to build. Keep the earlier report's phase IDs for those phases, so `Confirm Phase [previous] is merged` names a phase the maintainer knows.
 
 ## Ready after approvals and Not ready
 
