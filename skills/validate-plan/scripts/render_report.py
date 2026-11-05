@@ -59,16 +59,39 @@ HISTORICAL_PREFIX = "HISTORICAL PROMPT — DO NOT EXECUTE.\nDocument identity, G
 HISTORICAL_TEXT = ("Document identity, Git state or approvals changed or could not be checked. "
                    "This is a historical prompt. Revalidate the changed scope before using it.")
 HISTORICAL_WARNING = f'<p class="warning">{HISTORICAL_TEXT}</p>'
+RUN_FIRST_NOTE = ('<p class="warning">Run validation again first, with the re-run prompt in the Summary; '
+                  'start a phase only after that run.</p>')
 # Phase IDs become file names, so they cannot contain path separators.
 PHASE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9.-]{0,15}\Z")
 CONFIDENCE_LEVELS = ("High", "Medium", "Low")
 # Any "implement" instruction, except a negated one such as "Do not implement".
 IMPLEMENT = re.compile(r"(?<!not )(?<!n't )(?<!never )\bimplement\b", re.I)
-# The re-run prompt is written even for a historical page, so it also rejects the other verb forms
-# ("implements", "implementing"). Descriptive words such as "implemented" or "implementation" stay allowed.
-IMPLEMENT_ANY = re.compile(r"(?<!not )(?<!n't )(?<!n’t )(?<!never )\bimplement(?:s|ing)?\b", re.I)
+# Version 4 prompts also reject the other verb forms ("implements", "implementing", "reimplement",
+# "re-implement"). Descriptive words such as "implemented" or "implementation" stay allowed.
+IMPLEMENT_VERB = re.compile(r"\b(?:re-?)?implement(?:s|ing)?\b", re.I)
+# Text ending in a negation: "not", "cannot", "n't" (straight or curly) or "never".
+NEGATION = re.compile(r"(?:\b(?:can)?not|[a-z]n['’]t|\bnever)\s+$", re.I)
+# Saved version 1-3 reports keep the negation rule they were rendered with.
+LEGACY_NEGATION = re.compile(r"(?:\bnot|n't|\bnever)\s+$", re.I)
 # Only path-like spans are skipped: no whitespace, or ending in a file extension.
 QUOTED_NAME = re.compile(r"`(?:/|~/|[A-Za-z]:[\\/])(?:[^`\s]*|[^`\n]*\.[A-Za-z0-9]+)`")
+
+
+def spaced(text):
+    """Single spaces, so a wrapped sentence still reads as one."""
+    return re.sub(r"\s+", " ", text)
+
+
+def implement_instruction(text):
+    """The first form of the verb outside a quoted path that does not directly follow a negation word
+    on its own line. Every line break (CR and Unicode separators too) ends a negation."""
+    text = QUOTED_NAME.sub("path", "\n".join(text.splitlines()))
+    for match in IMPLEMENT_VERB.finditer(text):
+        if not NEGATION.search(text[:match.start()].rsplit("\n", 1)[-1]):
+            return match
+    return None
+
+
 MAX_RUNS = 3
 RERUN_RECOMMENDATIONS = ("yes", "no", "stop")
 WATCH_KINDS = ("gap", "limit", "risk", "fixed")
@@ -426,14 +449,12 @@ def phase_status(phase, verdict, current, rerun_first=False):
     return "Run validation again first" if rerun_first else "Can start"
 
 
-def phase_table(phases, verdict, current, first=False):
-    def status(phase):
-        return phase_status(phase, verdict, current, first)
+def phase_table(phases, verdict, current, rerun_first=False):
     rows = ''.join('<tr>' + ''.join(f'<td>{cell}</td>' for cell in (
         escape(phase["id"]) + ': ' + inline(phase["title"]), escape(", ".join(phase["tasks"])),
         "Docs only" if phase["docs_only"] else "Code",
         "Yes — " + inline(phase["security_reason"]) if phase["security_review"] else "No",
-        status(phase))) + '</tr>' for phase in phases)
+        phase_status(phase, verdict, current, rerun_first))) + '</tr>' for phase in phases)
     head = ''.join(f'<th scope="col">{title}</th>' for title in ("Phase", "Tasks", "Kind", "Security review", "Status"))
     return f'<div class="table-scroll" role="region" aria-label="Phase plan" tabindex="0"><table><thead><tr>{head}</tr></thead><tbody>{rows}</tbody></table></div>'
 
@@ -463,7 +484,7 @@ def handoff_prompts(section, version, verdict, context):
             # Every stop sentence names this phase, unnegated. "Phase 1.2", "Phase 1-b" and
             # "Phase 12" are other phases; a sentence-ending period is not.
             own = re.compile(rf"{re.escape(ready[index])}(?![A-Za-z0-9-]|\.[A-Za-z0-9])", re.I)
-            negated = re.compile(r"(?:\bnot|n't|\bnever)\s+$", re.I)
+            negated = NEGATION if version >= 4 else LEGACY_NEGATION
             stops = list(re.finditer(r"\bstop\s+at\s+the\s+end\s+of\s+phase\s+", prompt, re.I))
             if not stops or any(not own.match(prompt, stop.end()) or negated.search(prompt[:stop.start()]) for stop in stops):
                 raise ValueError(f"Phase {ready[index]} prompt must say: Stop at the end of Phase {ready[index]}")
@@ -472,10 +493,19 @@ def handoff_prompts(section, version, verdict, context):
                 checks = list(re.finditer(rf"\bconfirm\s+phase\s+{re.escape(ready[index - 1])}\s+is\s+merged\b", prompt, re.I))
                 if all(negated.search(prompt[:check.start()]) for check in checks):
                     raise ValueError(f"Phase {ready[index]} prompt must say: Confirm Phase {ready[index - 1]} is merged")
-    implement = IMPLEMENT.search(prompts[0][2])
     # With no startable phase, a version 3 or later prompt is a remediation prompt even before Not ready.
-    if (verdict.lower() == "not ready" or (version >= 3 and not ready)) and (implement or "do not start dependent implementation" not in prompts[0][2].lower()):
-        raise ValueError("Not ready requires a remediation prompt stating: Do not start dependent implementation")
+    if verdict.lower() == "not ready" or (version >= 3 and not ready):
+        first = prompts[0][2]
+        if version >= 4:
+            # Like the re-run prompt, for new and saved reports alike; the required sentence may wrap.
+            implement = implement_instruction(first)
+            first = spaced(first)
+        else:
+            implement = IMPLEMENT.search(first)
+        if implement:
+            raise ValueError(f"The remediation prompt cannot contain an Implement instruction: {implement.group(0)}")
+        if "do not start dependent implementation" not in first.lower():
+            raise ValueError("Not ready requires a remediation prompt stating: Do not start dependent implementation")
     return prompts, list(zip(ready, (prompt for _, _, prompt in prompts)))
 
 
@@ -598,6 +628,8 @@ def rerun_check(context, verdict, confidence, plan_revised, spec_revised):
             raise ValueError("A yes rerun recommendation needs a prompt")
         if word_count(prompt) > 80:
             raise ValueError("The rerun prompt must be at most 80 words; wrap paths in backticks")
+        # Compare with single spaces, so a wrapped prompt still says each sentence.
+        joined = spaced(prompt)
         # The next run keeps this run's scope, or it would count under another scope.
         first, last = phases[0]["id"], phases[-1]["id"]
         # Like the merge check, these sentences apply to new prompts; saved prompts stay as written.
@@ -608,20 +640,18 @@ def rerun_check(context, verdict, confidence, plan_revised, spec_revised):
             forms = [rf"Validate only Phases {re.escape(first)}[-–]{re.escape(last)}"]
             if first == last:
                 forms.append(rf"Validate only Phase {re.escape(first)}")
-            if not re.search(rf"(?<![A-Za-z0-9])(?:{'|'.join(forms)})\.(?![A-Za-z0-9])", prompt, re.I):
+            if not re.search(rf"(?<![A-Za-z0-9])(?:{'|'.join(forms)})\.(?![A-Za-z0-9])", joined, re.I):
                 raise ValueError("The rerun prompt of a phase-only validation must say: " + " or ".join(sentences))
         label = f"run {number + 1} of {MAX_RUNS}"
-        if not re.search(rf"\b{label}\b", prompt, re.I):
+        if not re.search(rf"\b{label}\b", joined, re.I):
             raise ValueError(f"The rerun prompt must say {label}")
         # Quoted paths are names, not instructions, even when they contain the word.
-        if IMPLEMENT_ANY.search(QUOTED_NAME.sub("path", prompt)):
+        if implement_instruction(prompt):
             raise ValueError("The rerun prompt cannot contain an Implement instruction")
         order = "Run this after the remediation session." if verdict.lower() == "not ready" else "Run this before starting any phase."
-        # Compare with single spaces, so a wrapped prompt still says the sentence.
-        spaced = re.sub(r"\s+", " ", prompt).lower()
-        if new and order.lower()[:-1] not in spaced:
+        if new and order.lower()[:-1] not in joined.lower():
             raise ValueError(f"The rerun prompt of a {verdict} report must say: {order}")
-        if "do not start dependent implementation" not in prompt.lower():
+        if "do not start dependent implementation" not in joined.lower():
             raise ValueError("The rerun prompt must say: Do not start dependent implementation.")
     return {"number": number, "recommendation": recommendation, "reasons": reasons,
             "prompt": prompt if recommendation == "yes" else None, "triggers": triggers}
@@ -637,8 +667,19 @@ def scope_section(context):
     return '<aside id="scope" class="scope"><h3>Scope &amp; complexity</h3><p>' + inline(scope["explanation"]) + '</p>' + scope_table + '<p><strong>Approval basis.</strong> ' + inline(scope["approval"]) + '</p></aside>'
 
 
+def prompt_toolbar(target, action, current, warning, held=False, ids=False):
+    """A prompt's copy button; the historical warning when not current; the run-first note while held."""
+    if held:
+        return RUN_FIRST_NOTE
+    if not current:
+        return warning
+    button_id, status_id = (' id="copy-prompt"', ' id="copy-status"') if ids else ("", "")
+    return (f'<button{button_id} class="copy-prompt" type="button" data-copy-target="{escape(target)}">{action}</button>'
+            f'<span{status_id} class="copy-status" role="status" aria-live="polite"></span>')
+
+
 def report_sections(parts, version, verdict, prompts, pairs, context, current, marks=None, warning=HISTORICAL_WARNING,
-                    rerun_first=False):
+                    rerun_first=False, hold_phases=False):
     """Return the eight report sections; section 8 holds the prompts and their copy buttons."""
     handoff = prompts[0][2]
     scope_html = scope_section(context)
@@ -659,15 +700,13 @@ def report_sections(parts, version, verdict, prompts, pairs, context, current, m
                 titles = {phase["id"]: phase["title"] for phase in context["phases"]}
                 for phase_id, prompt in pairs:
                     target = escape("handoff-" + phase_id)
-                    toolbar = (f'<button class="copy-prompt" type="button" data-copy-target="{target}">Copy Phase {escape(phase_id)} prompt</button>'
-                               '<span class="copy-status" role="status" aria-live="polite"></span>') if current else warning
+                    toolbar = prompt_toolbar("handoff-" + phase_id, f"Copy Phase {escape(phase_id)} prompt", current, warning, hold_phases)
                     content_html += (f'<h3>Phase {escape(phase_id)}: {inline(titles[phase_id])}</h3><div class="prompt-toolbar">' + toolbar
                                      + f'</div><pre id="{target}" tabindex="0">' + escape(prompt) + '</pre>')
             else:
                 # In version 3 a single prompt is always a remediation prompt.
                 action = "Copy implementation prompt" if verdict.lower().startswith("ready") and version < 3 else "Copy remediation prompt"
-                toolbar = (f'<button id="copy-prompt" class="copy-prompt" type="button" data-copy-target="handoff">{action}</button>'
-                           '<span id="copy-status" class="copy-status" role="status" aria-live="polite"></span>') if current else warning
+                toolbar = prompt_toolbar("handoff", action, current, warning, ids=True)
                 content_html += '<div class="prompt-toolbar">' + toolbar + '</div><pre id="handoff" tabindex="0">' + escape(handoff) + '</pre>'
         else:
             content_html = section_content(content, index) if version >= 2 else markdown(content)
@@ -798,8 +837,8 @@ def rerun_card(rerun, recorded, copyable):
     triggers = ('<p class="rerun-triggers">Triggers: ' + escape(", ".join(rerun["triggers"])) + "</p>") if rerun["triggers"] else ""
     prompt = ""
     if rerun["prompt"] is not None:
-        toolbar = ('<div class="prompt-toolbar"><button class="copy-prompt" type="button" data-copy-target="rerun-prompt">'
-                   'Copy re-run prompt</button><span class="copy-status" role="status" aria-live="polite"></span></div>') if copyable else ""
+        toolbar = ('<div class="prompt-toolbar">' + prompt_toolbar("rerun-prompt", "Copy re-run prompt", True, "")
+                   + "</div>") if copyable else ""
         prompt = (f'<h4 class="prompt-title">Re-run prompt</h4>{toolbar}'
                   f'<pre id="rerun-prompt" tabindex="0">{escape(rerun["prompt"])}</pre>')
     return (f'<div id="rerun" class="card rerun"><h3>{rerun_label(rerun, recorded)}</h3>'
@@ -816,6 +855,8 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
     decisions, watch, phases, rerun = fields["decisions"], fields["watch"], context["phases"], fields["rerun"]
     # A yes outside Not ready asks for another run before any phase starts.
     rerun_first = rerun["recommendation"] == "yes" and verdict.lower() != "not ready"
+    # Current phase prompts wait for that run: no copy button, no download, the re-run card first.
+    hold_phases = bool(current and rerun_first and pairs)
     fingerprints_match = all(matches for _, matches in checks)
     warning = historical_warning_v4(rerun, fingerprints_match, context["kind"] == "saved")
 
@@ -833,7 +874,7 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
     pills_html = '<ul class="pills" role="list">' + "".join(f"<li>{pill}</li>" for pill in pills) + "</ul>"
     notes = "".join('<p class="note-title"><strong>' + escape(note["title"]) + "</strong></p><p>" + inline(note["body"]) + "</p>" for note in context.get("notes", []))
     notes_html = f'<div class="notes">{notes}</div>' if notes else ""
-    prompt_download = '<a href="handoff.txt" download>Prompt .txt</a>' if current else ""
+    prompt_download = '<a href="handoff.txt" download>Prompt .txt</a>' if current and not hold_phases else ""
     hero = (f'<header class="hero"><div class="hero-text"><p class="kicker">{kicker}</p><h1>{heading}</h1>'
             f'<p class="lead">{inline(context["summary"])}</p>{pills_html}'
             f'<p class="freshness">{escape(freshness_state(4, fingerprints_match, current))} {inline(context["freshness"])}</p>{notes_html}'
@@ -866,7 +907,7 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
     figures = '<div class="figs">' + "".join(render_diagram(diagram, index) for index, diagram in enumerate(fields["diagrams"], 1)) + "</div>"
     counts = ('<div class="counts">'
               + count_card("answer", decisions, "needs your answer", "need your answer", "Decisions", "No approvals are pending", answer_hint(decisions))
-              + count_card("watch", watch, "gap on the watch list", "gaps on the watch list", "Watch list", "No gaps, limits or risks recorded", watch_hint(watch))
+              + count_card("watch", watch, "item on the watch list", "items on the watch list", "Watch list", "No gaps, limits or risks recorded", watch_hint(watch))
               + "</div>")
     cards = []
     for phase in phases:
@@ -885,13 +926,14 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
         target, action, prompt_title = "summary-handoff-" + phase_id, f"Copy Phase {escape(phase_id)} prompt", f"Phase {escape(phase_id)} prompt"
     else:
         prompt, target, action, prompt_title = prompts[0][2], "summary-handoff", "Copy remediation prompt", "Remediation prompt"
-    toolbar = (f'<button class="copy-prompt" type="button" data-copy-target="{escape(target)}">{action}</button>'
-               '<span class="copy-status" role="status" aria-live="polite"></span>') if current else warning
+    toolbar = prompt_toolbar(target, action, current, warning, hold_phases)
     next_session = (f'<div class="card next"><h3>Next session</h3><ul class="phase-cards" role="list">{"".join(cards)}</ul>'
                     f'<h4 class="prompt-title">{prompt_title}</h4><div class="prompt-toolbar">{toolbar}</div>'
                     f'<pre id="{escape(target)}" tabindex="0">{escape(prompt)}</pre>'
                     '<p><a href="#section-8">All prompts: Full report, section 8</a></p></div>')
-    panels = [panel("summary", "Summary", figures + counts + next_session + rerun_card(rerun, recorded, context["kind"] == "new"))]
+    rerun_html = rerun_card(rerun, recorded, context["kind"] == "new")
+    ordered = rerun_html + next_session if hold_phases else next_session + rerun_html
+    panels = [panel("summary", "Summary", figures + counts + ordered)]
 
     if decisions:
         head = "".join(f'<th scope="col">{title}</th>' for title in ("ID", "Question", "Recommendation", "Confidence", "Holds back"))
@@ -911,7 +953,7 @@ def page_v4(context, fields, parts, verdict, confidence, plan, spec, prompts, pa
         panels.append(panel("watch", "Watch list", f'<div class="watch-grid">{items}</div>'))
 
     marks = [mark(SECTION_SHAPES[index % len(SECTION_SHAPES)]) for index in range(8)]
-    sections_html = "".join(report_sections(parts, 4, verdict, prompts, pairs, context, current, marks, warning, rerun_first))
+    sections_html = "".join(report_sections(parts, 4, verdict, prompts, pairs, context, current, marks, warning, rerun_first, hold_phases))
     panels.append(panel("full", "Full report", sections_html + defaulted_decisions(context["decisions_without_reply"]) + identity_details(checks, context)))
 
     return f'''<!doctype html>

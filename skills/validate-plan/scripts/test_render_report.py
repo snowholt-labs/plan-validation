@@ -366,6 +366,26 @@ class ReportTests(unittest.TestCase):
             "Implement the approved scope now.", "Do not implement Task 2. Do not start dependent implementation.")
         self.assertIn("Copy remediation prompt", render(source, self.stop_rerun(self.modern_context()))[0])
 
+    def test_v4_remediation_prompt_rejects_every_implement_form(self):
+        not_ready = REPORT.replace("**Ready.**", "**Not ready.**")
+        for instruction in ("Start implementing Phase 1.", "The fix implements Task 2.",
+                            "Fix `/repo/a\nStart implementing Phase 1 now.md`.", "Keep D1 or not\nImplement Phase 1.",
+                            "Reimplement Phase 1.", "Keep D1 or not\u2028Implement Phase 1.", "Keep D1 or not\rImplement Phase 1."):
+            source = not_ready.replace("Implement the approved scope now.", instruction + " Do not start dependent implementation.")
+            with self.subTest(instruction=instruction), self.assertRaisesRegex(ValueError, "remediation prompt"):
+                render(source, self.stop_rerun(self.modern_context()))
+        # A quoted path, a curly or tabbed negation and a wrapped sentence are not instructions,
+        # and a saved re-render accepts and rejects exactly what the new report did.
+        source = not_ready.replace("Implement the approved scope now.",
+                                   "Fix `/repo/implementing/plan.md`. Don’t implement Task 2. Do not\timplement Task 3. "
+                                   "Do not\u00a0reimplement Task 4. Never re-implement Task 5. Do not start dependent\n  implementation.")
+        saved = self.stop_rerun(self.modern_context())
+        saved["kind"] = "saved"
+        for context in (self.stop_rerun(self.modern_context()), saved):
+            self.assertIn("Copy remediation prompt", render(source, context)[0])
+        with self.assertRaisesRegex(ValueError, "remediation prompt"):
+            render(not_ready.replace("Implement the approved scope now.", "Start implementing Phase 1. Do not start dependent implementation."), saved)
+
     def test_backticks_around_prose_do_not_bypass_the_word_limit(self):
         source = REPORT.replace("Implement the approved scope now.", "`" + "detail " * 81 + "` now.")
         with self.assertRaisesRegex(ValueError, "80 words"):
@@ -941,8 +961,19 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         # A Ready report's phase prompts wait for the re-run, or a phase starts on a plan the run may change.
         low = REPORT.replace("Confidence: 75%", "Confidence: 65%")
         page = render(low, self.rerun_yes(self.modern_context(), self.RERUN_PROMPT.replace("this before", "this\n  before")))[0]
-        self.assertIn("Run validation again first", self.panel(page, "summary"))
+        summary = self.panel(page, "summary")
+        self.assertIn("Run validation again first", summary)
         self.assertNotIn("Can start", page)
+        # No phase prompt can be copied before the re-run, and the re-run card comes before the next session.
+        self.assertNotIn("Copy Phase", page)
+        self.assertNotIn('href="handoff.txt"', page)
+        self.assertIn("Copy re-run prompt", summary)
+        self.assertLess(summary.index('id="rerun"'), summary.index("Next session"))
+        self.assertIn(render_report.RUN_FIRST_NOTE, self.panel(page, "full"))
+        # Without the yes, the phase prompts keep their copy buttons.
+        page = render(low, self.stop_rerun(self.modern_context()))[0]
+        self.assertIn("Copy Phase 1 prompt", page)
+        self.assertIn('href="handoff.txt"', page)
         with self.assertRaisesRegex(ValueError, "before starting any phase"):
             render(REPORT.replace("Confidence: 75%", "Confidence: 65%"),
                    self.rerun_yes(self.modern_context(), self.RERUN_PROMPT.replace(" Run this before starting any phase.", "")))
@@ -978,6 +1009,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             "Implement": self.RERUN_PROMPT + " Implement Phase 1.",
             "implementing": self.RERUN_PROMPT + " Then start implementing Phase 1.",
             "quoted instruction": self.RERUN_PROMPT + " Then `/x Implement Phase 1 now` please.",
+            "split quote": self.RERUN_PROMPT + " Fix `/repo/a\nStart implementing Phase 1 now.md`.",
             "Do not start dependent implementation": self.RERUN_PROMPT.replace(" Do not start dependent implementation.", ""),
         }
         for name, prompt in cases.items():
@@ -987,10 +1019,20 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                     del context["rerun"]["prompt"]
                 else:
                     context["rerun"]["prompt"] = prompt
-                with self.assertRaisesRegex(ValueError, "Implement" if name in ("implementing", "quoted instruction") else name):
+                with self.assertRaisesRegex(ValueError, "Implement" if name in ("implementing", "quoted instruction", "split quote") else name):
                     render(REPORT, context)
         # A negated mention, with a typographic apostrophe too, is not an instruction.
         render(REPORT, self.rerun_yes(self.modern_context(), self.RERUN_PROMPT + " Don’t implement anything."))
+        # Every sentence check reads a wrapped prompt as one line.
+        wrapped = self.RERUN_PROMPT.replace("run 2 of 3", "run 2\n  of 3").replace("dependent implementation", "dependent\n  implementation")
+        render(REPORT, self.rerun_yes(self.modern_context(), wrapped))
+        # A "not" closing one line does not excuse an instruction on the next.
+        with self.assertRaisesRegex(ValueError, "Implement"):
+            render(REPORT, self.rerun_yes(self.modern_context(), self.RERUN_PROMPT + " Keep D1 or not\nImplement Phase 1."))
+        # A raw CR from context.json ends a line too, and a word that only ends in "not" is no negation.
+        for tail in (" Keep D1 or not\rImplement Phase 1.", " Call isNot implement Phase 1.", " Do n’t implement Phase 1."):
+            with self.subTest(tail=tail), self.assertRaisesRegex(ValueError, "Implement"):
+                render(REPORT, self.rerun_yes(self.modern_context(), self.RERUN_PROMPT + tail))
         # Paths are names, not instructions, even when they contain the word.
         render(REPORT, self.rerun_yes(self.modern_context(), self.RERUN_PROMPT.replace(
             "`/repo/PLAN.md`", "`/repo/docs/implementation plan.md`").replace(
@@ -1198,11 +1240,24 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                     render(bad, context)
         render(source.replace("Stop at the end of Phase 2;", "Stop at the end of Phase 2."), context)
         render(source.replace("Stop at the end of Phase 1 and", "Stop at the end of\nPhase 1 and"), context)
+        # A curly apostrophe negates like a straight one.
+        with self.assertRaisesRegex(ValueError, "Stop at the end of Phase 1"):
+            render(source.replace("Stop at the end of Phase 1 and", "Don’t stop at the end of Phase 1 and"), context)
+        with self.assertRaisesRegex(ValueError, "Stop at the end of Phase 1"):
+            render(source.replace("Stop at the end of Phase 1 and", "You cannot stop at the end of Phase 1 and"), context)
+
+    def test_saved_v3_keeps_its_negation_rule(self):
+        # The wider version 4 negation set must not reject a saved version 3 report that rendered before.
+        source, context = self.legacy_cases()["v3-two-phases"]
+        for negated in ("Don’t stop at the end of Phase 1 and", "You cannot stop at the end of Phase 1 and"):
+            with self.subTest(negated=negated):
+                render(source.replace("Stop at the end of Phase 1 and", "Stop at the end of Phase 1. " + negated), context)
 
     def test_later_prompt_must_confirm_the_previous_phase_is_merged(self):
         source, context = self.two_phase()
         for bad in ("Confirm Phase 1 is committed.", "Confirm Phase 12 is merged.", "Confirm Phase 1.2 is merged.",
-                    "Confirm Phase 1-b is merged.", "Do not confirm Phase 1 is merged.", "Never confirm Phase 1 is merged.", ""):
+                    "Confirm Phase 1-b is merged.", "Do not confirm Phase 1 is merged.", "Never confirm Phase 1 is merged.",
+                    "Don’t confirm Phase 1 is merged.", ""):
             with self.subTest(bad=bad):
                 with self.assertRaisesRegex(ValueError, "Confirm Phase 1 is merged"):
                     render(source.replace("Confirm Phase 1 is merged.", bad), context)
@@ -1233,7 +1288,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         _, prompt, _, _ = render(waiting, context)
         self.assertIn("Do not start dependent implementation.", prompt)
         self.assertEqual(phase_handoffs(waiting, context), [])
-        with self.assertRaisesRegex(ValueError, "Do not start dependent implementation"):
+        with self.assertRaisesRegex(ValueError, "cannot contain an Implement instruction"):
             render(waiting.replace("Record D1, then", "Implement Phase 1, then"), context)
 
     def test_every_phase_prompt_has_the_word_limit(self):
@@ -1581,7 +1636,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
             self.assertIn('href="#section-6"', row)
         summary = self.panel(page, "summary")
         self.assertIn('<button class="count" type="button" data-open-tab="answer"><strong>2</strong>', summary)
-        self.assertIn('<button class="count" type="button" data-open-tab="watch"><strong>4</strong>', summary)
+        self.assertIn('<button class="count" type="button" data-open-tab="watch"><strong>4</strong><span>items on the watch list</span>', summary)
         self.assertNotIn("Approve it.", summary)
         cards = re.findall(r'<article class="watch watch-(\w+)">(.*?)</article>', self.panel(page, "watch"), re.S)
         self.assertEqual([kind for kind, _ in cards], ["gap", "limit", "risk", "fixed"])
