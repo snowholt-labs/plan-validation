@@ -1,5 +1,21 @@
 # Release verification
 
+## 0.5.0 release checks
+
+Checked on 5 November 2026 on Linux, using Python 3.14.4 and Claude Code 2.1.318. These are package checks on the release branch; they are not publication or live-plugin acceptance results.
+
+| Check | Observed result | Evidence and limit |
+| --- | --- | --- |
+| Renderer regression suite | 163 tests passed | Includes the format version 4 page and diagram checks, the re-run recommendation and run-limit rules, held phase prompts, malformed `documents` rejection and the tightened prompt word checks; saved version 1–3 output stays frozen; rendering tests do not establish model behavior |
+| Package and local documentation links | Passed | Three skills, 5 SVG icons and 49 Markdown files checked; plugin, marketplace and Codex manifests agree at 0.5.0; the `publish_artifact` setting defaults to `false` |
+| Claude plugin validation | Passed with one warning | Both `claude plugin validate` commands pass without `--strict`; the warning is that the repository's root `CLAUDE.md` is not loaded as plugin context, which is expected because it is contributor guidance, and makes `--strict` fail |
+| Retry demonstration | Three tests with one expected failure; corrected control has three passing tests | Existing authored fixture and renderer executed; the demo report renders as format version 4; not an effectiveness benchmark |
+| Documentation site | 47 tests passed; 14 pages built | The built header shows version 0.5.0 and the changelog page shows the 0.5.0 entry |
+
+Publishing a report as a claude.ai artifact, the re-run recommendation and run counting, and the version 4 page in a real desktop browser have not been measured in a live Claude Code or Codex session.
+
+GitHub release publication, a directory security scan, reviewer approval and a live listing remain distinct states. No directory scan of 0.5.0 is recorded here; a scan of an earlier version is not a scan of 0.5.0.
+
 ## 0.4.0 release checks
 
 Checked on 25 October 2026 on Linux, using Python 3.14.4 and Claude Code 2.1.310. These are package checks on the release branch; they are not publication or live-plugin acceptance results.
