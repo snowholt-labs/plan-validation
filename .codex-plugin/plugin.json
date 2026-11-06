@@ -15,7 +15,7 @@
     "shortDescription": "Validate implementation plans before work starts",
     "developerName": "Nariman Jafari (Lumina)",
     "category": "Developer Tools",
-    "websiteURL": "https://github.com/snowholt-labs/plan-validation",
+    "websiteURL": "https://snowholt-labs.github.io/plan-validation/",
     "brandColor": "#873F63",
     "composerIcon": "./assets/plan-validation-small.svg",
     "logo": "./assets/plan-validation.svg",
