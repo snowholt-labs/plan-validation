@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- An end-of-run answer that edits the plan or spec is now rehearsed again where it changed a rehearsed task's commands, files or test assertions, checked by a fresh independent reviewer, and recorded in the same run. The run hashes only the copies the reviewer read (`post-answer-plan.md`, `post-answer-spec.md`) and detects hand edits made during the round, so the re-rendered phase prompts stay current. A finding that needs approval becomes a pending approval, with no second question round; without a reviewer, or when the rehearsal cannot run, the report is Not ready. Answers given after the run's final reply still re-render locally, and validating the revised plan gives current prompts.
+- With publishing on, the end-of-run re-render updates the run's own artifact even when `artifact.json` is missing, using the URL this run's own publish returned, then writes `artifact.json`. It never publishes a second artifact. When the page cannot be updated, the reply says in one line that the online page shows an earlier render whose prompts may be out of date.
+- When the end-of-run re-render does not update an online page (publishing off or unavailable, no known link, or the update failed), it reopens the report in the browser with `--open`.
+
 ## 0.6.0 — 2026-11-05
 
 - New reports use format version 5: version 4 without the re-run recommendation, the run count, `rerun.txt` or held prompts. The renderer rejects `validation_run` and `rerun` in a version 5 context and rejects "run validation again first" in a new report's section 8 unless it is excused, as in "do not need to run validation again first". The historical warning says what changed and to reconcile it before building, or validate the changed scope again, and names no run number or limit. Saved version 4 reports render exactly as before, with their re-run card, run number and held prompts.
