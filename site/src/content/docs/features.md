@@ -22,7 +22,7 @@ Finds the right plan and specification copies and prepares a complete `validate-
 
 ### validate-plan
 
-Reviews and revises the selected plan and specification, rehearses them, has them independently reviewed, and delivers an HTML report. It changes the selected planning documents, disposable rehearsal files and local report files. In Claude Code, an off-by-default setting also publishes each new report to your claude.ai account as a private artifact. It leaves the planning documents uncommitted and does not ship the feature.
+Reviews and revises the selected plan and specification, rehearses them, and runs an independent review loop until no Medium or High finding remains, all in one run. It then delivers an HTML report and asks you one round of questions at the end: the approvals it needs and the Low findings to fix or skip. Your answers are applied and the report re-renders in the same run; validation no longer recommends running it again. When the plan has no Phase workflow section, it adds one that every phase session follows. It changes the selected planning documents, disposable rehearsal files and local report files. In Claude Code, an off-by-default setting also publishes each new report to your claude.ai account as a private artifact. It leaves the planning documents uncommitted and does not ship the feature.
 
 ### revise-prompt
 
