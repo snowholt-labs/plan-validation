@@ -57,7 +57,7 @@ Older contexts without a format version still render through the legacy format. 
 
 Validation does not ask you to run it again. Within one run, an independent reviewer checks the revised plan and spec, the agent fixes verified Medium and High findings, and review runs again until none remain. A finding whose fix would change requirements, architecture, security boundaries or scope is not fixed; it becomes a pending approval. Low findings are listed.
 
-At the end, the agent asks one round of questions: each pending approval with its recommendation, and the Low findings to fix or skip. It applies your answers, re-renders the report in the same run, and updates the artifact this run published, if any. An unanswered question stays pending in the report, never approved.
+At the end, the agent asks one round of questions: each pending approval with its recommendation, and the Low findings to fix or skip. It applies your answers, re-renders the report in the same run, and updates the artifact this run published, if any. An unanswered question stays pending in the report, never approved. See [Known issues](/plan-validation/safety-and-limitations/#known-issues) for answers that edit the plan or spec, and for a run with no `artifact.json`.
 
 - After a Not ready report, use the remediation prompt first, then validate the fixed plan to get phase prompts.
 - An answer recorded later re-renders the same report, or, once earlier phases have merged, starts a phase-only validation of the remaining phases.
