@@ -49,10 +49,10 @@ Research never authorizes package downloads, dependency execution/replacement, m
 - Cross-platform behavior and live Codex plugin installation need further verification.
 - Third-party marketplace inclusion is a separate process. Public GitHub availability does not imply endorsement or official directory acceptance.
 
+For a suspected vulnerability, use the repository's [security reporting route](https://github.com/snowholt-labs/plan-validation/security/advisories/new).
+
 ## Known issues
 
 - When end-of-run answers edit the plan or spec, the recorded document hashes are not refreshed and no fresh independent reviewer checks those edits (the agent still rechecks them), so the re-rendered prompts are historical. Validate the changed scope again to get current prompts.
-- If a run published a private artifact but saved no `artifact.json`, the end-of-run answers do not update the artifact, and the end-of-run reply does not say so. Use the local `report.html`, or ask the skill to update the artifact and give its URL.
+- If a run published a private artifact but saved no `artifact.json`, the end-of-run answers do not update the artifact, and the end-of-run reply does not say so. Use the local `report.html`, or, with publishing still on, ask the skill to update the artifact and give its URL.
 - When the end-of-run answers do not update an artifact, the browser does not reopen, and a tab the first render opened still shows the report from before the answers. Reload it, or open the `report.html` link.
-
-For a suspected vulnerability, use the repository's [security reporting route](https://github.com/snowholt-labs/plan-validation/security/advisories/new).
