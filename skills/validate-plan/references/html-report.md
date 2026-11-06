@@ -399,8 +399,9 @@ example with a re-render of a run whose directory has `artifact.json`; a plain
 re-render, including one after a recorded answer, stays local, like any saved report.
 The one exception is the end-of-run re-render in the same run (SKILL.md workflow step 8):
 after the user's answers to the end-of-run questions, it updates this run's own artifact
-through the update steps below without being asked. A run with no `artifact.json` is
-neither updated nor published again then; the reply says in one line that the artifact was not updated.
+through the update steps below without being asked. A run that published but has no
+`artifact.json` is neither updated nor published again then; the reply says in one line that the
+artifact was not updated, with the artifact link when the session has it.
 When asked, and the line still reads exactly `true`, update that artifact instead of
 creating a new one. If the run has no `artifact.json` and the user gives no artifact
 URL, follow steps 1–7 as a first publish instead. For an update, follow steps 1–3,
