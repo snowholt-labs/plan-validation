@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.0 — 2026-11-05
 
 - New reports use format version 5: version 4 without the re-run recommendation, the run count, `rerun.txt` or held prompts. The renderer rejects `validation_run` and `rerun` in a version 5 context and rejects "run validation again first" in a new report's section 8 unless it is excused, as in "do not need to run validation again first". The historical warning says what changed and to reconcile it before building, or validate the changed scope again, and names no run number or limit. Saved version 4 reports render exactly as before, with their re-run card, run number and held prompts.
 - Validation now runs an independent review loop within one run: a fresh reviewer checks the revised plan and spec, verified Medium and High findings are fixed and reviewed again until none remain, a finding whose fix would change requirements, architecture, security boundaries or scope becomes a pending approval, and Low findings are listed. At the end of the run, the agent asks one round of questions (pending approvals, and Low findings to fix or skip), applies the answers and re-renders the report in the same run, updating the artifact that run published.
