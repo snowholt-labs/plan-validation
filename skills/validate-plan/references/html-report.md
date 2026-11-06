@@ -58,7 +58,9 @@ python3 <skill-directory>/scripts/render_report.py --report <run-directory>/repo
 ```
 
 Leave out `--open` when re-rendering a report (a saved report, or the same run after a
-recorded answer) unless the user asked to see it again.
+recorded answer) unless the user asked to see it again. The one exception is the
+end-of-run re-render in the same run (SKILL.md workflow step 8): it adds `--open`
+whenever it does not update the online page, as "Private artifact" below describes.
 When publishing or an artifact update will run (the `Publish setting` line in `SKILL.md` reads exactly `true`,
 and the Artifact tool and a session scratchpad are available), leave out `--open`
 for a new run, and for an update or a publish on request even when the user asked to see it, and follow "Private artifact (Claude Code, opt-in)" below.
@@ -340,7 +342,9 @@ Provide a clickable absolute link
 to `report.html`; a short local preview URL may accompany it. If serving locally,
 bind to `127.0.0.1`, serve only this report directory, and keep that preview alive.
 No dependency install or external hosting is needed. Render a new run's report with `--open`,
-except when it is published (below); a re-render opens only when the user asked;
+except when it is published (below); a re-render opens only when the user asked,
+except the end-of-run re-render, which opens whenever it does not update the online
+page (below);
 keep the clickable absolute link to `report.html` either way, and when the renderer
 prints `"opened": false`, do not say the report was opened.
 
@@ -366,8 +370,8 @@ available in this session (a deferred tool that can be loaded counts) and the se
 has a scratchpad directory; check all three before rendering, for a new run and for
 an update or a publish on request below. If the line reads `true` but the tool or the scratchpad is missing,
 say in one line that publishing is unavailable and deliver the report locally: with
-`--open` for a new run, and for an update or a publish on request only when the user
-asked to see it. Never copy report files into the repository or another working directory to
+`--open` for a new run and for the end-of-run re-render, and for any other update or
+a publish on request only when the user asked to see it. Never copy report files into the repository or another working directory to
 publish them. Publish a `kind: saved` report only when the user asks. If the user asks to publish
 while the line is not exactly `true`, say in one line that publishing is off. In a Claude Code plugin install the user can
 turn it on in `/config` and start a new session; Codex and standalone skill installs
@@ -404,10 +408,31 @@ example with a re-render of a run whose directory has `artifact.json`; a plain
 re-render, including one after a recorded answer, stays local, like any saved report.
 The one exception is the end-of-run re-render in the same run (SKILL.md workflow step 8):
 after the user's answers to the end-of-run questions, it updates this run's own artifact
-through the update steps below without being asked.
+through the update steps below without being asked:
+
+- The publish gate still applies. First check, as for any update, that the line
+  reads exactly `true` and the Artifact tool and a session scratchpad are available.
+- With `artifact.json`, update its `url`.
+- Without `artifact.json`, use the URL this session holds from this run's successful
+  upload: the `url` the Artifact tool returned to this run's own publish call, never
+  one found by listing artifacts or rebuilt from memory. Read it first if the
+  Artifact tool requires, follow the same update steps, then write `artifact.json`
+  with that `url` and the new `published_at` and `html_sha256`.
+- If no such URL is known, a check fails or the update fails, say in one line that
+  the online page shows the earlier render and its prompts may be out of date, and
+  give the artifact link when known and the local `report.html` link.
+- It never publishes a first artifact: no quickstart and no publish without `url`.
+- Decide before rendering whether an update will be tried: the checks pass and
+  `artifact.json` or that URL is known. If not, including when this run did not
+  publish, render once with `--open`. If it will be tried, render without `--open`,
+  because the upload needs the rendered files; only when the update then fails, run
+  the same render command again with `--open`. When the online page is updated, the
+  re-render stays without `--open` and the reply gives the artifact link first.
+
 When asked, and the line still reads exactly `true`, update that artifact instead of
-creating a new one. If the run has no `artifact.json` and the user gives no artifact
-URL, follow steps 1–7 as a first publish instead. For an update, follow steps 1–3,
+creating a new one. If the user asks to publish, the run has no `artifact.json` and
+the user gives no artifact URL, follow steps 1–7 as a first publish instead; the
+end-of-run re-render never does. For an update, follow steps 1–3,
 skip the quickstart, and in step 5 publish with `url` set to the URL in
 `artifact.json` and without `icon`. Render without `--open` even when the user asked
 to see the report; the artifact link takes its place. In a later session, first
@@ -419,7 +444,8 @@ and sets each listed `handoff-phase-<id>.txt` the re-render no longer wrote to `
 After a successful update, rewrite `artifact.json` with the same `url` and the new
 `published_at` and `html_sha256`, and reply as in step 7. If the stored URL can no
 longer be read, say so in one line, leave `artifact.json` unchanged and deliver the
-report locally; publish a new artifact and replace `artifact.json` only when the user
+report locally (for the end-of-run re-render, run the same render command again with
+`--open`); publish a new artifact and replace `artifact.json` only when the user
 asks. A new validation run always creates a new artifact.
 
 When you give a saved artifact link without publishing, compare its `html_sha256`
@@ -430,9 +456,9 @@ local report.
 
 If a step before the upload, or the upload itself, fails, say so in one line, do not
 retry the same call and do not write `artifact.json`. Then deliver the report locally
-and give the local link: for a new run, run the same render command again with
-`--open`; for an update or a publish on request, add `--open` only when the user asked
-to see the report. If
+and give the local link: for a new run or the end-of-run re-render, run the same render
+command again with `--open`; for any other update or a publish on request, add
+`--open` only when the user asked to see the report. If
 the upload succeeded but a later step failed, still give the artifact link first and
 the local link second, and say in one line which step failed. If `artifact.json` was
 not written, say so and keep the artifact URL in the reply. If the user later asks to
