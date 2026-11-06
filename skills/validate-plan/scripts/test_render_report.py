@@ -1307,7 +1307,8 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
                        self.modern_context())
         for negated in ("You do not need to run validation again first.", "There is no need to run validation again first.",
                         "You don’t have to run validation again first.", "You do not need to\nrun validation again first.",
-                        "_You do not need to_ run validation again first."):
+                        "_You do not need to_ run validation again first.", "You never have to run validation again first.",
+                        "You don't need to run validation again first."):
             with self.subTest(negated=negated):
                 render(REPORT.replace("Implement the approved scope now.", negated + " Implement the approved scope now."),
                        self.modern_context())

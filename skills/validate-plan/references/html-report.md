@@ -116,9 +116,10 @@ Versions 3 and later check the phase grouping. The renderer also checks that:
   with spaces is text too, except a PLAN or SPEC `path`, this run's `report.md` or
   `context.json` quoted exactly);
 - in a new (version 5) report, neither section 8 nor its prompts say `run validation
-  again first` unless an excuse the renderer accepts comes right before it: `not`, `never` or `n't`
-  (straight or curly apostrophe) directly followed by `need to` or `have to` (as in `do not need to`, `don't have to`), or `no need to`.
-  `Do not run validation again first` is rejected, so reword it: a new report has no re-run. A `kind: saved` report keeps section 8 as its run wrote it.
+  again first` unless one of these comes right before it: `not`, `never`, `n't` or
+  `n’t`, followed by `need to` or `have to` (as in `do not need to`, `don't have to`),
+  or `no need to`. `Do not run validation again first` is rejected, so reword it: a new
+  report has no re-run. A `kind: saved` report keeps section 8 as its run wrote it.
 
 Section 8 shows the phase table above the prompts, and each phase prompt has its
 own copy button. The Summary repeats the first ready prompt (or the single
