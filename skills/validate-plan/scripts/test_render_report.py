@@ -1295,7 +1295,7 @@ D1: Pending. Recommendation: keep existing. Decision confidence: Medium.
         prompt = "Run validation again first, with the re-run prompt in rerun.txt. Implement the approved scope now."
         with self.assertRaisesRegex(ValueError, "remove that line"):
             render(REPORT.replace("Implement the approved scope now.", prompt), self.modern_context())
-        # Only "need to" negations right before the phrase excuse it; a wrapped or spaced phrase still counts.
+        # Only "need to" or "have to" negations, or "no need to", right before the phrase excuse it; a wrapped or spaced phrase still counts.
         for other in ("If you do not run validation again first, Phase 1 builds on a stale plan.",
                       "Agents that never run validation again first build on stale plans.",
                       "Do not run validation again first unless the plan changed.",

@@ -117,7 +117,7 @@ Versions 3 and later check the phase grouping. The renderer also checks that:
   `context.json` quoted exactly);
 - in a new (version 5) report, neither section 8 nor its prompts say `run validation
   again first` unless an excuse the renderer accepts comes right before it: `not`, `never` or `n't`
-  followed by `need to` or `have to` (as in `do not need to`, `don't have to`), or `no need to`.
+  (straight or curly apostrophe) directly followed by `need to` or `have to` (as in `do not need to`, `don't have to`), or `no need to`.
   `Do not run validation again first` is rejected, so reword it: a new report has no re-run. A `kind: saved` report keeps section 8 as its run wrote it.
 
 Section 8 shows the phase table above the prompts, and each phase prompt has its
@@ -399,9 +399,7 @@ example with a re-render of a run whose directory has `artifact.json`; a plain
 re-render, including one after a recorded answer, stays local, like any saved report.
 The one exception is the end-of-run re-render in the same run (SKILL.md workflow step 8):
 after the user's answers to the end-of-run questions, it updates this run's own artifact
-through the update steps below without being asked. A run that published but has no
-`artifact.json` is neither updated nor published again then; the reply says in one line that the
-artifact was not updated, with the artifact link when the session has it.
+through the update steps below without being asked.
 When asked, and the line still reads exactly `true`, update that artifact instead of
 creating a new one. If the run has no `artifact.json` and the user gives no artifact
 URL, follow steps 1–7 as a first publish instead. For an update, follow steps 1–3,
