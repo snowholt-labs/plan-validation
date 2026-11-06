@@ -15,7 +15,7 @@ The validator groups the plan's existing tasks into small phases. The grouping d
 - Each ready phase gets its own launch prompt with a copy button, saved as `handoff-phase-<id>.txt` beside the report.
 - Each prompt names one phase, tells the session to follow the plan's Phase workflow, and includes a stop: `Stop at the end of Phase 1 and print the Phase 2 prompt; do not start it.` The last phase's prompt says it is the last phase.
 
-Phases run in order. A phase that waits for an approval holds back every phase after it, and it gets a prompt only after the approval is recorded and the report is rendered again. Once earlier phases have merged, ask the validator to validate the remaining phases instead; the new report covers only the phases still to build and keeps their phase IDs.
+Phases run in order. A phase that waits for an approval holds back every phase after it, and it gets a prompt only after the approval is recorded and the report is rendered again (when the approval edits the plan or spec, see [Known issues](/plan-validation/safety-and-limitations/#known-issues)). Once earlier phases have merged, ask the validator to validate the remaining phases instead; the new report covers only the phases still to build and keeps their phase IDs.
 
 ## Recommended per-phase workflow
 
