@@ -51,8 +51,8 @@ Research never authorizes package downloads, dependency execution/replacement, m
 
 ## Known issues
 
-- When end-of-run answers edit the plan or spec, the recorded fingerprints are not refreshed and no fresh reviewer checks those edits, so the re-rendered prompts can show as historical. Validate the revised plan to get current prompts.
-- If a run published a private artifact but saved no `artifact.json`, the end-of-run answers do not update the artifact, and the end-of-run reply does not say so.
-- When a run did not publish, the browser does not reopen after the end-of-run answers. Use the `report.html` link.
+- When end-of-run answers edit the plan or spec, the recorded document hashes are not refreshed and no fresh independent reviewer checks those edits (the agent still rechecks them), so the re-rendered prompts are historical. Reconcile the change before building, or validate the changed scope again.
+- If a run published a private artifact but saved no `artifact.json`, the end-of-run answers do not update the artifact, and the end-of-run reply does not say so. Use the local `report.html`, or ask the skill to update the artifact and give its URL.
+- When the end-of-run answers do not update an artifact, the browser does not reopen. Use the `report.html` link.
 
 For a suspected vulnerability, use the repository's [security reporting route](https://github.com/snowholt-labs/plan-validation/security/advisories/new).
