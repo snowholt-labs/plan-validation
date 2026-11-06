@@ -35,7 +35,7 @@ Positional PLAN, SPEC and free-text FOCUS are also accepted. When SPEC is omitte
 ## What happens
 
 1. The agent records the repository, original documents, intended base and authorized scope.
-2. It compares requirements, tasks, current code and verification steps. Relevant dependency risks and the original approach versus at most two strong alternatives are assessed with dated evidence. The skill does not ask before each public lookup; lookups are listed in the report; no private context is sent. It then repairs in-scope document defects.
+2. It compares requirements, tasks, current code and verification steps. Relevant dependency risks and the original approach versus at most two strong alternatives are assessed with dated evidence. The skill does not ask before each public lookup; lookups are listed in the report; no private context is sent. It then repairs in-scope document defects and adds a Phase workflow section when the plan has no `## Phase workflow` heading.
 3. It rehearses approved task instructions in a new detached worktree and records actual results.
 4. A fresh, separate reviewer checks the revised documents and original scope. The agent fixes verified Medium and High findings and reviews again until none remain, lists Low findings, and turns any finding that would change requirements, architecture, security boundaries or scope into a pending approval.
 5. It does not stop to ask routine questions: it applies the recommended best practice and records why. Choices that need approval get a menu in the report: keep the original approach, adopt a verified named alternative, or defer. The recommendation includes reasons, tradeoffs and High/Medium/Low confidence.
