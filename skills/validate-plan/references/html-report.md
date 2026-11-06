@@ -321,6 +321,10 @@ revalidated. Check current documents and Git state first. If approvals or Git
 state changed, mark the old prompt historical in the report and provide a
 remediation/resume prompt; unchanged file hashes alone do not establish readiness.
 Never replace the recorded hashes just to make an old report appear current.
+The single exception is the same run's end-of-run answers: after the
+post-answer review passes (SKILL.md step 8), the hashes of the reviewed final
+documents, the `post-answer-*.md` copies, replace the earlier ones. A saved
+report never refreshes hashes.
 
 ## Delivery
 
