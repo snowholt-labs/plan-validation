@@ -6,7 +6,7 @@
     "name": "Nariman Jafari (Lumina)",
     "url": "https://github.com/snowholt"
   },
-  "homepage": "https://github.com/snowholt-labs/plan-validation",
+  "homepage": "https://snowholt-labs.github.io/plan-validation/",
   "repository": "https://github.com/snowholt-labs/plan-validation",
   "license": "Apache-2.0",
   "skills": "./skills/",
@@ -15,7 +15,7 @@
     "shortDescription": "Validate implementation plans before work starts",
     "developerName": "Nariman Jafari (Lumina)",
     "category": "Developer Tools",
-    "websiteURL": "https://github.com/snowholt-labs/plan-validation",
+    "websiteURL": "https://snowholt-labs.github.io/plan-validation/",
     "brandColor": "#873F63",
     "composerIcon": "./assets/plan-validation-small.svg",
     "logo": "./assets/plan-validation.svg",
