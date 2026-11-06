@@ -50,9 +50,3 @@ Research never authorizes package downloads, dependency execution/replacement, m
 - Third-party marketplace inclusion is a separate process. Public GitHub availability does not imply endorsement or official directory acceptance.
 
 For a suspected vulnerability, use the repository's [security reporting route](https://github.com/snowholt-labs/plan-validation/security/advisories/new).
-
-## Known issues
-
-- When end-of-run answers edit the plan or spec, no fresh independent reviewer checks those edits (the agent still rechecks them). The documents then differ from the validated ones, so the re-rendered prompts are historical, by design. Reconcile the change before building, or validate the changed scope again.
-- If a run published a private artifact but saved no `artifact.json`, the end-of-run answers do not update the artifact, and the end-of-run reply does not say so. Use the local `report.html`, or, with publishing still on, ask the skill to update the artifact and give its URL.
-- The end-of-run re-render does not reopen the browser, so a tab the first render opened still shows the report from before the answers. Reload it, or open the `report.html` link.
