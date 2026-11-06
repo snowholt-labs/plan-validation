@@ -1,5 +1,21 @@
 # Release verification
 
+## 0.6.0 release checks
+
+Checked on 5 November 2026 on Linux, using Python 3.14.4 and Claude Code 2.1.318. These are package checks on the release branch; they are not publication or live-plugin acceptance results.
+
+| Check | Observed result | Evidence and limit |
+| --- | --- | --- |
+| Renderer regression suite | 168 tests passed | Includes format version 5 (no `validation_run`, `rerun`, `rerun.txt` or held prompts; the section 8 run-first check and its excuses; the reconcile drift wording) and saved version 4 rendering; saved version 1–3 and version 4 output stays frozen; rendering tests do not establish model behavior |
+| Package and local documentation links | Passed | Three skills, 5 SVG icons and 46 Markdown files checked in a clean checkout; plugin, marketplace and Codex manifests agree at 0.6.0; the `publish_artifact` setting defaults to `false` |
+| Claude plugin validation | Passed with one warning | Both `claude plugin validate` commands pass without `--strict`; the warning is that the repository's root `CLAUDE.md` is not loaded as plugin context, which is expected because it is contributor guidance, and makes `--strict` fail |
+| Retry demonstration | Three tests with one expected failure; corrected control has three passing tests | Existing authored fixture and renderer executed; the demo report renders as format version 5 and writes no `rerun.txt`; not an effectiveness benchmark |
+| Documentation site | 47 tests passed; 14 pages built | The built header shows version 0.6.0 and the changelog page shows the 0.6.0 entry |
+
+The independent review loop, the end-of-run question round, publishing a report as a claude.ai artifact and its same-run update, and the version 5 page in a real desktop browser have not been measured in a live Claude Code or Codex session.
+
+GitHub release publication, a directory security scan, reviewer approval and a live listing remain distinct states. No directory scan of 0.6.0 is recorded here; a scan of an earlier version is not a scan of 0.6.0.
+
 ## 0.5.0 release checks
 
 Checked on 5 November 2026 on Linux, using Python 3.14.4 and Claude Code 2.1.318. These are package checks on the release branch; they are not publication or live-plugin acceptance results.
