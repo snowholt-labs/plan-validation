@@ -47,6 +47,10 @@ Research never authorizes package downloads, dependency execution/replacement, m
 - The supplied demonstration is a controlled authored fixture, not an independent evaluation or a real customer result.
 - The public portable workflow has not been benchmarked against a plain review, Superpowers or other tools.
 - Cross-platform behavior and live Codex plugin installation need further verification.
+- Known limits of 0.6.0:
+  - End-of-run answers that edit the plan or spec do not refresh the recorded fingerprints, and those edits are not reviewed again, so the re-rendered prompts can show as historical. Validate the revised plan to get current prompts.
+  - A run that published a private artifact but saved no `artifact.json` is not updated after the answers, and the reply does not say so.
+  - With publishing off, the browser does not reopen after the answers. Use the `report.html` link.
 - Third-party marketplace inclusion is a separate process. Public GitHub availability does not imply endorsement or official directory acceptance.
 
 For a suspected vulnerability, use the repository's [security reporting route](https://github.com/snowholt-labs/plan-validation/security/advisories/new).
