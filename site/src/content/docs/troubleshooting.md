@@ -27,7 +27,7 @@ The report stays Not ready and identifies the missing cold read. Use a host with
 
 ## The report says the handoff is historical
 
-Documents, Git state or approvals changed or could not be checked. Revalidate the changed scope. Do not edit hashes or status fields merely to enable the copy button.
+Documents, Git state or approvals changed or could not be checked. Reconcile the change before building, or validate the changed scope again. Do not edit hashes or status fields merely to enable the copy button.
 
 ## The renderer rejects the report
 
