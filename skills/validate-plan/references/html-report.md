@@ -63,7 +63,7 @@ end-of-run re-render in the same run (SKILL.md workflow step 8): it adds `--open
 whenever it does not update the online page, as "Private artifact" below describes.
 When publishing or an artifact update will run (the `Publish setting` line in `SKILL.md` reads exactly `true`,
 and the Artifact tool and a session scratchpad are available), leave out `--open`
-for a new run, and for an update or a publish on request even when the user asked to see it, and follow "Private artifact (Claude Code, opt-in)" below.
+for a new run, and for an update or a publish on request even when the user asked to see it (for the end-of-run re-render, only when an update will be tried, as below), and follow "Private artifact (Claude Code, opt-in)" below.
 
 The helper uses only Python's standard library. A version 4 or 5 page has a header card,
 a score strip and four tabs: **Summary** (the diagrams, two count cards, the next
@@ -418,9 +418,11 @@ through the update steps below without being asked:
   one found by listing artifacts or rebuilt from memory. Read it first if the
   Artifact tool requires, follow the same update steps, then write `artifact.json`
   with that `url` and the new `published_at` and `html_sha256`.
-- If no such URL is known, a check fails or the update fails, say in one line that
-  the online page shows the earlier render and its prompts may be out of date, and
+- If this run published and no such URL is known, a check fails or the update fails,
+  say in one line that the online page shows the earlier render and its prompts may be out of date, and
   give the artifact link when known and the local `report.html` link.
+- If this run did not publish, give no artifact line; only the `--open` rule below
+  applies.
 - It never publishes a first artifact: no quickstart and no publish without `url`.
 - Decide before rendering whether an update will be tried: the checks pass and
   `artifact.json` or that URL is known. If not, including when this run did not
