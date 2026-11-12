@@ -8,8 +8,8 @@ Today a validated plan is built in one long session. The handoff tells the imple
 
 That session is where most of the cost goes. Across 16 plans that were validated and built in Claude Code, validation was about 24% of the API-equivalent cost and implementation about 76%. Inside an implementation session every message re-reads the whole conversation, so cost grows faster than the work:
 
-- CI suite speedups (e2ba): the main context grew from 74k to 435k tokens over 352 messages, with 236 shell commands and 31 skill runs (including reviews) kept in that context. Claude Code reported $127 for the session.
-- Mail-hub: the maintainer stopped the session by hand after Task 11, at 385k tokens of context.
+- One plan in a private project: the main context grew from 74k to 435k tokens over 352 messages, with 236 shell commands and 31 skill runs (including reviews) kept in that context. Claude Code reported $127 for the session.
+- Another private plan: the maintainer stopped the session by hand after Task 11, at 385k tokens of context.
 
 Auto-compaction does not fix this: it keeps a summary of finished work that the next task does not need.
 
@@ -89,7 +89,7 @@ The change fails, even if it renders, if:
 
 ## Follow-ups outside this change
 
-- Update repository instructions to the recommended workflow: this repository's `AGENTS.md` (docs-only PRs CI only; security review only on flagged phases; severity-based review loop) and e2ba's `AGENTS.md`. Separate PRs, one per repository.
+- Update repository instructions to the recommended workflow: this repository's `AGENTS.md` (docs-only PRs CI only; security review only on flagged phases; severity-based review loop) and the private project's instructions, which are tracked outside this repository. Separate PRs, one per repository.
 - Update `docs/evaluation.md` cases for the phased handoff.
 - Measure the next two plans built this way against the baseline above: peak context per implementation session and total implementation cost.
 
