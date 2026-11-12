@@ -89,7 +89,7 @@ The change fails, even if it renders, if:
 
 ## Follow-ups outside this change
 
-- Update repository instructions to the recommended workflow: this repository's `AGENTS.md` (docs-only PRs CI only; security review only on flagged phases; severity-based review loop) and the private project's instructions, which are tracked outside this repository. Separate PRs, one per repository.
+- Update repository instructions to the recommended workflow: this repository's `AGENTS.md` (docs-only PRs CI only; security review only on flagged phases; severity-based review loop) and the instructions of the first private project above, which are tracked outside this repository. Separate PRs, one per repository. (This repository's part was done; its `AGENTS.md` has since changed these rules again, so `AGENTS.md`, not this item, is current.)
 - Update `docs/evaluation.md` cases for the phased handoff.
 - Measure the next two plans built this way against the baseline above: peak context per implementation session and total implementation cost.
 
