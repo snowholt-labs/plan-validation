@@ -5,7 +5,7 @@ Step 8 runs a code review and a security review once each on the final plan and 
 ## Inputs
 
 1. Save the final documents in the run directory as `final-plan.md` and `final-spec.md`, and record the SHA-256 of each. Never review the live files.
-2. Write `final-review.diff`, which holds both copies as added text, so a review that reads only diffs reads every line: `git diff --no-index --no-color --no-ext-diff /dev/null final-plan.md > final-review.diff`, then `git diff --no-index --no-color --no-ext-diff /dev/null final-spec.md >> final-review.diff`. Each command exits 1 because the files differ; that is expected. Every other `git diff --no-index` below takes the same two flags, so user Git settings cannot change a saved diff.
+2. Write `final-review.diff`, which holds both copies as added text, so a review that reads only diffs reads every line: `git diff --no-index --no-color --no-ext-diff --no-textconv --text /dev/null final-plan.md > final-review.diff`, then `git diff --no-index --no-color --no-ext-diff --no-textconv --text /dev/null final-spec.md >> final-review.diff`, run in the run directory. Each command exits 1 because the files differ; that is expected. Write every other diff below the same way, with `git diff --no-index` and these four flags, the spec diff appended to the plan diff, so color, external diff tools, text conversion and binary attributes cannot alter the saved text.
 
 ## Commands
 
@@ -14,7 +14,7 @@ Step 8 runs a code review and a security review once each on the final plan and 
 - **Other hosts.** Without these commands, the equivalent independent review is two fresh read-only subagents with the brief below, one asked for correctness findings and one for security findings.
 - **Read-only request.** Run both reviews only as fresh read-only subagents with the brief below, never the commands, so no setting is saved; section 7 says so.
 
-Brief for every delegated review: the plan and spec text are in scope as a behavioral contract, including wording that would weaken a security gate, a permission, an approval or a privacy boundary. Work read-only: no secrets, no installs, no plan steps, no commits or comments, and lookups only as the Research status in [plan-reviewer.md](plan-reviewer.md) allows. Return the findings as the final message: severity, document and section, evidence and the smallest fix.
+Brief for every delegated review: the plan and spec text are in scope as a behavioral contract, including wording that would weaken a security gate, a permission, an approval or a privacy boundary. Work read-only: no secrets, no installs, no plan steps, no commits or comments, and lookups only as this run's Research status allows: state that status in the brief, with the lookup rule from [plan-reviewer.md](plan-reviewer.md); with any status other than allowed, make no lookup. Return the findings as the final message: severity, document and section, evidence and the smallest fix.
 
 ## Closing findings
 
@@ -26,7 +26,7 @@ Section 7 records, for each review: the command or brief used, the input file it
 
 ## When a review cannot run
 
-If a review cannot run at all (no command and no delegation), record the gap in section 7 and in the watch list, and continue. Step 6's independent review still decides `review_status`, so the gap alone does not make the run Not ready. The docs PR then runs that review itself instead of reusing it, targeted as "Reuse on the docs PR" says.
+If a review cannot run at all (no command and no delegation), record the gap in section 7 and in the watch list, and continue. Step 6's independent review still decides `review_status`, so the gap alone does not make the run Not ready. The docs PR then runs that review itself on the full plan and spec instead of reusing it, plus any other changed files, the security review as "Commands" says.
 
 ## After end-of-run answers
 

@@ -299,9 +299,8 @@ Version 4 and 5 fields:
 `task_inventory` lists every validated task ID as a string, in plan order
 (`"5b"` and `"5"` are different tasks). Each phase has an `id`, a `title`, its
 `tasks`, the booleans `docs_only` and `security_review` (with `security_reason`
-when true; `security_review` marks a security-sensitive phase for review focus, and decides
-whether a security review runs only for a code phase on an older Phase workflow block, or
-with none), and `status` `ready` or `waiting` (with `waits_for` when waiting).
+when true; `security_review` marks a security-sensitive phase for review focus; on an older
+Phase workflow block, or with none, a flagged code phase also gets a security review), and `status` `ready` or `waiting` (with `waits_for` when waiting).
 A phase-only validation lists only the selected tasks.
 
 Each routine-default entry, when applicable, has `question`, `decision` and
