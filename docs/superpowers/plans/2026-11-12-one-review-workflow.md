@@ -192,9 +192,9 @@ Validation copies the block below into the plan once, near the top, only when th
 
 <!-- phase-workflow: 2 -->
 
-Every phase follows these steps, in a fresh session, on its own phase branch. When Superpowers is installed, load each named skill with the Skill tool at its step. A subagent that does a step loads that step's skill itself, and its brief says so: under `superpowers:subagent-driven-development`, each implementer subagent loads `superpowers:test-driven-development` and `superpowers:systematic-debugging`. Where a loaded skill says to stop and ask, to ask for consent or to wait for the human partner, the stop rule below decides instead. Without Superpowers, follow each step as written.
+Every phase follows these steps, in a fresh session, on its own phase branch. When Superpowers is installed, load each named skill with the Skill tool at its step. A subagent that does a step loads that step's skill itself, and its brief says so: under `superpowers:subagent-driven-development`, each implementer subagent loads `superpowers:test-driven-development` and `superpowers:systematic-debugging`. Where a loaded skill says to stop and ask, to ask for consent or to wait for the human partner, the stop reasons below decide instead. Without Superpowers, follow each step as written.
 
-1. Work in a git worktree for the phase branch (`superpowers:using-git-worktrees`); this step gives that skill's consent. Read the phase's done-check in section 8 of the validation report, when it has one. If the plan has a `## Parked findings` section that lists a finding from an earlier phase missing from `revised-plan.md` in the report's run directory, the design update (step 10) has not run: stop and say so. A `Replaced on <date>` line under the `## Phase workflow` heading marks a swapped block; that swap is an expected difference from `revised-plan.md`.
+1. Work in a git worktree for the phase branch (`superpowers:using-git-worktrees`); this step gives that skill's consent. Read the phase's done-check in section 8 of the validation report, when it has one. If the plan has a `## Parked findings` section that lists a finding from an earlier phase missing from `revised-plan.md` in the report's run directory, the design update (step 10) has not run: stop and say so. A `Replaced on <date>` line under the `## Phase workflow` heading marks a swapped block; that swap is an expected difference from `revised-plan.md` only when the section, without that line, matches the current block in validate-plan's `references/phase-workflow.md`, marker included. Any other difference needs reconciliation.
 2. For each task with observable behavior, write the failing tests first and watch each fail for the expected reason (`superpowers:test-driven-development`): a unit test, plus an integration test when the task crosses a boundary (database, API, authentication, another service). Wording-only, configuration, version and changelog tasks, and fixes of that kind, skip the test-first rule.
 3. Write the minimal code that makes the tests pass, keep all tests green, then refactor. Repeat steps 2–3 for each task.
 4. Review the phase with a fresh reviewer (`superpowers:requesting-code-review`), given the plan and spec paths and the report path named in the phase prompt. Round 1 reviews the phase's base..head range; when `superpowers:subagent-driven-development` ran the tasks, its final review is round 1. Later rounds review only the latest fix and the code it touches. The reviewer sets each finding's severity (Critical counts as High, Important as Medium, Minor as Low); the fixing session never re-rates.
@@ -250,7 +250,7 @@ Step 8 runs a code review and a security review once each on the final plan and 
 ## Inputs
 
 1. Save the final documents in the run directory as `final-plan.md` and `final-spec.md`, and record the SHA-256 of each. Never review the live files.
-2. Write `final-review.diff`, which holds both copies as added text, so a review that reads only diffs reads every line: `git diff --no-index --no-color --no-ext-diff /dev/null final-plan.md > final-review.diff`, then `git diff --no-index --no-color --no-ext-diff /dev/null final-spec.md >> final-review.diff`. Each command exits 1 because the files differ; that is expected. Every other `git diff --no-index` below takes the same two flags, so user Git settings cannot change a saved diff.
+2. Write `final-review.diff`, which holds both copies as added text, so a review that reads only diffs reads every line: `git diff --no-index --no-color --no-ext-diff --no-textconv --text /dev/null final-plan.md > final-review.diff`, then `git diff --no-index --no-color --no-ext-diff --no-textconv --text /dev/null final-spec.md >> final-review.diff`, run in the run directory. Each command exits 1 because the files differ; that is expected. Write every other diff below the same way, with `git diff --no-index` and these four flags, the spec diff appended to the plan diff, so color, external diff tools, text conversion and binary attributes cannot alter the saved text.
 
 ## Commands
 
@@ -259,7 +259,7 @@ Step 8 runs a code review and a security review once each on the final plan and 
 - **Other hosts.** Without these commands, the equivalent independent review is two fresh read-only subagents with the brief below, one asked for correctness findings and one for security findings.
 - **Read-only request.** Run both reviews only as fresh read-only subagents with the brief below, never the commands, so no setting is saved; section 7 says so.
 
-Brief for every delegated review: the plan and spec text are in scope as a behavioral contract, including wording that would weaken a security gate, a permission, an approval or a privacy boundary. Work read-only: no secrets, no installs, no plan steps, no commits or comments, and lookups only as the Research status in [plan-reviewer.md](plan-reviewer.md) allows. Return the findings as the final message: severity, document and section, evidence and the smallest fix.
+Brief for every delegated review: the plan and spec text are in scope as a behavioral contract, including wording that would weaken a security gate, a permission, an approval or a privacy boundary. Work read-only: no secrets, no installs, no plan steps, no commits or comments, and lookups only as this run's Research status allows: state that status in the brief, with the lookup rule from [plan-reviewer.md](plan-reviewer.md); with any status other than allowed, make no lookup. Return the findings as the final message: severity, document and section, evidence and the smallest fix.
 
 ## Closing findings
 
@@ -271,7 +271,7 @@ Section 7 records, for each review: the command or brief used, the input file it
 
 ## When a review cannot run
 
-If a review cannot run at all (no command and no delegation), record the gap in section 7 and in the watch list, and continue. Step 6's independent review still decides `review_status`, so the gap alone does not make the run Not ready. The docs PR then runs that review itself instead of reusing it, targeted as "Reuse on the docs PR" says.
+If a review cannot run at all (no command and no delegation), record the gap in section 7 and in the watch list, and continue. Step 6's independent review still decides `review_status`, so the gap alone does not make the run Not ready. The docs PR then runs that review itself on the full plan and spec instead of reusing it, plus any other changed files, the security review as "Commands" says.
 
 ## After end-of-run answers
 
@@ -318,7 +318,7 @@ A plan's docs PR reuses both results only when it changes only the plan and spec
 7. Under `### Phase grouping`, replace the bullet `- Record for each phase whether it is docs-only, whether it needs a security review and why (auth, user input, secrets, dependencies, CI workflows), and whether it is ready or waits, naming what it waits for.` with these two bullets:
 
    ```text
-   - Record for each phase whether it is docs-only, whether it is security-sensitive and why (auth, user input, secrets, dependencies, CI workflows), and whether it is ready or waits, naming what it waits for. The `security_review` flag marks where review should look hardest; it does not decide whether a security review runs: a code phase on the current Phase workflow gets one at step 9, a code phase on an older block, or with none, gets one when flagged, and a docs-only phase gets the reviews the repository's rules require.
+   - Record for each phase whether it is docs-only, whether it is security-sensitive and why (auth, user input, secrets, dependencies, CI workflows), and whether it is ready or waits, naming what it waits for. The `security_review` flag marks where review should look hardest. On the current Phase workflow it does not decide whether a security review runs: a code phase gets one at step 9, and a docs-only phase gets the reviews the repository's rules require. A code phase on an older block, or with none, gets one when flagged or when the repository's rules require one.
    - Write one done-check line per phase in section 8, before the between-phases note and the prompts: `Done-check, Phase <id>: <commands>`, unfenced, because a fenced block counts as a prompt. It lists commands to run later, not results: the phase's task test commands, the integration test that proves a task crossing a boundary, and the full unit and integration suites. Name only tests that exist once the phase is done, never one a later phase adds, and build it from the task test commands that step 5 rehearsed or step 6 reviewed. A missing test or assertion inside a task is an in-task repair (step 4); new test infrastructure, such as a service, container, dependency or CI job, is a pending approval.
    ```
 
@@ -383,16 +383,15 @@ git commit -m "Add validation's final reviews, the stuck rule and done-checks"
    ```
 
 4. Replace `while keeping approval gates from repository rules and the report, such as a merge that needs the maintainer, inside the prompt itself.` with `while keeping approval gates from repository rules and the report, such as a merge that needs the maintainer: the Phase workflow's stop reasons include any approval or authorization not already given, and the older pause sentence names required approvals directly.`
-5. Replace ``treat only `- [ ]` to `- [x]` changes as expected.`` with ``treat only `- [ ]` to `- [x]` changes, and a Phase workflow section swapped under a `Replaced on <date>` line, as expected.``
-6. In the one-line note, replace `earlier phases merged into the plan branch and ticked task checkboxes are expected;` with `earlier phases merged into the plan branch, ticked task checkboxes and a Phase workflow swap marked Replaced on <date> are expected;`
+5. Replace ``treat only `- [ ]` to `- [x]` changes as expected.`` with ``treat only `- [ ]` to `- [x]` changes, and a Phase workflow section swapped under a `Replaced on <date>` line that otherwise matches the current block in `references/phase-workflow.md`, as expected.``
+6. In the one-line note, replace `earlier phases merged into the plan branch and ticked task checkboxes are expected;` with `earlier phases merged into the plan branch, ticked task checkboxes and a Replaced on <date> swap to the current Phase workflow block are expected;`
 
 - [ ] **Step 3: Edit `html-report.md`**
 
 Replace `` `tasks`, the booleans `docs_only` and `security_review` (with `security_reason`
 when true), `` with `` `tasks`, the booleans `docs_only` and `security_review` (with `security_reason`
-when true; `security_review` marks a security-sensitive phase for review focus, and decides
-whether a security review runs only for a code phase on an older Phase workflow block, or
-with none), ``. Keep the line breaks of the surrounding paragraph.
+when true; `security_review` marks a security-sensitive phase for review focus; on an older
+Phase workflow block, or with none, a flagged code phase also gets a security review), ``. Keep the line breaks of the surrounding paragraph.
 
 In the same file, replace `post-answer review passes (SKILL.md step 8)` with `post-answer review and the security review of the answer edits pass (SKILL.md step 8)`.
 
