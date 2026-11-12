@@ -205,7 +205,7 @@ Every phase follows these steps, in a fresh session, on its own phase branch. Wh
 9. Run the code review and the security review once each on the final head, on the phase's base..head range only (in Claude Code, `/code-review high --max-findings all` and `/security-review`; in other hosts, an equivalent independent review). Name the range as each review's target; when a review cannot take it, would skip files in it (such as documentation that `/security-review` skips), or returns a result that cites nothing from it, run its procedure in a fresh read-only subagent on a saved diff of the range, with every changed file in scope. Wait for each result. Close every confirmed finding as step 5 does, Low included, and every security finding at any severity. A fix, including a line added under `## Parked findings`, is a commit that goes through steps 2–8: step 4 reviews only that commit, and the security review runs again on its diff only; the code review does not run again. Record what each review saw: the head it read, and each fix range with its reviewer.
 10. Deliver the branch as the repository's rules define (for a plan branch, a PR into that branch). Never merge locally into a protected or plan branch. Push and open a PR only when the repository's rules or the maintainer authorize it; otherwise stop and report that the branch is ready. List parked findings first in the code review comment, and track each as the repository's rules allow. A later commit, base change or conflict fix goes through steps 2–8 on that change only, and the security review runs on that change only (targeted as step 9 says), unless the PR targets the default branch or the repository's rules require both full reviews again; after a rebase, the change is what `git range-diff` shows, and after a base merge, what `git show --remerge-diff` shows; save that output and give each review the saved copy as its target. Do not run `superpowers:finishing-a-development-branch`. When a finding was parked, print this design-update prompt before the next phase's prompt (or alone, after the last phase), and mark the next phase's prompt as waiting for the new report: "Design update after Phase <id>: brainstorm the parked findings in the plan's `## Parked findings` with the maintainer, update the spec and plan with a fixing phase and add `Fixing task: Task <n>.` to each entry, validate the remaining phases as a phase-only validation, then land the revised plan and spec as the repository's rules define (for a plan branch, a docs PR into that branch). Do not start the next phase."
 
-Ask the maintainer only when the next step is destructive, is a security-sensitive action (such as changing access rules or secret handling; not every step of a security-sensitive phase), needs an approval or authorization not already given (such as a merge, an install or another outside effect), or the plan is too broken to follow (including an environment that cannot run a required check). The stops in steps 1, 5 and 6 are cases of these: a design update, or a design change for a security finding, needs the maintainer's approval, and any further fix of a stuck security finding is a security-sensitive action. Otherwise decide, record the decision and continue.
+Stop reasons: ask the maintainer only when the next step is destructive, is a security-sensitive action (such as changing access rules or secret handling; not every step of a security-sensitive phase), needs an approval or authorization not already given (such as a merge, an install or another outside effect), or the plan is too broken to follow (including an environment that cannot run a required check). The stops in steps 1, 5 and 6 are cases of these: a design update, or a design change for a security finding, needs the maintainer's approval, and any further fix of a stuck security finding is a security-sensitive action. Otherwise decide, record the decision and continue.
 
 A docs-only phase skips step 2's test-first rule. Its step 9 runs the reviews the repository's rules require for docs-only changes.
 ```
@@ -250,7 +250,7 @@ Step 8 runs a code review and a security review once each on the final plan and 
 ## Inputs
 
 1. Save the final documents in the run directory as `final-plan.md` and `final-spec.md`, and record the SHA-256 of each. Never review the live files.
-2. Write `final-review.diff`, which holds both copies as added text, so a review that reads only diffs reads every line: `git diff --no-index /dev/null final-plan.md > final-review.diff`, then `git diff --no-index /dev/null final-spec.md >> final-review.diff`. Each command exits 1 because the files differ; that is expected.
+2. Write `final-review.diff`, which holds both copies as added text, so a review that reads only diffs reads every line: `git diff --no-index --no-color --no-ext-diff /dev/null final-plan.md > final-review.diff`, then `git diff --no-index --no-color --no-ext-diff /dev/null final-spec.md >> final-review.diff`. Each command exits 1 because the files differ; that is expected. Every other `git diff --no-index` below takes the same two flags, so user Git settings cannot change a saved diff.
 
 ## Commands
 
@@ -271,7 +271,7 @@ Section 7 records, for each review: the command or brief used, the input file it
 
 ## When a review cannot run
 
-If a review cannot run at all (no command and no delegation), record the gap in section 7 and in the watch list, and continue. Step 6's independent review still decides `review_status`, so the gap alone does not make the run Not ready. The docs PR then runs that review itself instead of reusing it.
+If a review cannot run at all (no command and no delegation), record the gap in section 7 and in the watch list, and continue. Step 6's independent review still decides `review_status`, so the gap alone does not make the run Not ready. The docs PR then runs that review itself instead of reusing it, targeted as "Reuse on the docs PR" says.
 
 ## After end-of-run answers
 
@@ -279,7 +279,7 @@ When answers change PLAN or SPEC, the post-answer review (end-of-run item 6) cov
 
 ## Reuse on the docs PR
 
-A plan's docs PR reuses both results only when it changes only the plan and spec, both hash to the final values in `context.json`, and section 7 records what each review read. It still posts both reviews on its head as the repository's rules require, each naming the hash its review read and the final hash, and what covered the difference: for each fix, the step-6 round that reviewed the fixed copies for the code review and the security review of `fix-<n>.diff` for the security review, and, for any answer edits, the post-answer review for the code review and the security reviews of `answer-edits.diff` and each `answer-fix-<n>.diff` for the security review. Otherwise each review runs once: on what differs from the text it read, when its saved copy still matches the recorded hash, or on the full plan and spec when it does not; either way plus any other changed files. A finding left as a pending approval stays open in the posted review until the maintainer settles it.
+A plan's docs PR reuses both results only when it changes only the plan and spec, both hash to the final values in `context.json`, and section 7 records what each review read. It still posts both reviews on its head as the repository's rules require, each naming the hash its review read and the final hash, and what covered the difference: for each fix, the step-6 round that reviewed the fixed copies for the code review and the security review of `fix-<n>.diff` for the security review, and, for any answer edits, the post-answer review for the code review and the security reviews of `answer-edits.diff` and each `answer-fix-<n>.diff` for the security review. Otherwise each review runs once: on what differs from the text it read, when its saved copy still matches the recorded hash, or on the full plan and spec when it does not; either way plus any other changed files, with every changed file in scope, and the security review runs its procedure in a fresh read-only subagent on a saved diff, as "Commands" says. A finding left as a pending approval stays open in the posted review until the maintainer settles it.
 ```
 
 - [ ] **Step 2: Edit `SKILL.md`**
@@ -318,7 +318,7 @@ A plan's docs PR reuses both results only when it changes only the plan and spec
 7. Under `### Phase grouping`, replace the bullet `- Record for each phase whether it is docs-only, whether it needs a security review and why (auth, user input, secrets, dependencies, CI workflows), and whether it is ready or waits, naming what it waits for.` with these two bullets:
 
    ```text
-   - Record for each phase whether it is docs-only, whether it is security-sensitive and why (auth, user input, secrets, dependencies, CI workflows), and whether it is ready or waits, naming what it waits for. The `security_review` flag marks where review should look hardest; it does not decide whether a security review runs: a code phase on the current Phase workflow gets one at step 9, and a docs-only phase gets the reviews the repository's rules require.
+   - Record for each phase whether it is docs-only, whether it is security-sensitive and why (auth, user input, secrets, dependencies, CI workflows), and whether it is ready or waits, naming what it waits for. The `security_review` flag marks where review should look hardest; it does not decide whether a security review runs: a code phase on the current Phase workflow gets one at step 9, a code phase on an older block, or with none, gets one when flagged, and a docs-only phase gets the reviews the repository's rules require.
    - Write one done-check line per phase in section 8, before the between-phases note and the prompts: `Done-check, Phase <id>: <commands>`, unfenced, because a fenced block counts as a prompt. It lists commands to run later, not results: the phase's task test commands, the integration test that proves a task crossing a boundary, and the full unit and integration suites. Name only tests that exist once the phase is done, never one a later phase adds, and build it from the task test commands that step 5 rehearsed or step 6 reviewed. A missing test or assertion inside a task is an in-task repair (step 4); new test infrastructure, such as a service, container, dependency or CI job, is a pending approval.
    ```
 
@@ -369,6 +369,7 @@ git commit -m "Add validation's final reviews, the stuck rule and done-checks"
 
 2. In item 8, replace `a one-line suggested effort covering all phases, then one fenced launch prompt per ready phase` with `a one-line suggested effort covering all phases, one unfenced done-check line per phase (SKILL.md, Phase grouping), then one fenced launch prompt per ready phase`.
 3. In item 8, replace `so write only the effort line, the between-phases note and the fenced prompts` with `so write only the effort line, the done-check lines, the between-phases note and the fenced prompts`.
+4. Replace `A same-run answer edit that passed the post-answer review (SKILL.md step 8) is not drift` with `A same-run answer edit that passed the post-answer review and the security review of the answer edits (SKILL.md step 8) is not drift`.
 
 - [ ] **Step 2: Edit `handoff-template.md`**
 
@@ -382,13 +383,18 @@ git commit -m "Add validation's final reviews, the stuck rule and done-checks"
    ```
 
 4. Replace `while keeping approval gates from repository rules and the report, such as a merge that needs the maintainer, inside the prompt itself.` with `while keeping approval gates from repository rules and the report, such as a merge that needs the maintainer: the Phase workflow's stop reasons include any approval or authorization not already given, and the older pause sentence names required approvals directly.`
+5. Replace ``treat only `- [ ]` to `- [x]` changes as expected.`` with ``treat only `- [ ]` to `- [x]` changes, and a Phase workflow section swapped under a `Replaced on <date>` line, as expected.``
+6. In the one-line note, replace `earlier phases merged into the plan branch and ticked task checkboxes are expected;` with `earlier phases merged into the plan branch, ticked task checkboxes and a Phase workflow swap marked Replaced on <date> are expected;`
 
 - [ ] **Step 3: Edit `html-report.md`**
 
 Replace `` `tasks`, the booleans `docs_only` and `security_review` (with `security_reason`
 when true), `` with `` `tasks`, the booleans `docs_only` and `security_review` (with `security_reason`
-when true; `security_review` marks a security-sensitive phase for review focus and does not
-decide whether a security review runs), ``. Keep the line breaks of the surrounding paragraph.
+when true; `security_review` marks a security-sensitive phase for review focus, and decides
+whether a security review runs only for a code phase on an older Phase workflow block, or
+with none), ``. Keep the line breaks of the surrounding paragraph.
+
+In the same file, replace `post-answer review passes (SKILL.md step 8)` with `post-answer review and the security review of the answer edits pass (SKILL.md step 8)`.
 
 - [ ] **Step 4: Check**
 
@@ -416,7 +422,7 @@ git commit -m "Add done-check lines and the stop-reasons pause sentence"
 - [ ] **Step 1: Edit existing rows**
 
 1. **Phase workflow added:** append `` ; the added block carries the `<!-- phase-workflow: 2 -->` marker `` to its outcome.
-2. **Docs-PR review:** replace its outcome with: `` A plan's docs PR reuses the validation run's code and security reviews, each posted with a `Reused:` line naming the hash its review read and the final hash and `Scope:` lines naming what covered any difference, only when it changes only the plan and spec, both hash to the report's final values and section 7 records what each review read; otherwise each review runs once on what differs from the text it read, or on the full plan and spec, plus any other changed files. A docs-only phase PR gets the reviews the repository's rules require (in this repository, the code and security reviews once each on its final head, typed and targeted as Phase workflow step 9 types and targets them) ``
+2. **Docs-PR review:** replace its outcome with: `` A plan's docs PR reuses the validation run's code and security reviews, each posted with a `Reused:` line naming the hash its review read and the final hash and `Scope:` lines naming what covered any difference, only when it changes only the plan and spec, both hash to the report's final values and section 7 records what each review read; otherwise each review runs once on what differs from the text it read, or on the full plan and spec, plus any other changed files, the security review as its procedure in a read-only subagent on a saved diff. A docs-only phase PR gets the reviews the repository's rules require (in this repository, the code and security reviews once each on its final head, typed and targeted as Phase workflow step 9 types and targets them) ``
 3. **Implementation handoff:** replace `it pauses only at a required approval or an unfixable failure` with `it pauses only for the Phase workflow's stop reasons (a destructive step, a security-sensitive action, an approval or authorization not already given, or a plan too broken to follow; with an older block or none, a required approval or an unfixable failure)`.
 
 - [ ] **Step 2: Add these rows after the `Implementation handoff` row**
@@ -457,7 +463,7 @@ git commit -m "Add evaluation cases for the one review workflow"
 
 - [ ] **Step 1: Edit `phased-implementation.md`**
 
-1. Replace `whether it is docs-only, whether it needs a security review and why,` with `whether it is docs-only, whether it is security-sensitive and why (the flag marks where to look hardest; it does not decide whether a security review runs),`.
+1. Replace `whether it is docs-only, whether it needs a security review and why,` with `whether it is docs-only, whether it is security-sensitive and why (the flag marks where to look hardest; on the current Phase workflow it does not decide whether a security review runs),`.
 2. Replace the numbered list under "Recommended per-phase workflow" (from `1. Works in a git worktree on its own phase branch.` to item 7) with:
 
    ```text
@@ -487,7 +493,7 @@ git commit -m "Add evaluation cases for the one review workflow"
    Some repositories review docs PRs. The plan-validation repository is one: its own `AGENTS.md` asks for a code review and a security review on every PR into `main` or a plan branch, docs-only PRs included. Validation already ran both reviews on the final plan and spec, and the report records what each read and its hash. A plan's docs PR can reuse them:
 
    - **Reuse when nothing changed.** If the PR changes only the plan and spec and both match the hashes in the report, post the recorded results as the code and security reviews, each with a `Reused:` line naming the hash it read and the final hash, and `Scope:` lines naming what covered any difference: each validation fix and any end-of-run answer edits, with the reviews that covered them.
-   - **Otherwise review the difference once.** Each review runs once on what differs from the text it read, or on the whole plan and spec when that text is gone, plus any other changed files.
+   - **Otherwise review the difference once.** Each review runs once on what differs from the text it read, or on the whole plan and spec when that text is gone, plus any other changed files. Run the security review as `/security-review`'s procedure in a subagent on a saved diff, because the command skips documentation files.
    - **Some findings go to the maintainer.** A finding whose fix would change a security or privacy boundary, a permission or an external action is asked, not fixed. A finding that only disagrees with a decision the maintainer recorded is rejected with that decision as evidence.
 
    In the plan-validation repository, a docs-only phase PR gets the code review and the security review once each on its final head, typed and targeted as Phase workflow step 9 types and targets them for a code phase.
@@ -497,7 +503,7 @@ git commit -m "Add evaluation cases for the one review workflow"
    - The line starting `- Follow the plan's Phase workflow section:` with `` - Follow the plan's Phase workflow section: worktree, test-first tasks with unit tests and, across boundaries, integration tests, review until no Medium or High finding remains with no round cap, a readiness check with the done-check and full suites, then the code and security reviews once each on the final head, typed as the Phase workflow's step 9 types them. ``
    - `- Open the PR into the plan branch, wait for CI and post a short review summary as a PR comment.` with `- Open the PR into the plan branch, wait for CI and post a short review summary as a PR comment. A later commit gets a review of that change only.`
    - `- Stop at the end of the phase and print the next phase's prompt from the report. The maintainer merges and starts the next session.` with `- Stop at the end of the phase and print the next phase's prompt from the report, after the design-update prompt when a finding was parked. The maintainer merges and starts the next session.`
-   - The line starting `- Docs-only PRs need CI only.` with `` - Docs-only PRs follow your review rules. A plan's docs PR can reuse validation's `/code-review` and `/security-review` results when it changes only the plan and spec and their hashes match the report; otherwise review once what differs, plus any other changed files. ``
+   - The line starting `- Docs-only PRs need CI only.` with `` - Docs-only PRs follow your review rules. A plan's docs PR can reuse validation's `/code-review` and `/security-review` results when it changes only the plan and spec and their hashes match the report; otherwise review once what differs, plus any other changed files, running `/security-review`'s procedure in a subagent on a saved diff so it reads Markdown. ``
    - `- The final plan-to-main PR gets a full code review and a full security review, which also clears the saved action points.` with `- The final plan-to-main PR gets a full code review and a full security review, which also clears the saved action points and checks that every parked finding was fixed.`
 
 - [ ] **Step 2: Edit the other three pages**
@@ -544,7 +550,7 @@ git commit -m "Describe the one review workflow on the site"
 2. In the next bullet, replace everything from `On a plan's docs PR or a docs-only phase PR, the code review is the full-plan review` to `` Other docs-only PRs keep `/code-review`. `` with:
 
    ```text
-   A plan's docs PR reuses the validation run's code and security reviews when it changes only the plan and spec, both hash to the final values in the report's `context.json`, and section 7 records what each review read ("Reuse on the docs PR" in `skills/validate-plan/references/validation-reviews.md`). Each comment review then adds a `Reused:` line with the hash its review read and the final hash, and `Scope:` lines naming what covered the difference: each validation fix and any end-of-run answer edits, with the reviews that covered them. Otherwise each review runs once, on what differs from the text it read or on the full plan and spec, plus any other changed files. A docs-only phase PR gets the code review and the security review once each on its final head, typed and targeted as Phase workflow step 9 types and targets them for a code phase. A finding whose fix would change a security or privacy boundary, a permission or an external action goes to the maintainer; one that only disagrees with a decision the maintainer recorded is rejected with that decision as evidence.
+   A plan's docs PR reuses the validation run's code and security reviews when it changes only the plan and spec, both hash to the final values in the report's `context.json`, and section 7 records what each review read ("Reuse on the docs PR" in `skills/validate-plan/references/validation-reviews.md`). Each comment review then adds a `Reused:` line with the hash its review read and the final hash, and `Scope:` lines naming what covered the difference: each validation fix and any end-of-run answer edits, with the reviews that covered them. Otherwise each review runs once, typed and targeted as Phase workflow step 9 types and targets them, on what differs from the text it read or on the full plan and spec, plus any other changed files. A docs-only phase PR gets the code review and the security review once each on its final head, typed and targeted as Phase workflow step 9 types and targets them for a code phase. A finding whose fix would change a security or privacy boundary, a permission or an external action goes to the maintainer; one that only disagrees with a decision the maintainer recorded is rejected with that decision as evidence.
    ```
 
 3. In the bullet that starts `- Post each review's result`, replace `` `success` only when every finding is fixed or explicitly accepted. A new push needs both reviews again. `` with:
