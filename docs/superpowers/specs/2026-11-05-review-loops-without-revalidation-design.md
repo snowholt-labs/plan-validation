@@ -3,6 +3,8 @@
 **Date:** 2026-11-05
 **Status:** Draft for maintainer review
 
+**Note (2026-11-12):** the remark that existing `/code-review` round limits on code PRs stay is superseded by `2026-11-11-one-review-workflow-design.md`, which has no round cap.
+
 ## Why
 
 Release 0.5.0 added a "run validation again" feature (run counting, a 3-run limit, `rerun.txt`, held phase prompts). It was meant to stop the endless `/code-review` loop on docs PRs. It moved the loop instead.
