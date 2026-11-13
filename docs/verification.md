@@ -12,7 +12,7 @@ Checked on 13 November 2026 on Linux, using Python 3.14.4 and Claude Code 2.1.32
 | Retry demonstration | Three tests with one expected failure; corrected control has three passing tests | Existing authored fixture and renderer executed; not an effectiveness benchmark |
 | Documentation site | 47 tests passed; 14 pages built | The built header shows version 0.7.0 and the changelog page shows the 0.7.0 entry |
 
-The one review workflow (the ten-step Phase workflow, parked findings, validation's final code and security reviews, done-check lines and the new pause sentence) has not been measured in a live Claude Code or Codex session; it was checked as skill text and through the plan's own phase reviews.
+The one review workflow (the ten-step Phase workflow, parked findings, validation's final code and security reviews, done-check lines and the new pause sentence) has not been measured in a live Claude Code or Codex session; it was checked as skill text. The plan that added it ran its own phases under the older nine-step block, so no phase has run under the new workflow yet.
 
 GitHub release publication, a directory security scan, reviewer approval and a live listing remain distinct states. No directory scan of 0.7.0 is recorded here; a scan of an earlier version is not a scan of 0.7.0.
 
