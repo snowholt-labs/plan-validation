@@ -472,7 +472,7 @@ git commit -m "Add evaluation cases for the one review workflow"
    3. Reviews the phase with a fresh reviewer, checks each finding against the code before acting, and finds the cause of any failure before fixing it. Later rounds review only the latest fix.
    4. Repeats the review until no Medium or High finding remains, with no round cap. When a problem keeps coming back, the session questions the design and parks the finding with a recorded decision instead of patching again; a security finding is never parked. Low findings are listed for the maintainer to fix or skip.
    5. Proves the phase is ready by running the done-check and the full test suites.
-   6. Runs the code review and the security review once each on the final version and fixes every confirmed finding; each fix gets a review of the fix only. Then it delivers the branch as your repository defines, for example a PR into the plan branch.
+   6. Runs the code review and the security review once each on the final version and fixes every confirmed finding; each fix gets a fresh review and a security review of the fix only. Then it delivers the branch as your repository defines, for example a PR into the plan branch.
    7. Stops, and prints the next phase's prompt from the report, after a design-update prompt when a finding was parked. The maintainer merges the phase PR, then starts the next phase in a fresh session.
    ```
 
