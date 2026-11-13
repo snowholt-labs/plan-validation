@@ -1,5 +1,21 @@
 # Release verification
 
+## 0.7.0 release checks
+
+Checked on 13 November 2026 on Linux, using Python 3.14.4 and Claude Code 2.1.323. These are package checks on the release branch; they are not publication or live-plugin acceptance results.
+
+| Check | Observed result | Evidence and limit |
+| --- | --- | --- |
+| Renderer regression suite | 169 tests passed | The renderer is unchanged since 0.6.1; one new test pins that section 8 accepts unfenced done-check lines; saved version 1–3 and version 4 output stays frozen; rendering tests do not establish model behavior |
+| Package and local documentation links | Passed | Three skills, 5 SVG icons and 51 Markdown files checked in a clean checkout; plugin, marketplace and Codex manifests agree at 0.7.0; the publish gate sentence and the `Publish setting` line are present; the `publish_artifact` setting defaults to `false` |
+| Claude plugin validation | Passed with one warning | Both `claude plugin validate` commands pass without `--strict`; the warning is that the repository's root `CLAUDE.md` is not loaded as plugin context, which is expected because it is contributor guidance, and makes `--strict` fail |
+| Retry demonstration | Three tests with one expected failure; corrected control has three passing tests | Existing authored fixture and renderer executed; not an effectiveness benchmark |
+| Documentation site | 47 tests passed; 14 pages built | The built header shows version 0.7.0 and the changelog page shows the 0.7.0 entry |
+
+The one review workflow (the ten-step Phase workflow, parked findings, validation's final code and security reviews, done-check lines and the new pause sentence) has not been measured in a live Claude Code or Codex session; it was checked as skill text. The plan that added it ran its own phases under the older nine-step block, so no phase has run under the new workflow yet.
+
+GitHub release publication, a directory security scan, reviewer approval and a live listing remain distinct states. No directory scan of 0.7.0 is recorded here; a scan of an earlier version is not a scan of 0.7.0.
+
 ## 0.6.1 release checks
 
 Checked on 5 November 2026 on Linux, using Python 3.14.4 and Claude Code 2.1.318. These are package checks on the release branch; they are not publication or live-plugin acceptance results.
