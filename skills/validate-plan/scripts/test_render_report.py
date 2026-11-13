@@ -384,6 +384,21 @@ class ReportTests(unittest.TestCase):
         self.assertIsNone(json.loads(result.stdout)["rerun"])
         self.assertFalse((out / "rerun.txt").exists())
 
+    def test_v5_section8_accepts_done_check_lines(self):
+        source, context = self.two_phase(self.v5_context())
+        lines = ("Done-check, Phase 1: `python3 -m unittest discover -s tests -k one`, then the full unit and integration suites.",
+                 "Done-check, Phase 2: `python3 -m unittest discover -s tests`, then the full unit and integration suites.")
+        source = source.replace("## 8. Fresh-session handoff\n",
+                                "## 8. Fresh-session handoff\n" + "\n\n".join(lines) + "\n\n", 1)
+        rendered = render(source, context)
+        page, handoff, _, _ = rendered
+        self.assertEqual([pid for pid, _ in rendered.pairs], ["1", "2"])
+        self.assertFalse(any("Done-check" in prompt for _, prompt in rendered.pairs))
+        for line in ("Done-check, Phase 1:", "Done-check, Phase 2:"):
+            self.assertIn(line, page)
+            self.assertLess(page.index(line), page.index('aria-label="Phase plan"'))
+        self.assertNotIn("Done-check", handoff)
+
     def stop_rerun(self, context):
         """A Not ready report fires a re-run trigger, so it cannot recommend no."""
         context["rerun"] = {"recommendation": "stop", "reasons": ["The blocker needs the maintainer's decision."]}
