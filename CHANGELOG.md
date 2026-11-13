@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.0 — 2026-11-13
+
+- New plans get a ten-step Phase workflow (marked `<!-- phase-workflow: 2 -->`): test-first tasks with integration tests across boundaries, a fresh-reviewer loop with no round cap, a stuck rule that questions the design instead of patching again, a readiness check with the phase's done-check and the full suites, then `/code-review` and `/security-review` once each on the final head. A fix after them, or a later push to a phase PR that does not target the default branch, gets a code review and a security review of that change only. The session asks only for four stop reasons: a destructive step, a security-sensitive action, an approval not already given, or a plan too broken to follow.
+- A finding whose fix would change the design, or that stays stuck, is parked in the plan's `## Parked findings` section; the phase PR still merges, a design-update prompt comes before the next phase's prompt, and the next phase does not start until the design update has run. A security finding is never parked.
+- Validation runs a final code review (`/code-review high --max-findings all`) and a security review (the `/security-review` procedure in a read-only subagent) once each on saved copies of the final plan and spec, and records what each read, so a plan's docs PR can reuse them. A finding that keeps returning in validation becomes a blocker instead of another loop. In Claude Code, the typed `/code-review` level and finding limit stay as your saved choice for later manual runs.
+- Section 8 of new reports lists a done-check line per phase. Phase prompts say "Pause only for the Phase workflow's stop reasons."; plans on the older block keep the older sentence.
+
 ## 0.6.1 — 2026-11-05
 
 - An end-of-run answer that edits the plan or spec is now rehearsed again where it changed a rehearsed task's commands, files or test assertions, checked by a fresh independent reviewer, and recorded in the same run. The run hashes only the copies the reviewer read (`post-answer-plan.md`, `post-answer-spec.md`) and detects hand edits made during the round, so the re-rendered phase prompts stay current. A finding that needs approval becomes a pending approval, with no second question round; without a reviewer, or when the rehearsal cannot run, the report is Not ready. Answers given after the run's final reply still re-render locally, and validating the revised plan gives current prompts.
