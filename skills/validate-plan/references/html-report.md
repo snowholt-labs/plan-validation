@@ -299,9 +299,9 @@ Version 4 and 5 fields:
 `task_inventory` lists every validated task ID as a string, in plan order
 (`"5b"` and `"5"` are different tasks). Each phase has an `id`, a `title`, its
 `tasks`, the booleans `docs_only` and `security_review` (with `security_reason`
-when true; `security_review` marks a security-sensitive phase for review focus, and on an
-older Phase workflow block, or with none, a flagged code phase gets a security review too,
-as SKILL.md "Phase grouping" says), and `status` `ready` or `waiting` (with `waits_for` when waiting).
+when true; `security_review` marks a security-sensitive phase for review focus, and SKILL.md
+"Phase grouping" says when a phase gets a security review), and `status` `ready` or `waiting`
+(with `waits_for` when waiting).
 A phase-only validation lists only the selected tasks.
 
 Each routine-default entry, when applicable, has `question`, `decision` and
@@ -327,7 +327,7 @@ remediation/resume prompt; unchanged file hashes alone do not establish readines
 Never replace the recorded hashes just to make an old report appear current.
 The single exception is the same run's end-of-run answers: after the
 post-answer review and the security review of the answer edits pass (SKILL.md step 8), the hashes of the reviewed final
-documents, the `post-answer-*.md` copies, replace the earlier ones. A saved
+documents, `post-answer-plan.md` and `post-answer-spec.md`, replace the earlier ones. A saved
 report never refreshes hashes.
 
 ## Delivery
