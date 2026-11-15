@@ -1,5 +1,21 @@
 # Release verification
 
+## 0.8.0 release checks
+
+Checked on 15 November 2026 on Linux, using Python 3.14.4 and Claude Code 2.1.325. These are package checks on the release branch; they are not publication or live-plugin acceptance results.
+
+| Check | Observed result | Evidence and limit |
+| --- | --- | --- |
+| Renderer regression suite | 169 tests passed | The renderer, `diagrams.py` and the report scripts are unchanged since 0.7.0; saved version 1–3 and version 4 output stays frozen; rendering tests do not establish model behavior |
+| Package and local documentation links | Passed | Three skills, 5 SVG icons and 54 Markdown files checked in a clean checkout (`git archive` export); plugin, marketplace and Codex manifests agree at 0.8.0; the publish gate sentence and the `Publish setting` line are present; the `publish_artifact` setting defaults to `false` |
+| Claude plugin validation | Passed with one warning | Both `claude plugin validate` commands pass without `--strict`; the warning is that the repository's root `CLAUDE.md` is not loaded as plugin context, which is expected because it is contributor guidance, and makes `--strict` fail |
+| Retry demonstration | Three tests with one expected failure; corrected control has three passing tests | Existing authored fixture and renderer executed; not an effectiveness benchmark |
+| Documentation site | 47 tests passed; 14 pages built | The built header shows version 0.8.0 and the changelog page shows the 0.8.0 entry |
+
+The settled review rules (the trusted Phase workflow swap, the `Boundary tasks:` line, accepted parked findings, the last-reviewed-copy rule and per-review reuse on the docs PR) have not been measured in a live Claude Code or Codex session; they were checked as skill text. The plan that settled them ran its phases under the one review workflow, which is the first recorded use of that workflow, not a measurement of it.
+
+GitHub release publication, a directory security scan, reviewer approval and a live listing remain distinct states. No directory scan of 0.8.0 is recorded here; a scan of an earlier version is not a scan of 0.8.0.
+
 ## 0.7.0 release checks
 
 Checked on 13 November 2026 on Linux, using Python 3.14.4 and Claude Code 2.1.323. These are package checks on the release branch; they are not publication or live-plugin acceptance results.
