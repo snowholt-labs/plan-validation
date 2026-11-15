@@ -7,7 +7,7 @@ Checked on 15 November 2026 on Linux, using Python 3.14.4 and Claude Code 2.1.32
 | Check | Observed result | Evidence and limit |
 | --- | --- | --- |
 | Renderer regression suite | 169 tests passed | The renderer, `diagrams.py` and the report scripts are unchanged since 0.7.0; saved version 1–3 and version 4 output stays frozen; rendering tests do not establish model behavior |
-| Package and local documentation links | Passed | Three skills, 5 SVG icons and 59 Markdown files checked; plugin, marketplace and Codex manifests agree at 0.8.0; the publish gate sentence and the `Publish setting` line are present; the `publish_artifact` setting defaults to `false` |
+| Package and local documentation links | Passed | Three skills, 5 SVG icons and 54 Markdown files checked in a clean checkout (`git archive` export); plugin, marketplace and Codex manifests agree at 0.8.0; the publish gate sentence and the `Publish setting` line are present; the `publish_artifact` setting defaults to `false` |
 | Claude plugin validation | Passed with one warning | Both `claude plugin validate` commands pass without `--strict`; the warning is that the repository's root `CLAUDE.md` is not loaded as plugin context, which is expected because it is contributor guidance, and makes `--strict` fail |
 | Retry demonstration | Three tests with one expected failure; corrected control has three passing tests | Existing authored fixture and renderer executed; not an effectiveness benchmark |
 | Documentation site | 47 tests passed; 14 pages built | The built header shows version 0.8.0 and the changelog page shows the 0.8.0 entry |
