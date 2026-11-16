@@ -89,11 +89,11 @@ def is_image(suffix: str, data: bytes) -> bool:
     return False
 
 
-def frontmatter(text: str):
+def frontmatter(text: str, unquote: bool = True):
     """Return {key: [values]} for the `key: value` lines between the first two `---` lines, or None.
 
     Unparsed lines are collected under the empty key; indented lines are skipped, so a value
-    must fit on its key's line.
+    must fit on its key's line. With unquote, one pair of surrounding quotes is removed.
     """
     lines = text.split("\n")
     if not lines or lines[0].rstrip("\r") != "---":
@@ -108,7 +108,7 @@ def frontmatter(text: str):
         match = FRONTMATTER_LINE.fullmatch(line)
         key = match.group(1) if match else ""
         value = (match.group(2) or "").strip() if match else ""
-        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+        if unquote and len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
             value = value[1:-1]
         fields.setdefault(key, []).append(value)
     return None
@@ -156,6 +156,9 @@ def check_skill(rel_parts: tuple, text: str, errors: list, rel: str):
         problems.append(f"name must be {rel_parts[1]}")
     if not value.get("description"):
         problems.append("description is required")
+    elif frontmatter(text, unquote=False)["description"][-1][0] in ">|":
+        # Unquoted, `>` or `|` starts a block scalar (or is invalid YAML); quote such a value.
+        problems.append("description must be on its key's line, not a block scalar")
     if rel_parts[1] == "validate-plan" and value.get("disable-model-invocation") != "true":
         problems.append("validate-plan needs disable-model-invocation: true")
     if problems:

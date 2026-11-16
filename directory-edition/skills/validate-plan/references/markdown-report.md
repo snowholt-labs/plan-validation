@@ -163,13 +163,14 @@ Each prompt targets 50–80 words; do not add filler to meet a minimum.
 ## Saved reports
 
 A saved report without `## Run record`, such as one the full plugin wrote or a damaged
-one, cannot be checked by this edition: do not rewrite it or run the self-check on it.
-Only add the two historical warning lines and one blank line (Handoff files) at the top of
-its section 8 and of its `handoff.txt` and each `handoff-phase-*.txt` where they are not
-already there, changing nothing else. Reply that its prompts are historical and must not be run, link it, give one current
+one, cannot be checked by this edition. Do not change it or any file beside it, and do
+not run the self-check on it; Handoff files and the rest of this section do not apply to
+it. Reply that its prompts are historical and must not be run, link it, give one current
 remediation prompt that says to validate the plan again and follows item 19's rules, and
-say that the self-check did not run. For a recovered report, say in the
-Summary that it is a saved report, keep its original
+say that the self-check did not run.
+
+The rest of this section is for a saved report that has a Run record (a recovered
+report). Say in its Summary that it is a saved report, keep its original
 date, scores, test results and exact handoff, and state that it is being rewritten rather
 than revalidated. Check current documents and Git state first. If either document hash,
 approvals or Git state changed or could not be checked, mark the old prompt historical in the report: set Handoff
@@ -190,14 +191,19 @@ Do not modify existing reports, plans or specs to migrate their format.
 
 ## Self-check
 
-Run this checklist on the written `report.md` and handoff files before replying. Mark
-each item pass or fail. Fix every failed item (item 3 says when a saved report keeps one
-failed), then run the whole checklist again, since
+Run this checklist on the written `report.md` and handoff files before replying. A new
+report is one this run wrote; any other report, including one an earlier run of this
+edition wrote, is a saved report. Mark
+each item pass or fail. Fix every failed item, then run the whole checklist again, since
 one fix can make another item fail; never report a failed item as passed. When the
 verdict or prompts disagree with the review status in the Run record, the approvals in
 section 6, the hashes or Git state, change the verdict and prompts to match that record,
 never the record to fit them; a saved report is marked historical instead, as item 3 and
-Saved reports say. The reply's self-check result gives the number of items
+Saved reports say. A saved report is never fixed by changing what Saved reports says it
+keeps, such as its date, scores, test results, recorded hashes, exact handoff and section 8: when an item fails
+there, set its Handoff status to `historical`, add the current remediation prompt as
+Saved reports says, and report that item as failed, as item 3 does. The reply's
+self-check result gives the number of items
 that pass after those fixes and rechecks, for example `Self-check: 19 of 19 passed`, and
 names each item that failed on any pass and how it was fixed. These are structural checks made
 by the agent, not by code, and they are not a substitute for reviewing the evidence,
