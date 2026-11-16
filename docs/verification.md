@@ -26,7 +26,7 @@ Run these for every release, in addition to the release checks; each release reg
 - In the same session, make two broken copies of that `report.md` and ask the agent to self-check each: a `Ready` verdict while the Run record says `Review status: incomplete`, and a `Not ready` report whose prompt says `Implement Task 1.` and lacks `Do not start dependent implementation.`. Expected: the matching self-check item fails for each, and the agent fixes the report before it replies. The first is fixed by changing the verdict to `Not ready` with a remediation prompt, never by marking the review complete.
 - Record only pass, fail or Unknown per expectation, and limits in generic wording; never paste reply text, instruction text, names of user-level files or skills, or run-directory paths. Record each later run as its own `### <version> directory edition check` subsection directly under this list, above the earlier ones, and keep the earlier ones.
 
-### 0.8.0 directory edition manual run
+### 0.8.0 directory edition check
 
 Checked on 16 November 2026 (UTC) on Linux, using Python 3.14.4 and Claude Code 2.1.325, on the edition generated at commit `f42a8a1` (version 0.8.0) of the `plan/directory-edition` branch, which differs from `d205180` only in one README sentence. User-level instructions, memory and personal skills were excluded with a fresh configuration directory and the settings that turn off user instructions and memory.
 
@@ -36,7 +36,7 @@ Checked on 16 November 2026 (UTC) on Linux, using Python 3.14.4 and Claude Code 
 | Run files present (`report.md` with `## Summary`, eight sections and `## Run record`, `handoff.txt`, phase files) | Passed | `report.md` had `## Summary`, the eight numbered sections and `## Run record`; `handoff.txt` and one phase prompt file for the one ready phase |
 | No `context.json` or `report.html` in the run directory | Passed | Neither file was in the run directory |
 | No Artifact or other publish call | Passed | The exported session shows no Artifact or other publish call; whether the session offered an Artifact tool was not recorded |
-| Self-check result stated in the reply as made by the agent | Passed | The reply had the `Self-check: N of N passed` line, with all items passing, and the sentence `These checks were made by the agent, not by code.` |
+| Self-check result stated in the reply as made by the agent | Passed | The reply had the self-check count line, with all items passing, and the closing sentence that the edition's `SKILL.md` requires |
 | Broken sample: `Ready` with `Review status: incomplete` | Failed | The review-status item failed and the copy was rechecked before the reply, but the fix restored `Review status: complete` instead of changing the verdict to `Not ready`. The run's reviews had completed, so the restored value was true, but the expectation forbids this fix, and the skill text does not say which way to fix it |
 | Broken sample: `Not ready` prompt with `Implement Task 1.` and no `Do not start dependent implementation.` | Passed | The handoff item and the handoff-files item failed, and the copy was fixed and rechecked before the reply. The fix restored the `Ready` verdict and the original prompt from the run's evidence, so the repair of a real `Not ready` prompt was not shown |
 
