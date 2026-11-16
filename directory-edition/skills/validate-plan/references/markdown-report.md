@@ -182,8 +182,10 @@ Do not modify existing reports, plans or specs to migrate their format.
 ## Self-check
 
 Run this checklist on the written `report.md` and handoff files before replying. Mark
-each item pass or fail. Fix every failed item, then check it again; never report a failed
-item as passed. The reply's self-check result gives the number of items that pass after
+each item pass or fail. Fix every failed item, then run the whole checklist again, since
+one fix can make another item fail; never report a failed item as passed. When the
+verdict or prompts disagree with the recorded review, approvals, hashes or Git state,
+change the verdict and prompts to match the record, never the record to fit them. The reply's self-check result gives the number of items that pass after
 those fixes and rechecks, for example `Self-check: 19 of 19 passed`, and names each item
 that failed at first and how it was fixed. These are structural checks made
 by the agent, not by code, and they are not a substitute for reviewing the evidence,
@@ -198,9 +200,13 @@ approvals, Git state or the report itself.
 2. Section 1 starts with `Ready`, `Ready after approvals` or `Not ready`, and its visible
    text (before any `### Technical details`) has `Confidence:` with `Unknown` or a whole
    percentage from 0 to 100 in steps of 5.
-3. `Ready` and `Ready after approvals` both need `Review status: complete`. When this item
-   fails, change the verdict to `Not ready` with a remediation prompt; never fix it by
-   setting the review status to `complete`.
+3. `Ready` and `Ready after approvals` both need `Review status: complete`; a missing or
+   malformed status line is not `complete`. Never fix this item by setting the review
+   status to `complete`. Change the verdict to `Not ready`, make the Summary match,
+   replace section 8 with exactly one remediation prompt that names the missing review
+   and every other remaining blocker and says `Do not start dependent implementation.`,
+   rewrite the handoff files as Handoff files says, and give the changed verdict in the
+   reply.
 4. Sections 2 and 3 each hold exactly one four-column table: a header, a separator, five
    dimension rows and an `Average /10` row, with both score columns labeled `/10`, scores
    0–10 or `Unknown`, and each declared average equal to the five scores' mean rounded
