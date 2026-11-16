@@ -120,7 +120,7 @@ launch prompt references `report.md`, so the next agent can recover this record.
 - `Handoff status: current` or `Handoff status: historical`, on its own line. Before
   writing it, recompute both live document hashes. Set `historical` when either differs
   from the Documents table, or when Git state or approvals drifted, even when the hashes
-  match.
+  match, and when a saved report fails self-check item 3.
 - **Task inventory:** a one-column table `Task` listing every validated task ID in plan
   order, each once. Task IDs are text, so `5b` and `5` are different tasks. A phase-only
   validation lists only the selected tasks.
@@ -226,7 +226,7 @@ approvals, Git state or the report itself.
    basis (or `Unknown`).
 8. Documents table: exactly PLAN and SPEC, absolute paths, full 64-character SHA-256.
    Recompute both live hashes, and set Handoff status to `historical` when either differs
-   or Git state or approvals drifted.
+   or Git state or approvals drifted (item 3 adds a saved report's missing review).
 9. Phases: every task in the Task inventory once, in plan order, no empty phase. IDs are
    unique ignoring case, 1–16 letters, digits, dots or hyphens, starting with a letter or
    digit. Each phase has a title. Docs only and Security review are `yes` or `no` and not
