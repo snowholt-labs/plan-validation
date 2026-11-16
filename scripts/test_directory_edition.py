@@ -250,6 +250,12 @@ class CheckEditionTest(unittest.TestCase):
         write(self.root / "README.md", "# Edition\n\nThe `waits_for` field.\n")
         self.assertEqual(check_edition(self.root), [])
 
+    def test_dropped_field_names_publishing_and_renderer_options(self):
+        for term in ("artifact.json", "publish_artifact", "handoff_held", "--context", "--report", "--output"):
+            with self.subTest(term=term):
+                write(self.root / "skills/validate-plan/SKILL.md", SKILL + f"\nUse `{term}`.\n")
+                self.assert_one("dropped-field", "skills/validate-plan/SKILL.md")
+
     def test_symlink(self):
         os.symlink("README.md", self.root / "link.md")
         self.assert_one("symlink", "link.md")
@@ -490,6 +496,17 @@ class BuildEditionTest(unittest.TestCase):
         os.symlink(self.tmp, folder / "references")
         self.assert_build_error("symbolic link")
 
+    def test_symlinked_skills_without_overrides_fails(self):
+        set_overrides(self.root, {})
+        shutil.rmtree(self.root / "editions/directory/overrides")
+        (self.root / "editions/directory/overrides").mkdir()
+        outside = self.tmp / "outside"
+        write(outside / "skills/validate-plan/SKILL.md", FULL_SKILL)
+        shutil.rmtree(self.root / "skills")
+        os.symlink(outside / "skills", self.root / "skills")
+        self.assert_build_error("skills", "symbolic link")
+        self.assertFalse(self.out.exists())
+
     def test_readme_not_utf8_fails(self):
         write(self.root / "editions/directory/README.md", b"# Edition caf\xe9\n")
         self.assert_build_error("README.md", "not valid UTF-8")
@@ -581,6 +598,29 @@ class BuildEditionTest(unittest.TestCase):
         code, out = self.run_main("--root", str(self.root), "--check")
         self.assertEqual(code, 1)
         self.assertIn("differs: README.md", out)
+
+    @unittest.skipUnless(hasattr(os, "mkfifo"), "needs named pipes")
+    def test_check_reports_special_file_in_edition(self):
+        build(self.root, self.root / "directory-edition")
+        os.mkfifo(self.root / "directory-edition/pipe.md")
+        code, out = self.run_main("--root", str(self.root), "--check")
+        self.assertEqual(code, 1)
+        self.assertIn("directory-edition/pipe.md: not a regular file", out)
+
+    @unittest.skipIf(hasattr(os, "geteuid") and os.geteuid() == 0, "root can read any file")
+    def test_check_reports_unreadable_edition_paths(self):
+        build(self.root, self.root / "directory-edition")
+        for rel in ("directory-edition/skills", "directory-edition/README.md"):
+            with self.subTest(rel=rel):
+                path = self.root / rel
+                path.chmod(0)
+                try:
+                    code, out = self.run_main("--root", str(self.root), "--check")
+                finally:
+                    path.chmod(0o755 if path.is_dir() else 0o644)
+                self.assertEqual(code, 1)
+                self.assertIn("Build failed", out)
+                self.assertIn("cannot be read", out)
 
     def test_main_failure_keeps_previous_output(self):
         kept = self.root / "directory-edition/kept.md"
