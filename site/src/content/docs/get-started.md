@@ -38,7 +38,7 @@ To inspect locally before installing, clone the repository and run `claude plugi
 
 ### Editions
 
-The plugin above is the full edition, and the recommended install. A second, directory edition is generated from the same skill sources for Anthropic's plugin directory. Both use the name `plan-validation`, so install one edition only. The directory edition is for Claude Code only and leaves out the HTML report (`validate-plan` writes `report.md` and its handoff files instead), the renderer checks (the agent runs a written self-check), Codex support and artifact publishing. See the [directory edition README](https://github.com/snowholt-labs/plan-validation/blob/main/directory-edition/README.md).
+The plugin above is the full edition, and the recommended install. A second, directory edition is generated from the same skill sources for Anthropic's plugin directory; you can install it from there once it is listed. Both use the name `plan-validation`, so install one edition only. The directory edition is for Claude Code only and leaves out the HTML report (`validate-plan` writes `report.md` and its handoff files instead), the renderer checks (the agent runs a written self-check), Codex support and artifact publishing. See the [directory edition README](https://github.com/snowholt-labs/plan-validation/blob/main/directory-edition/README.md).
 
 ### Optional: private report artifacts
 
