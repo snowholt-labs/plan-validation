@@ -131,6 +131,9 @@ launch prompt references `report.md`, so the next agent can recover this record.
   reason when Security review is `yes`, and `None` otherwise. The Security review column
   marks a security-sensitive phase for review focus; SKILL.md "Phase grouping" says when
   a phase gets a security review.
+- `Provenance:` on its own line: the validation session identifier, when the host gives
+  one, and the run directory that holds the source evidence. Verification-limit notes
+  belong in section 7.
 
 ## Handoff files
 
@@ -141,8 +144,10 @@ changed verdict or a failed write. Then write:
 - `handoff.txt`: the first fenced prompt of section 8 (the first ready phase's prompt, or
   the single remediation prompt), exactly as written there, after the historical warning
   lines below when they apply;
-- `handoff-phase-<id>.txt` for each ready phase: that phase's prompt, exactly as written
-  in section 8, after the historical warning lines below when they apply.
+- `handoff-phase-<id>.txt` for each ready phase that has its own prompt in section 8:
+  that phase's prompt, exactly as written there, after the historical warning lines below
+  when they apply. A `Not ready` report, or one whose first phase waits, has no phase
+  prompts and gets no phase files, even when Phases rows say `ready`.
 
 When Handoff status is `historical`, every one of these files starts with these two lines,
 and section 8 of `report.md` starts with the same two lines, unfenced, above every prompt:
@@ -159,9 +164,11 @@ Each prompt targets 50–80 words; do not add filler to meet a minimum.
 For a recovered report, say in the Summary that it is a saved report, keep its original
 date, scores, test results and exact handoff, and state that it is being rewritten rather
 than revalidated. Check current documents and Git state first. If approvals or Git state
-changed, mark the old prompt historical in the report and provide a remediation/resume
-prompt; unchanged file hashes alone do not establish readiness. A saved report keeps
-section 8 as its run wrote it. Never replace the recorded hashes just to make an old
+changed, mark the old prompt historical in the report (set Handoff status to
+`historical`, which adds the historical warning lines above section 8's prompts and in the
+handoff files) and give a current remediation/resume prompt in the reply, outside
+section 8 and the handoff files; unchanged file hashes alone do not establish readiness.
+Apart from those warning lines, a saved report keeps section 8 as its run wrote it. Never replace the recorded hashes just to make an old
 report appear current. The single exception is the same run's end-of-run answers: after
 the post-answer review and the security review of the answer edits pass (SKILL.md step 8),
 the hashes of the reviewed final documents, `post-answer-plan.md` and
@@ -171,7 +178,9 @@ Do not modify existing reports, plans or specs to migrate their format.
 ## Self-check
 
 Run this checklist on the written `report.md` and handoff files before replying. Mark
-each item pass or fail in the reply's self-check result. Fix every failed item, then
+each item pass or fail. The reply's self-check result gives the number of items passed,
+for example `Self-check: 18 of 18 passed`, and names each item that failed and how it was
+fixed. Fix every failed item, then
 check it again; never report a failed item as passed. These are structural checks made
 by the agent, not by code, and they are not a substitute for reviewing the evidence,
 approvals, Git state or the report itself.
@@ -215,27 +224,28 @@ approvals, Git state or the report itself.
     of at most 60 characters and a nonempty body. Each default under
     `## Decisions made without your reply` has a question, a decision and a reason.
 12. Section 8: one fenced prompt per ready phase, in order, or exactly one fenced prompt
-    when no phase is ready. Each has at most 80 whitespace-separated words, counting a
-    backtick-quoted span as one word only when it is the recorded PLAN or SPEC path or
-    this run's `report.md` quoted exactly, or an absolute path with no spaces that starts
-    with `~/`, a drive (`C:\` or `C:/`) or `/`, where a `/` path needs a first segment
-    without a colon and, without a file extension, a second segment (so
+    when no phase is ready. Each is nonempty and has at most 80 whitespace-separated
+    words, counting a backtick-quoted span as one word only when it is the recorded PLAN
+    or SPEC path or this run's `report.md` quoted exactly, or an absolute path with no
+    spaces that starts with `~/`, a drive (`C:\` or `C:/`) or `/`, where a `/` path needs
+    a first segment without a colon and, without a file extension, a second segment (so
     `/feature-dev:implement` and `/implement/` count as text). No prompt has an unclosed
     inner fence. Each ready prompt says `Stop at the end of Phase <id>`, not negated, and
     every `Stop at the end of Phase` sentence in it names that prompt's own phase and none
-    is negated. Each ready prompt after the first says `Confirm Phase <previous> is merged`,
-    not negated. Items 12–14 match words ignoring case, and a required sentence may wrap
-    across lines.
+    is negated. In a new report, each ready prompt after the first says
+    `Confirm Phase <previous> is merged`, not negated. Items 12–14 match words ignoring
+    case, and a required sentence may wrap across lines.
 13. A `Not ready` report, or one whose first phase waits, has exactly one prompt, even
     when Phases rows say `ready`, with `Do not start dependent implementation` (ignoring
     case) and no `implement`, `implements` or `implementing` (also with `re` or `re-`)
-    except right after `not`, `cannot`, `n't` or `never` on the same line, or inside a
-    backtick-quoted path as item 12 defines it (a quoted slash command such as
-    `/feature-dev:implement` is text and is checked).
-14. Neither section 8 nor its prompts say "run validation again first" unless `not`,
-    `never` or `n't` followed by `need to` or `have to` (as in `do not need to`,
-    `don't have to`), or `no need to`, comes right before it. `Do not run validation again
-    first` fails, so reword it: a new report has no re-run.
+    except right after `not`, `cannot`, `n't` (straight or curly apostrophe) or `never`
+    on the same line, or inside a backtick-quoted path as item 12 defines it (a quoted
+    slash command such as `/feature-dev:implement` is text and is checked).
+14. In a new report, neither section 8 nor its prompts say "run validation again first"
+    unless `not`, `never` or `n't` (straight or curly apostrophe) followed by `need to` or
+    `have to` (as in `do not need to`, `don't have to`), or `no need to`, comes right
+    before it. `Do not run validation again first` fails, so reword it: a new report has
+    no re-run.
 15. When Handoff status is `historical`, section 8 and every handoff file start with the
     historical warning lines (Handoff files above).
 16. The Task inventory is nonempty and lists each task ID once.
@@ -243,7 +253,7 @@ approvals, Git state or the report itself.
     `current` or `historical`.
 18. `handoff.txt` and each `handoff-phase-<id>.txt` match their section 8 prompts exactly,
     after the two historical warning lines when Handoff status is `historical` (item 15),
-    and no handoff file remains for a phase that is no longer ready.
+    and no phase file exists for a phase without its own prompt in section 8.
 
 ## Delivery
 

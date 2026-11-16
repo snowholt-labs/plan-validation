@@ -17,12 +17,20 @@ def main():
     codex = json.loads((ROOT / ".codex-plugin/plugin.json").read_text())
     market = json.loads((ROOT / ".claude-plugin/marketplace.json").read_text())
     entry = market["plugins"][0]
-    # The directory edition is generated from the root manifest, so its name and version must match too.
-    edition = json.loads((EDITION / ".claude-plugin/plugin.json").read_text())
-    if len({claude["version"], codex["version"], entry["version"], edition.get("version")}) != 1:
+    if len({claude["version"], codex["version"], entry["version"]}) != 1:
         errors.append("Plugin and marketplace versions differ")
-    if len({claude["name"], codex["name"], entry["name"], edition.get("name")}) != 1:
+    if len({claude["name"], codex["name"], entry["name"]}) != 1:
         errors.append("Plugin and marketplace names differ")
+    # The directory edition is generated from the root manifest, so its name and version must match too.
+    edition_manifest = EDITION / ".claude-plugin/plugin.json"
+    rebuild = "; run python3 scripts/build_directory_edition.py"
+    if not edition_manifest.is_file():
+        errors.append(f"directory-edition/.claude-plugin/plugin.json is missing{rebuild}")
+    else:
+        edition = json.loads(edition_manifest.read_text())
+        for key in ("version", "name"):
+            if edition.get(key) != claude[key]:
+                errors.append(f"Directory edition {key} differs from the root manifest{rebuild}")
     if not re.fullmatch(r"\d+\.\d+\.\d+", claude["version"]):
         errors.append("Expected a semantic release version")
     if (ROOT / entry["source"]).resolve() != ROOT:
