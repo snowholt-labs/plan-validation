@@ -198,7 +198,9 @@ approvals, Git state or the report itself.
 2. Section 1 starts with `Ready`, `Ready after approvals` or `Not ready`, and its visible
    text (before any `### Technical details`) has `Confidence:` with `Unknown` or a whole
    percentage from 0 to 100 in steps of 5.
-3. `Ready` and `Ready after approvals` both need `Review status: complete`.
+3. `Ready` and `Ready after approvals` both need `Review status: complete`. When this item
+   fails, change the verdict to `Not ready` with a remediation prompt; never fix it by
+   setting the review status to `complete`.
 4. Sections 2 and 3 each hold exactly one four-column table: a header, a separator, five
    dimension rows and an `Average /10` row, with both score columns labeled `/10`, scores
    0–10 or `Unknown`, and each declared average equal to the five scores' mean rounded
