@@ -120,7 +120,7 @@ launch prompt references `report.md`, so the next agent can recover this record.
 - `Handoff status: current` or `Handoff status: historical`, on its own line. Before
   writing it, recompute both live document hashes. Set `historical` when either differs
   from the Documents table, or when Git state or approvals drifted, even when the hashes
-  match.
+  match, and when a saved report fails self-check item 3.
 - **Task inventory:** a one-column table `Task` listing every validated task ID in plan
   order, each once. Task IDs are text, so `5b` and `5` are different tasks. A phase-only
   validation lists only the selected tasks.
@@ -182,10 +182,15 @@ Do not modify existing reports, plans or specs to migrate their format.
 ## Self-check
 
 Run this checklist on the written `report.md` and handoff files before replying. Mark
-each item pass or fail. Fix every failed item, then check it again; never report a failed
-item as passed. The reply's self-check result gives the number of items that pass after
-those fixes and rechecks, for example `Self-check: 19 of 19 passed`, and names each item
-that failed at first and how it was fixed. These are structural checks made
+each item pass or fail. Fix every failed item (item 3 says when a saved report keeps one
+failed), then run the whole checklist again, since
+one fix can make another item fail; never report a failed item as passed. When the
+verdict or prompts disagree with the review status in the Run record, the approvals in
+section 6, the hashes or Git state, change the verdict and prompts to match that record,
+never the record to fit them; a saved report is marked historical instead, as item 3 and
+Saved reports say. The reply's self-check result gives the number of items
+that pass after those fixes and rechecks, for example `Self-check: 19 of 19 passed`, and
+names each item that failed on any pass and how it was fixed. These are structural checks made
 by the agent, not by code, and they are not a substitute for reviewing the evidence,
 approvals, Git state or the report itself.
 
@@ -198,7 +203,17 @@ approvals, Git state or the report itself.
 2. Section 1 starts with `Ready`, `Ready after approvals` or `Not ready`, and its visible
    text (before any `### Technical details`) has `Confidence:` with `Unknown` or a whole
    percentage from 0 to 100 in steps of 5.
-3. `Ready` and `Ready after approvals` both need `Review status: complete`.
+3. `Ready` and `Ready after approvals` both need `Review status: complete`; a missing or
+   malformed status line is not `complete`. Never fix this item by setting the review
+   status to `complete`. Change the verdict to `Not ready` and make the Summary match.
+   In section 8, keep the `Suggested effort` line, updated for the remediation session,
+   and any historical warning lines, and replace the done-check lines, the between-phases
+   note and the prompts with exactly one remediation prompt that names the missing review
+   and every other remaining blocker and says `Do not start dependent implementation.`
+   Rewrite the handoff files as Handoff files says, and give the changed verdict in the
+   reply. A saved report is not rewritten this way: set its Handoff status to
+   `historical`, add the current remediation prompt, naming the missing review, as Saved
+   reports says, and report this item as failed.
 4. Sections 2 and 3 each hold exactly one four-column table: a header, a separator, five
    dimension rows and an `Average /10` row, with both score columns labeled `/10`, scores
    0–10 or `Unknown`, and each declared average equal to the five scores' mean rounded
@@ -212,7 +227,7 @@ approvals, Git state or the report itself.
    basis (or `Unknown`).
 8. Documents table: exactly PLAN and SPEC, absolute paths, full 64-character SHA-256.
    Recompute both live hashes, and set Handoff status to `historical` when either differs
-   or Git state or approvals drifted.
+   or Git state or approvals drifted (item 3 adds a saved report's missing review).
 9. Phases: every task in the Task inventory once, in plan order, no empty phase. IDs are
    unique ignoring case, 1–16 letters, digits, dots or hyphens, starting with a letter or
    digit. Each phase has a title. Docs only and Security review are `yes` or `no` and not
