@@ -1,8 +1,8 @@
 # Durable Markdown report
 
 Read this when creating the baseline or repeating a validation result.
-`report.md` is the full report, not an abridged alternative. The chat response gives
-the verdict, the report link and any immediate blocker in at most three bullets.
+`report.md` is the full report, not an abridged alternative. The chat response is brief
+and holds what SKILL.md "Report and handoff" lists for the final reply.
 If the user explicitly asks for the full report in chat, print all eight sections too,
 with the Summary's design descriptions, open decisions, watch list and defaulted decisions.
 
@@ -163,13 +163,17 @@ Each prompt targets 50–80 words; do not add filler to meet a minimum.
 
 For a recovered report, say in the Summary that it is a saved report, keep its original
 date, scores, test results and exact handoff, and state that it is being rewritten rather
-than revalidated. Check current documents and Git state first. If approvals or Git state
-changed, mark the old prompt historical in the report (set Handoff status to
-`historical`, which adds the historical warning lines above section 8's prompts and in the
-handoff files) and give a current remediation/resume prompt in the reply, outside
-section 8 and the handoff files; unchanged file hashes alone do not establish readiness.
-Apart from those warning lines, a saved report keeps section 8 as its run wrote it. Never replace the recorded hashes just to make an old
-report appear current. The single exception is the same run's end-of-run answers: after
+than revalidated. Check current documents and Git state first. If either document hash,
+approvals or Git state changed, mark the old prompt historical in the report: set Handoff
+status to `historical`, which adds the historical warning lines above section 8's prompts
+and in the handoff files. Then write one current remediation prompt in the Summary, under
+the heading `### Current remediation prompt`, as a fenced block, and repeat it in the
+reply. It follows the remediation prompt rules of self-check items 12 and 13: at most
+80 words, `Do not start dependent implementation`, and no implement instruction. It names
+what to reconcile or validate again and never starts a phase. Unchanged file hashes alone
+do not establish readiness. Apart from those warning lines, a saved report keeps section 8
+as its run wrote it. Never replace the recorded hashes just to make an old report appear
+current. The single exception is the same run's end-of-run answers: after
 the post-answer review and the security review of the answer edits pass (SKILL.md step 8),
 the hashes of the reviewed final documents, `post-answer-plan.md` and
 `post-answer-spec.md`, replace the earlier ones. A saved report never refreshes hashes.
@@ -178,10 +182,10 @@ Do not modify existing reports, plans or specs to migrate their format.
 ## Self-check
 
 Run this checklist on the written `report.md` and handoff files before replying. Mark
-each item pass or fail. The reply's self-check result gives the number of items passed,
-for example `Self-check: 18 of 18 passed`, and names each item that failed and how it was
-fixed. Fix every failed item, then
-check it again; never report a failed item as passed. These are structural checks made
+each item pass or fail. Fix every failed item, then check it again; never report a failed
+item as passed. The reply's self-check result gives the number of items that pass after
+those fixes and rechecks, for example `Self-check: 19 of 19 passed`, and names each item
+that failed at first and how it was fixed. These are structural checks made
 by the agent, not by code, and they are not a substitute for reviewing the evidence,
 approvals, Git state or the report itself.
 
@@ -254,6 +258,10 @@ approvals, Git state or the report itself.
 18. `handoff.txt` and each `handoff-phase-<id>.txt` match their section 8 prompts exactly,
     after the two historical warning lines when Handoff status is `historical` (item 15),
     and no phase file exists for a phase without its own prompt in section 8.
+19. In a saved report whose Handoff status is `historical`, the Summary holds exactly one
+    fenced prompt under `### Current remediation prompt` that meets item 12's word count
+    and item 13's rules (`Do not start dependent implementation`, no implement
+    instruction). A new report has no such heading.
 
 ## Delivery
 

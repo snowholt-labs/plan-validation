@@ -28,15 +28,17 @@ class EditionManifestTest(unittest.TestCase):
         message = self.run_main(self.tmp / "directory-edition")
         self.assertIn("directory-edition/.claude-plugin/plugin.json is missing", message)
 
-    def test_edition_version_mismatch_names_the_edition(self):
-        edition = self.tmp / "directory-edition"
-        shutil.copytree(check_package.EDITION, edition)
-        manifest = edition / ".claude-plugin/plugin.json"
-        data = json.loads(manifest.read_text())
-        data["version"] = "0.0.0"
-        manifest.write_text(json.dumps(data))
-        message = self.run_main(edition)
-        self.assertIn("Directory edition version differs from the root manifest", message)
+    def test_edition_name_or_version_mismatch_names_the_edition(self):
+        for key in ("version", "name"):
+            with self.subTest(key=key):
+                edition = self.tmp / key / "directory-edition"
+                shutil.copytree(check_package.EDITION, edition)
+                manifest = edition / ".claude-plugin/plugin.json"
+                data = json.loads(manifest.read_text())
+                data[key] = "0.0.0"
+                manifest.write_text(json.dumps(data))
+                message = self.run_main(edition)
+                self.assertIn(f"Directory edition {key} differs from the root manifest", message)
 
 
 if __name__ == "__main__":
