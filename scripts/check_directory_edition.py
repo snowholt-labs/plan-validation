@@ -244,6 +244,13 @@ def check_edition(root: Path) -> list[str]:
     manifest = root / ".claude-plugin/plugin.json"
     if not manifest.is_symlink() and not manifest.is_file():
         errors.append("manifest-fields: .claude-plugin/plugin.json: missing")
+    elif manifest.is_file() and not manifest.is_symlink():
+        try:
+            names_icon = json.loads(manifest.read_text()).get("icon") == SHIPPED_ICON
+        except (OSError, ValueError, AttributeError):
+            names_icon = False
+        if names_icon and not (root / ".claude-plugin/icon.png").is_file():
+            errors.append("manifest-fields: .claude-plugin/icon.png: the manifest names it, but it is missing")
     return sorted(errors)
 
 

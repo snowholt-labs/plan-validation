@@ -180,9 +180,12 @@ class CheckEditionTest(unittest.TestCase):
         self.assert_one("manifest-fields", ".claude-plugin/plugin.json")
 
     def test_manifest_fields_icon_is_the_shipped_icon(self):
-        manifest = dict(MANIFEST, icon="./assets/plan-validation.png")
-        write(self.root / ".claude-plugin/plugin.json", json.dumps(manifest))
+        self.set_manifest(icon="./assets/plan-validation.png")
         self.assert_one("manifest-fields", ".claude-plugin/plugin.json")
+
+    def test_manifest_fields_icon_file_must_exist(self):
+        (self.root / ".claude-plugin/icon.png").unlink()
+        self.assert_one("manifest-fields", ".claude-plugin/icon.png")
 
     def test_undecodable_manifest_reports_once(self):
         write(self.root / ".claude-plugin/plugin.json", b'{"name": "caf\xe9"}')
@@ -557,6 +560,13 @@ class BuildEditionTest(unittest.TestCase):
         write(self.root / "skills/validate-plan/run.sh", "echo hi\n")
         self.assert_build_error("skills/validate-plan/run.sh")
         self.assertFalse(self.out.exists())
+
+    def test_root_icon_must_be_the_shipped_icon(self):
+        manifest_path = self.root / ".claude-plugin/plugin.json"
+        data = json.loads(manifest_path.read_text())
+        data["icon"] = "./assets/icon.png"
+        manifest_path.write_text(json.dumps(data))
+        self.assert_build_error(".claude-plugin/plugin.json", "icon")
 
     def test_manifest_version_and_no_user_config(self):
         build(self.root, self.out)
