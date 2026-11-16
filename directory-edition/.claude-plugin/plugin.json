@@ -1,0 +1,22 @@
+{
+  "name": "plan-validation",
+  "version": "0.8.0",
+  "description": "Validate plans with focused dependency review and Markdown evidence reports; revise prompts without executing them. Directory edition.",
+  "author": {
+    "name": "Nariman Jafari (Lumina)",
+    "url": "https://github.com/snowholt"
+  },
+  "homepage": "https://snowholt-labs.github.io/plan-validation/",
+  "repository": "https://github.com/snowholt-labs/plan-validation",
+  "license": "Apache-2.0",
+  "keywords": [
+    "plan-validation",
+    "agent-skills",
+    "claude-code",
+    "implementation-plans",
+    "superpowers",
+    "dependency-review",
+    "prompt-revision"
+  ],
+  "icon": "./.claude-plugin/icon.png"
+}

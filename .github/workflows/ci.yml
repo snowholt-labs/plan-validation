@@ -25,6 +25,8 @@ jobs:
         run: python3 -m unittest discover -s skills/validate-plan/scripts -p 'test_*.py'
       - name: Test repository tooling
         run: python3 -m unittest discover -s scripts -p 'test_*.py'
+      - name: Check the directory edition
+        run: python3 scripts/build_directory_edition.py --check && python3 scripts/check_directory_edition.py
       - name: Check packaging and documentation links
         run: python3 scripts/check_package.py
       - name: Reproduce the demonstration
