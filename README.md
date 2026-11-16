@@ -74,6 +74,13 @@ For an inspectable clone with automatic skill-file updates, use the [manual inst
 
 **Requirements:** an agent host with filesystem and command tools, Git, Python 3.10+, an existing repository, a plan and a specification. Rehearsal needs the project's dependencies already available. An independent reviewer is required for a Ready verdict. Linux is the initial verification platform; other platforms need further testing.
 
+## Editions
+
+Plan Validation comes in two editions with the same plugin name, `plan-validation`. Install one edition only: installing both gives you two sets of the same commands.
+
+- **Full plugin** (recommended): the install above, from this repository's marketplace, for Claude Code and Codex.
+- **Directory edition**: a Claude Code-only copy in [`directory-edition/`](directory-edition/README.md), generated from the same skill sources for Anthropic's plugin directory. It ships only Markdown, text, JSON and image files, so it leaves out the HTML report (`validate-plan` writes `report.md` and its handoff files instead), the renderer checks (the agent runs a written self-check), Codex support and artifact publishing.
+
 ## First run
 
 Open the repository containing your saved plan and specification. Ask `validation-args` to prepare the invocation, or provide the paths yourself:
