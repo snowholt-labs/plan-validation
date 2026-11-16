@@ -182,7 +182,8 @@ Do not modify existing reports, plans or specs to migrate their format.
 ## Self-check
 
 Run this checklist on the written `report.md` and handoff files before replying. Mark
-each item pass or fail. Fix every failed item, then run the whole checklist again, since
+each item pass or fail. Fix every failed item (item 3 says when a saved report keeps one
+failed), then run the whole checklist again, since
 one fix can make another item fail; never report a failed item as passed. When the
 verdict or prompts disagree with the review status in the Run record, the approvals in
 section 6, the hashes or Git state, change the verdict and prompts to match that record,
@@ -204,12 +205,14 @@ approvals, Git state or the report itself.
 3. `Ready` and `Ready after approvals` both need `Review status: complete`; a missing or
    malformed status line is not `complete`. Never fix this item by setting the review
    status to `complete`. Change the verdict to `Not ready` and make the Summary match.
-   In section 8, keep the `Suggested effort` line and any historical warning lines, and
-   replace the done-check lines, the between-phases note and the prompts with exactly one
-   remediation prompt that names the missing review and every other remaining blocker and
-   says `Do not start dependent implementation.` A saved report instead keeps section 8 as
-   its run wrote it and adds the current remediation prompt as Saved reports says. Rewrite
-   the handoff files as Handoff files says, and give the changed verdict in the reply.
+   In section 8, keep the `Suggested effort` line, updated for the remediation session,
+   and any historical warning lines, and replace the done-check lines, the between-phases
+   note and the prompts with exactly one remediation prompt that names the missing review
+   and every other remaining blocker and says `Do not start dependent implementation.`
+   Rewrite the handoff files as Handoff files says, and give the changed verdict in the
+   reply. A saved report is not rewritten this way: set its Handoff status to
+   `historical`, add the current remediation prompt, naming the missing review, as Saved
+   reports says, and report this item as failed.
 4. Sections 2 and 3 each hold exactly one four-column table: a header, a separator, five
    dimension rows and an `Average /10` row, with both score columns labeled `/10`, scores
    0–10 or `Unknown`, and each declared average equal to the five scores' mean rounded
