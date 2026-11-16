@@ -179,6 +179,11 @@ class CheckEditionTest(unittest.TestCase):
         write(self.root / ".claude-plugin/plugin.json", json.dumps(manifest))
         self.assert_one("manifest-fields", ".claude-plugin/plugin.json")
 
+    def test_manifest_fields_icon_is_the_shipped_icon(self):
+        manifest = dict(MANIFEST, icon="./assets/plan-validation.png")
+        write(self.root / ".claude-plugin/plugin.json", json.dumps(manifest))
+        self.assert_one("manifest-fields", ".claude-plugin/plugin.json")
+
     def test_undecodable_manifest_reports_once(self):
         write(self.root / ".claude-plugin/plugin.json", b'{"name": "caf\xe9"}')
         self.assert_one("text-encoding", ".claude-plugin/plugin.json")
