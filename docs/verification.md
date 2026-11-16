@@ -16,6 +16,37 @@ The settled review rules (the trusted Phase workflow swap, the `Boundary tasks:`
 
 GitHub release publication, a directory security scan, reviewer approval and a live listing remain distinct states. No directory scan of 0.8.0 is recorded here; a scan of an earlier version is not a scan of 0.8.0.
 
+## Directory edition checks
+
+Run these for every release, in addition to the release checks; each release regenerates `directory-edition/` with the new version:
+
+- `python3 scripts/build_directory_edition.py --check && python3 scripts/check_directory_edition.py`: the committed edition matches a fresh build, and every policy rule passes.
+- `claude plugin validate directory-edition --profile directory --strict` and `claude plugin validate directory-edition/.claude-plugin/plugin.json`: both pass with no `✘` line. The directory profile runs only part of the directory's checks (not file types or `#!`), so the checker above stays the policy check.
+- A manual run of the edition's `validate-plan`, in a fresh interactive session outside this repository, with user-level instructions and personal skills excluded, since they load in any directory and can change what the session writes. If they cannot be excluded, record that limit and stop: the result does not count. Set up the sample from the repository root with `D=$(mktemp -d) && cp -r examples/retry "$D/" && git -C "$D" init -q && git -C "$D" add -A && git -C "$D" -c user.name=sample -c user.email=sample@example.invalid commit -qm sample`, then start `claude --plugin-dir <absolute repository path>/directory-edition` from `$D`. The `/` command picker must show the `/plan-validation:validate-plan` description that says "Markdown evidence report"; if it does not, stop, because the full edition is loaded. Then run `/plan-validation:validate-plan retry/plan.md retry/spec.md`. Expected: `report.md` with `## Summary`, eight sections and `## Run record`, `handoff.txt` and phase files when phases are ready, no `context.json` or `report.html`, no Artifact or other publish call (a call is a failure), and a reply with the self-check result. Since the picker check proves which edition loaded, a `context.json` or `report.html` means user-level instructions or personal skills steered the run: record that as a limit, not as an edition failure.
+- In the same session, make two broken copies of that `report.md` and ask the agent to self-check each: a `Ready` verdict while the Run record says `Review status: incomplete`, and a `Not ready` report whose prompt says `Implement Task 1.` and lacks `Do not start dependent implementation.`. Expected: the matching self-check item fails for each, and the agent fixes the report before it replies. The first is fixed by changing the verdict to `Not ready` with a remediation prompt, never by marking the review complete.
+- Record only pass, fail or Unknown per expectation, and limits in generic wording; never paste reply text, instruction text, names of user-level files or skills, or run-directory paths. Record each later run as its own `### <version> directory edition check` subsection directly under this list, above the earlier ones, and keep the earlier ones.
+
+### First directory edition check
+
+Checked on 15 November 2026 on Linux, using Python 3.14.4 and Claude Code 2.1.325, on the edition generated at commit `d205180` (version 0.8.0) of the `plan/directory-edition` branch.
+
+| Check | Observed result | Evidence and limit |
+| --- | --- | --- |
+| Edition sync and policy checker | Passed | `--check` reported the edition up to date; the checker passed on 17 files |
+| `claude plugin validate directory-edition --profile directory --strict` | Passed | No `✘` line; the command says the directory also runs a safety scan and a policy review that it does not |
+| `claude plugin validate directory-edition/.claude-plugin/plugin.json` | Passed | No `✘` line |
+| Picker shows the directory edition's description | Unknown | Not run: the manual run needs an interactive session, which the implementing session could not start; it is a maintainer action |
+| Run files present (`report.md` with `## Summary`, eight sections and `## Run record`, `handoff.txt`, phase files) | Unknown | Not run, as above |
+| No `context.json` or `report.html` in the run directory | Unknown | Not run, as above |
+| No Artifact or other publish call | Unknown | Not run, as above |
+| Self-check result stated in the reply as made by the agent | Unknown | Not run, as above |
+| Broken sample: `Ready` with `Review status: incomplete` | Unknown | Not run, as above |
+| Broken sample: `Not ready` prompt with `Implement Task 1.` and no `Do not start dependent implementation.` | Unknown | Not run, as above |
+
+Until the manual run is recorded here, the edition's agent behavior is unverified: the passing checks above cover packaging and policy only.
+
+After submission, re-check the "Other findings" of the directory's refusal of the full plugin at 0.7.0 (a value read from the machine, and a command the plugin runs; see the After submission section of `docs/superpowers/specs/2026-11-15-directory-edition-design.md`) against the first directory check of the edition, rather than designing around guesses.
+
 ## 0.7.0 release checks
 
 Checked on 13 November 2026 on Linux, using Python 3.14.4 and Claude Code 2.1.323. These are package checks on the release branch; they are not publication or live-plugin acceptance results.
