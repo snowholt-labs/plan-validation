@@ -139,9 +139,10 @@ Before writing any handoff file, delete `handoff.txt` and every earlier
 changed verdict or a failed write. Then write:
 
 - `handoff.txt`: the first fenced prompt of section 8 (the first ready phase's prompt, or
-  the single remediation prompt), exactly as written there;
+  the single remediation prompt), exactly as written there, after the historical warning
+  lines below when they apply;
 - `handoff-phase-<id>.txt` for each ready phase: that phase's prompt, exactly as written
-  in section 8.
+  in section 8, after the historical warning lines below when they apply.
 
 When Handoff status is `historical`, every one of these files starts with these two lines,
 and section 8 of `report.md` starts with the same two lines, unfenced, above every prompt:
@@ -241,6 +242,7 @@ approvals, Git state or the report itself.
 17. `Review status` is exactly `complete` or `incomplete`, and `Handoff status` is exactly
     `current` or `historical`.
 18. `handoff.txt` and each `handoff-phase-<id>.txt` match their section 8 prompts exactly,
+    after the two historical warning lines when Handoff status is `historical` (item 15),
     and no handoff file remains for a phase that is no longer ready.
 
 ## Delivery
