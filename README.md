@@ -79,7 +79,7 @@ For an inspectable clone with automatic skill-file updates, use the [manual inst
 Plan Validation comes in two editions with the same plugin name, `plan-validation`. Install one edition only: the two editions' commands clash.
 
 - **Full plugin** (recommended): the install above, from this repository's marketplace, for Claude Code and Codex.
-- **Directory edition**: a Claude Code-only copy in [`directory-edition/`](directory-edition/README.md), generated from the same skill sources for Anthropic's plugin directory; you can install it from Anthropic's plugin directory once it is listed. It ships only Markdown, text, JSON and image files, so it leaves out the HTML report (`validate-plan` writes `report.md` and its handoff files instead), the renderer checks (the agent runs a written self-check), Codex support and artifact publishing.
+- **Directory edition**: a Claude Code-only copy in [`directory-edition/`](directory-edition/README.md), generated from the same skill sources for Anthropic's plugin directory, where you can install it once it is listed. It ships only Markdown, text, JSON and image files, so it leaves out the HTML report (`validate-plan` writes `report.md` and its handoff files instead), the renderer checks (the agent runs a written self-check), Codex support and artifact publishing.
 
 ## First run
 

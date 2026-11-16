@@ -153,7 +153,7 @@ A docs-only phase skips step 2's test-first rule. Its step 9 runs the reviews th
 - Produces:
   - `class BuildError(Exception)`
   - `build(root: Path, out: Path) -> list[str]`, which writes the edition into `out` (which must not exist; otherwise `BuildError`) and returns the sorted relative paths written.
-  - `check(root: Path, edition: Path) -> list[str]`, which builds into a temporary directory and returns sorted `"missing: <p>"`, `"extra: <p>"` and `"differs: <p>"` lines.
+  - `check(root: Path, edition: Path) -> list[str]`, which builds the edition in memory and returns sorted `"missing: <p>"`, `"extra: <p>"` and `"differs: <p>"` lines.
   - `main(argv: list[str] | None = None) -> int`, which writes `<root>/directory-edition` by default (build into `<tmp>/directory-edition`, where `<tmp>` is a fresh `tempfile.mkdtemp(dir=root, prefix=".directory-edition-")`; then move the old folder, when it exists, to `<tmp>/previous` and move the new one into place, both with `os.replace`, and in a `finally` move `<tmp>/previous` back when it exists and `<root>/directory-edition` is missing before deleting `<tmp>`, so any failure leaves the old folder in place) or runs `check` with `--check`, exiting 1 on differences or `BuildError`.
 - Constants:
   - `EDITION = "directory-edition"`

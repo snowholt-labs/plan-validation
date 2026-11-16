@@ -135,7 +135,7 @@ The final reply gives the verdict, a link to `report.md` and the self-check resu
 
 - **`check_directory_edition.py`** encodes each rule in the refusal text as a separate, named check over `directory-edition/`, so a future refusal can be matched to a rule. It also rejects any mention of `render_report`, `context.json`, `report.html` or `html-report.md` in the output (my call), and, in the edition's skills, any `context.json` field name or renderer option (`open_decisions`, `waits_for`, `review_status`, `--open` and the like). That way an edit to a file copied unchanged cannot quietly ship a reference to a dropped part.
 - **Submitting a subfolder:** the refusal text itself says to "put the plugin in a subfolder and submit that folder". The root's `site/package.json` and `marketplace.json` therefore stay out of the submission.
-- **Sync check:** CI rebuilds the edition into a temporary folder and fails on any missing, extra or differing file (`build_directory_edition.py --check`), which covers what regenerating and running `git diff --exit-code directory-edition/` would, plus untracked extra files, without touching the committed folder.
+- **Sync check:** CI rebuilds the edition in memory and fails on any missing, extra or differing file (`build_directory_edition.py --check`), which covers what regenerating and running `git diff --exit-code directory-edition/` would, plus untracked extra files, without touching the committed folder.
 - **`check_package.py`:**
   - scopes the full-edition-only checks (`agents/openai.yaml`, the `Publish setting` line, the publish gate sentence) to the full edition;
   - adds the edition manifest to the version-match check;
