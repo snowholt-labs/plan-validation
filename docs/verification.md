@@ -23,27 +23,43 @@ Run these for every release, in addition to the release checks; each release reg
 - `python3 scripts/build_directory_edition.py --check && python3 scripts/check_directory_edition.py`: the committed edition matches a fresh build, and every policy rule passes.
 - `claude plugin validate directory-edition --profile directory --strict` and `claude plugin validate directory-edition/.claude-plugin/plugin.json`: both pass with no `✘` line. The directory profile runs only part of the directory's checks (not file types or `#!`), so the checker above stays the policy check.
 - A manual run of the edition's `validate-plan`, in a fresh interactive session outside this repository, with user-level instructions and personal skills excluded, since they load in any directory and can change what the session writes. If they cannot be excluded, record that limit and stop: the result does not count. Set up the sample from the repository root with `D=$(mktemp -d) && cp -r examples/retry "$D/" && git -C "$D" init -q && git -C "$D" add -A && git -C "$D" -c user.name=sample -c user.email=sample@example.invalid commit -qm sample`, then start `claude --plugin-dir <absolute repository path>/directory-edition` from `$D`. The `/` command picker must show the `/plan-validation:validate-plan` description that says "Markdown evidence report"; if it does not, stop, because the full edition is loaded. Then run `/plan-validation:validate-plan retry/plan.md retry/spec.md`. Expected: `report.md` with `## Summary`, eight sections and `## Run record`, `handoff.txt` and phase files when phases are ready, no `context.json` or `report.html`, no Artifact or other publish call (a call is a failure), and a reply with the self-check result. Since the picker check proves which edition loaded, a `context.json` or `report.html` means user-level instructions or personal skills steered the run: record that as a limit, not as an edition failure.
-- In the same session, make two broken copies of that `report.md` and ask the agent to self-check each: a `Ready` verdict while the Run record says `Review status: incomplete`, and a `Not ready` report whose prompt says `Implement Task 1.` and lacks `Do not start dependent implementation.`. Expected: the matching self-check item fails for each, and the agent fixes the report before it replies. Each is fixed to the run's true state: a review is never marked complete unless it really completed, and a `Ready` verdict whose reviews did not complete becomes `Not ready` with a remediation prompt.
+- In the same session, make two broken copies of that `report.md` and ask the agent to self-check each: a `Ready` verdict while the Run record says `Review status: incomplete`, and a `Not ready` report whose prompt says `Implement Task 1.` and lacks `Do not start dependent implementation.`. Expected: the matching self-check item fails for each, and the agent fixes the report before it replies. The first is fixed by changing the verdict to `Not ready` with a remediation prompt, never by marking the review complete.
 - Record only pass, fail or Unknown per expectation, and limits in generic wording; never paste reply text, instruction text, names of user-level files or skills, or run-directory paths. Record each later run as its own `### <version> directory edition check` subsection directly under this list, above the earlier ones, and keep the earlier ones.
+
+### 0.8.0 directory edition manual run
+
+Checked on 16 November 2026 (UTC) on Linux, using Python 3.14.4 and Claude Code 2.1.325, on the edition generated at commit `f42a8a1` (version 0.8.0) of the `plan/directory-edition` branch, which differs from `d205180` only in one README sentence. User-level instructions, memory and personal skills were excluded with a fresh configuration directory and the settings that turn off user instructions and memory.
+
+| Check | Observed result | Evidence and limit |
+| --- | --- | --- |
+| Picker shows the directory edition's description | Passed | The picker showed the "Markdown evidence report" description, and no personal skills were listed |
+| Run files present (`report.md` with `## Summary`, eight sections and `## Run record`, `handoff.txt`, phase files) | Passed | `report.md` had `## Summary`, the eight numbered sections and `## Run record`; `handoff.txt` and one phase prompt file for the one ready phase |
+| No `context.json` or `report.html` in the run directory | Passed | Neither file was in the run directory |
+| No Artifact or other publish call | Passed | The exported session shows no Artifact or other publish call; whether the session offered an Artifact tool was not recorded |
+| Self-check result stated in the reply as made by the agent | Passed | The reply had the `Self-check: N of N passed` line, with all items passing, and the sentence `These checks were made by the agent, not by code.` |
+| Broken sample: `Ready` with `Review status: incomplete` | Failed | The review-status item failed and the copy was rechecked before the reply, but the fix restored `Review status: complete` instead of changing the verdict to `Not ready`. The run's reviews had completed, so the restored value was true, but the expectation forbids this fix, and the skill text does not say which way to fix it |
+| Broken sample: `Not ready` prompt with `Implement Task 1.` and no `Do not start dependent implementation.` | Passed | The handoff item and the handoff-files item failed, and the copy was fixed and rechecked before the reply. The fix restored the `Ready` verdict and the original prompt from the run's evidence, so the repair of a real `Not ready` prompt was not shown |
+
+Limits: one sample plan in one session. In the first broken sample, the agent's own checking script first reported two passing items as failed; the agent found its script error and corrected it before the reply. Still unverified: that a `Ready` report whose reviews really did not complete is fixed by changing the verdict to `Not ready`, and that a real `Not ready` prompt with an implement instruction is repaired rather than replaced. Both need broken samples whose true state matches the break.
 
 ### First directory edition check
 
-Checked on 15 November 2026 on Linux, using Python 3.14.4 and Claude Code 2.1.325, on the edition generated at commit `d205180` (version 0.8.0) of the `plan/directory-edition` branch. The manual rows were checked on 16 November 2026 (UTC) with the same versions, on the edition at commit `f42a8a1`, which differs from `d205180` only in one README sentence.
+Checked on 15 November 2026 on Linux, using Python 3.14.4 and Claude Code 2.1.325, on the edition generated at commit `d205180` (version 0.8.0) of the `plan/directory-edition` branch.
 
 | Check | Observed result | Evidence and limit |
 | --- | --- | --- |
 | Edition sync and policy checker | Passed | `--check` reported the edition up to date; the checker passed on 17 files |
 | `claude plugin validate directory-edition --profile directory --strict` | Passed | No `✘` line; the command says the directory also runs a safety scan and a policy review that it does not |
 | `claude plugin validate directory-edition/.claude-plugin/plugin.json` | Passed | No `✘` line |
-| Picker shows the directory edition's description | Passed | The picker showed the "Markdown evidence report" description, and no personal skills were listed |
-| Run files present (`report.md` with `## Summary`, eight sections and `## Run record`, `handoff.txt`, phase files) | Passed | `report.md` had `## Summary`, the eight numbered sections and `## Run record`; `handoff.txt` and one phase prompt file for the one ready phase |
-| No `context.json` or `report.html` in the run directory | Passed | Neither file was in the run directory |
-| No Artifact or other publish call | Passed | The exported session shows no Artifact or other publish call |
-| Self-check result stated in the reply as made by the agent | Passed | The reply gave the self-check result, all items passed, and said the agent made the checks |
-| Broken sample: `Ready` with `Review status: incomplete` | Passed | The review-status item failed, and the copy was fixed and rechecked before the reply. The fix restored `Review status: complete`, the run's true state, since both of its reviews had completed |
-| Broken sample: `Not ready` prompt with `Implement Task 1.` and no `Do not start dependent implementation.` | Passed | The handoff item and the handoff-files item failed, and the copy was fixed and rechecked before the reply. The fix restored the `Ready` verdict and the original prompt, which the run's evidence supported |
+| Picker shows the directory edition's description | Unknown | Not run: the manual run needs an interactive session, which the implementing session could not start; it is a maintainer action |
+| Run files present (`report.md` with `## Summary`, eight sections and `## Run record`, `handoff.txt`, phase files) | Unknown | Not run, as above |
+| No `context.json` or `report.html` in the run directory | Unknown | Not run, as above |
+| No Artifact or other publish call | Unknown | Not run, as above |
+| Self-check result stated in the reply as made by the agent | Unknown | Not run, as above |
+| Broken sample: `Ready` with `Review status: incomplete` | Unknown | Not run, as above |
+| Broken sample: `Not ready` prompt with `Implement Task 1.` and no `Do not start dependent implementation.` | Unknown | Not run, as above |
 
-Limits: one sample plan in one session. User-level instructions, memory and personal skills were excluded with a fresh configuration directory and the settings that turn off user instructions and memory. In the first broken sample, the agent's own checking script first reported two items as failed that had passed; the agent found its script error and corrected it before the reply, which shows the self-check is only as reliable as the agent running it. Both broken samples were fixed by restoring the run's true state, so this run did not show the fix of a `Ready` report whose reviews really did not complete.
+Until the manual run is recorded here, the edition's agent behavior is unverified: the passing checks above cover packaging and policy only.
 
 After submission, re-check the "Other findings" of the directory's refusal of the full plugin at 0.7.0 (a value read from the machine, and a command the plugin runs; see the After submission section of `docs/superpowers/specs/2026-11-15-directory-edition-design.md`) against the first directory check of the edition, rather than designing around guesses.
 
