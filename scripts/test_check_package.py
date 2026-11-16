@@ -1,5 +1,7 @@
 """Tests for the directory edition parts of check_package.py."""
 
+import contextlib
+import io
 import json
 import shutil
 import sys
@@ -45,26 +47,45 @@ class EditionManifestTest(unittest.TestCase):
         shutil.copytree(check_package.EDITION, edition)
         return edition
 
-    def test_malformed_edition_manifest_is_reported(self):
+    def test_copied_edition_passes(self):
         edition = self.copy_edition()
-        (edition / ".claude-plugin/plugin.json").write_text("{not json")
-        message = self.run_main(edition)
-        self.assertIn("directory-edition/.claude-plugin/plugin.json is not valid JSON", message)
+        with mock.patch.object(check_package, "EDITION", edition), contextlib.redirect_stdout(io.StringIO()) as out:
+            check_package.main()
+        self.assertIn("directory edition files checked", out.getvalue())
+
+    def test_malformed_edition_manifest_is_reported(self):
+        for text in ("{not json", "[]", "null"):
+            with self.subTest(text=text):
+                edition = self.copy_edition()
+                (edition / ".claude-plugin/plugin.json").write_text(text)
+                self.assertEqual(self.run_main(edition).splitlines(), [
+                    "directory-edition/.claude-plugin/plugin.json must be a JSON object"
+                    "; run python3 scripts/build_directory_edition.py",
+                ])
+                shutil.rmtree(edition)
 
     def test_edition_must_keep_the_no_publish_line(self):
-        edition = self.copy_edition()
-        skill = edition / "skills/validate-plan/SKILL.md"
-        skill.write_text(skill.read_text().replace(check_package.EDITION_NO_PUBLISH, ""))
-        message = self.run_main(edition)
-        self.assertIn("directory-edition validate-plan SKILL.md must keep the no-publish line", message)
+        expected = ("directory-edition validate-plan SKILL.md must keep the no-publish line word for word"
+                    "; run python3 scripts/build_directory_edition.py")
+        for case in ("dropped", "no manifest"):
+            with self.subTest(case=case):
+                edition = self.copy_edition()
+                skill = edition / "skills/validate-plan/SKILL.md"
+                text = skill.read_text().replace(check_package.EDITION_NO_PUBLISH, "")
+                skill.write_text(text)
+                if case == "no manifest":
+                    (edition / ".claude-plugin/plugin.json").unlink()
+                lines = self.run_main(edition).splitlines()
+                self.assertIn(expected, lines)
+                self.assertEqual(len(lines), 2 if case == "no manifest" else 1, lines)
+                shutil.rmtree(edition)
 
     def test_link_leaving_the_edition_is_reported(self):
         edition = self.copy_edition()
         readme = edition / "README.md"
         readme.write_text(readme.read_text() + "\nSee [the root](../README.md).\n")
-        message = self.run_main(edition)
-        self.assertIn("directory-edition/README.md: link leaves the edition ../README.md", message)
-
+        self.assertEqual(self.run_main(edition).splitlines(),
+                         ["directory-edition/README.md: link leaves the edition ../README.md"])
 
 if __name__ == "__main__":
     unittest.main()

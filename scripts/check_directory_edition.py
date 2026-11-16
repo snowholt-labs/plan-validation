@@ -69,7 +69,7 @@ DROPPED_FIELD = re.compile(
     r"open_decisions|watch_list|review_status|handoff_status|task_inventory|waits_for|security_review"
     r"|security_reason|docs_only|holds_back|decisions_without_reply|format_version|validation_run"
     r"|phase_handoffs|title_accent|published_at|html_sha256|rerun\.txt|kind: (new|saved)|--open|user_config"
-    r"|artifact\.json|publish_artifact|handoff_held|--context\b|--report\b"
+    r"|artifact\.json|publish_artifact|handoff_held|--context\b|--report\b|--output\b"
 )
 FRONTMATTER_LINE = re.compile(r"([A-Za-z0-9_-]+):(?:\s(.*))?")
 

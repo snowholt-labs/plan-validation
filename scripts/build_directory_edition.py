@@ -243,21 +243,22 @@ def build(root: Path, out: Path) -> list[str]:
 
 
 def edition_files(folder: Path) -> dict:
+    """Return {path: bytes} for the committed edition, with None for a symbolic link."""
     files = {}
-
-    def fail(error: OSError):
-        name = Path(error.filename).relative_to(folder).as_posix() if error.filename else "."
-        raise BuildError(f"{EDITION}/{name}: cannot be read ({error.strerror})")
-
-    for dirpath, dirnames, filenames in os.walk(folder, onerror=fail, followlinks=False):
-        here = Path(dirpath)
-        for name in filenames + [d for d in dirnames if (here / d).is_symlink()]:
-            path = here / name
-            rel = path.relative_to(folder).as_posix()
+    for path in walk(folder.parent, folder):
+        rel = path.relative_to(folder).as_posix()
+        name = path.relative_to(folder.parent).as_posix()
+        if path.is_symlink():
+            files[rel] = None
+        elif path.is_dir():
+            continue
+        elif not path.is_file():
+            raise BuildError(f"{name}: not a regular file")
+        else:
             try:
-                files[rel] = None if path.is_symlink() else path.read_bytes()
+                files[rel] = path.read_bytes()
             except OSError as exc:
-                raise BuildError(f"{EDITION}/{rel}: cannot be read ({exc.strerror})") from exc
+                raise BuildError(f"{name}: cannot be read ({exc.strerror})") from exc
     return files
 
 

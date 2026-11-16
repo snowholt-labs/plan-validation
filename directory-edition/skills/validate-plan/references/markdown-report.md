@@ -253,7 +253,8 @@ approvals, Git state or the report itself.
     spaces that starts with `~/`, a drive (`C:\` or `C:/`) or `/`, where a `/` path needs
     a first segment without a colon and, without a file extension, a second segment (so
     `/feature-dev:implement` and `/implement/` count as text). No prompt has an unclosed
-    inner fence. Each ready prompt says `Stop at the end of Phase <id>`, not negated, and
+    inner fence. Each phase prompt (not item 13's single prompt) says
+    `Stop at the end of Phase <id>`, not negated, and
     every `Stop at the end of Phase` sentence in it names that prompt's own phase and none
     is negated. In a new report, each ready prompt after the first says
     `Confirm Phase <previous> is merged`, not negated. Items 12–14 match words ignoring
@@ -263,7 +264,8 @@ approvals, Git state or the report itself.
     case) and no `implement`, `implements` or `implementing` (also with `re` or `re-`)
     except right after `not`, `cannot`, `n't` (straight or curly apostrophe) or `never`
     on the same line, or inside a backtick-quoted path as item 12 defines it (a quoted
-    slash command such as `/feature-dev:implement` is text and is checked).
+    slash command such as `/feature-dev:implement` is text and is checked). It starts no
+    phase: no `Start Phase`, `Begin Phase` or `Stop at the end of Phase`.
 14. In a new report, neither section 8 nor its prompts say "run validation again first"
     unless `not`, `never` or `n't` (straight or curly apostrophe) followed by `need to` or
     `have to` (as in `do not need to`, `don't have to`), or `no need to`, comes right
@@ -282,8 +284,8 @@ approvals, Git state or the report itself.
 19. In a saved report whose Handoff status is `historical`, the Summary holds exactly one
     fenced prompt under `### Current remediation prompt`, the Summary's last heading, that
     meets item 12's word count and item 13's rules (`Do not start dependent
-    implementation`, no implement instruction) and starts no phase (no `Start Phase`,
-    `Begin Phase` or `Stop at the end of Phase`). A new report has no such heading.
+    implementation`, no implement instruction, and no phase start), matched as items
+    12–14 match. A new report has no such heading.
 
 ## Delivery
 

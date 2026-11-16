@@ -251,7 +251,7 @@ class CheckEditionTest(unittest.TestCase):
         self.assertEqual(check_edition(self.root), [])
 
     def test_dropped_field_names_publishing_and_renderer_options(self):
-        for term in ("artifact.json", "publish_artifact", "handoff_held", "--context", "--report"):
+        for term in ("artifact.json", "publish_artifact", "handoff_held", "--context", "--report", "--output"):
             with self.subTest(term=term):
                 write(self.root / "skills/validate-plan/SKILL.md", SKILL + f"\nUse `{term}`.\n")
                 self.assert_one("dropped-field", "skills/validate-plan/SKILL.md")
@@ -598,6 +598,14 @@ class BuildEditionTest(unittest.TestCase):
         code, out = self.run_main("--root", str(self.root), "--check")
         self.assertEqual(code, 1)
         self.assertIn("differs: README.md", out)
+
+    @unittest.skipUnless(hasattr(os, "mkfifo"), "needs named pipes")
+    def test_check_reports_special_file_in_edition(self):
+        build(self.root, self.root / "directory-edition")
+        os.mkfifo(self.root / "directory-edition/pipe.md")
+        code, out = self.run_main("--root", str(self.root), "--check")
+        self.assertEqual(code, 1)
+        self.assertIn("directory-edition/pipe.md: not a regular file", out)
 
     @unittest.skipIf(hasattr(os, "geteuid") and os.geteuid() == 0, "root can read any file")
     def test_check_reports_unreadable_edition_paths(self):

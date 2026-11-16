@@ -39,13 +39,19 @@ def main():
             edition = json.loads(edition_manifest.read_text())
         except (UnicodeDecodeError, json.JSONDecodeError):
             edition = None
-            errors.append(f"directory-edition/.claude-plugin/plugin.json is not valid JSON{rebuild}")
-        for key in ("version", "name"):
-            if isinstance(edition, dict) and edition.get(key) != claude[key]:
-                errors.append(f"Directory edition {key} differs from the root manifest{rebuild}")
-        edition_skill = EDITION / "skills/validate-plan/SKILL.md"
-        if not edition_skill.is_file() or EDITION_NO_PUBLISH not in edition_skill.read_text():
-            errors.append(f"directory-edition validate-plan SKILL.md must keep the no-publish line word for word{rebuild}")
+        if not isinstance(edition, dict):
+            errors.append(f"directory-edition/.claude-plugin/plugin.json must be a JSON object{rebuild}")
+        else:
+            for key in ("version", "name"):
+                if edition.get(key) != claude[key]:
+                    errors.append(f"Directory edition {key} differs from the root manifest{rebuild}")
+    edition_skill = EDITION / "skills/validate-plan/SKILL.md"
+    try:
+        keeps_line = EDITION_NO_PUBLISH in edition_skill.read_text()
+    except (OSError, UnicodeDecodeError):
+        keeps_line = False
+    if not keeps_line:
+        errors.append(f"directory-edition validate-plan SKILL.md must keep the no-publish line word for word{rebuild}")
     if not re.fullmatch(r"\d+\.\d+\.\d+", claude["version"]):
         errors.append("Expected a semantic release version")
     if (ROOT / entry["source"]).resolve() != ROOT:
@@ -123,9 +129,9 @@ def main():
                 continue
             resolved = (path.parent / unquote(parsed.path)).resolve()
             # Only directory-edition/ is submitted, so its links must stay inside it.
-            if path.is_relative_to(EDITION) and not resolved.is_relative_to(EDITION):
+            if path.is_relative_to(EDITION) and not resolved.is_relative_to(EDITION.resolve()):
                 errors.append(f"{shown(path)}: link leaves the edition {target}")
-            elif not resolved.exists() or not (resolved.is_relative_to(ROOT) or resolved.is_relative_to(EDITION)):
+            elif not resolved.exists() or not (resolved.is_relative_to(ROOT) or resolved.is_relative_to(EDITION.resolve())):
                 errors.append(f"{shown(path)}: broken local link {target}")
     for directory in [ROOT / name for name in ("assets", "skills", "scripts", "docs", "examples", ".github",
                                                ".claude-plugin", ".codex-plugin", "editions")] + [EDITION]:
