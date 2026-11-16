@@ -15,7 +15,7 @@ Report checks in this edition are done by the agent, not by code. Before it repl
 
 ## Install one edition only
 
-Install one edition only: both use the name `plan-validation`. Installing both gives you two sets of the same commands. To use the full plugin instead, remove this edition and run these commands in your terminal:
+Install one edition only: both use the name `plan-validation`. Installing both makes their commands clash. To use the full plugin instead, remove this edition and run these commands in your terminal:
 
 ```bash
 claude plugin marketplace add snowholt-labs/plan-validation

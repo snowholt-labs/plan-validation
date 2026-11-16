@@ -253,7 +253,7 @@ def edition_files(folder: Path) -> dict:
 
 
 def check(root: Path, edition: Path) -> list[str]:
-    """Build into a temporary folder and return sorted missing, extra and differs lines."""
+    """Build the edition in memory and return sorted missing, extra and differs lines."""
     root = Path(root)
     expected = collect(root, root / EDITION)
     actual = edition_files(Path(edition)) if Path(edition).is_dir() else {}
