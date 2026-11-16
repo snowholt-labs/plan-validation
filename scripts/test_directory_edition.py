@@ -202,6 +202,13 @@ class CheckEditionTest(unittest.TestCase):
                 write(self.root / "skills/validate-plan/SKILL.md", text)
                 self.assert_one("frontmatter-fields", "skills/validate-plan/SKILL.md")
 
+    def test_frontmatter_accepts_quoted_description_starting_with_marker(self):
+        for value in ('"> Markdown report"', "'|x|'"):
+            with self.subTest(value=value):
+                text = SKILL.replace("description: Validate a plan.\n", f"description: {value}\n")
+                write(self.root / "skills/validate-plan/SKILL.md", text)
+                self.assertEqual(check_edition(self.root), [])
+
     def test_frontmatter_fields_duplicate_key(self):
         write(self.root / "skills/validate-plan/SKILL.md", SKILL.replace("---\n\n", "name: validate-plan\n---\n\n"))
         self.assert_one("frontmatter-fields", "skills/validate-plan/SKILL.md")
@@ -556,10 +563,27 @@ class BuildEditionTest(unittest.TestCase):
 
     @unittest.skipIf(hasattr(os, "geteuid") and os.geteuid() == 0, "root can read any file")
     def test_unreadable_skill_file_fails(self):
-        path = self.root / "skills/validate-plan/SKILL.md"
+        path = self.root / "skills/validate-plan/references/a.md"
         path.chmod(0)
         try:
-            self.assert_build_error("skills/validate-plan/SKILL.md", "cannot be read")
+            self.assert_build_error("skills/validate-plan/references/a.md", "cannot be read")
+        finally:
+            path.chmod(0o644)
+
+    def test_read_error_without_strerror_names_the_error(self):
+        with mock.patch.object(Path, "read_bytes", side_effect=OSError("disk gone")):
+            message = self.assert_build_error("cannot be read", "disk gone")
+        self.assertNotIn("None", message)
+
+    @unittest.skipIf(hasattr(os, "geteuid") and os.geteuid() == 0, "root can read any file")
+    def test_unreadable_committed_edition_file_fails(self):
+        build(self.root, self.out)
+        path = self.out / "README.md"
+        path.chmod(0)
+        try:
+            with self.assertRaises(BuildError) as caught:
+                check(self.root, self.out)
+            self.assertIn("README.md: cannot be read", str(caught.exception))
         finally:
             path.chmod(0o644)
 

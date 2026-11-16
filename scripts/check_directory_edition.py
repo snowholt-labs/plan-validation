@@ -89,6 +89,11 @@ def is_image(suffix: str, data: bytes) -> bool:
     return False
 
 
+# A block scalar header: `>` or `|`, an optional indent digit and chomping sign, and an
+# optional comment. A quoted or plain one-line value never matches.
+BLOCK_SCALAR = re.compile(r"[>|][1-9+-]{0,2}(\s+#.*)?")
+
+
 def frontmatter(text: str):
     """Return {key: [values]} for the `key: value` lines between the first two `---` lines, or None.
 
@@ -156,7 +161,7 @@ def check_skill(rel_parts: tuple, text: str, errors: list, rel: str):
         problems.append(f"name must be {rel_parts[1]}")
     if not value.get("description"):
         problems.append("description is required")
-    elif value["description"][0] in ">|":
+    elif BLOCK_SCALAR.fullmatch(value["description"]):
         problems.append("description must be on its key's line, not a block scalar")
     if rel_parts[1] == "validate-plan" and value.get("disable-model-invocation") != "true":
         problems.append("validate-plan needs disable-model-invocation: true")

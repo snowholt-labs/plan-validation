@@ -59,7 +59,7 @@ def read_file(path: Path, rel: str) -> bytes:
     try:
         return path.read_bytes()
     except OSError as exc:
-        raise BuildError(f"{rel}: cannot be read ({exc.strerror})") from exc
+        raise BuildError(f"{rel}: cannot be read ({exc.strerror or exc})") from exc
 
 
 def sha256(root: Path, rel: str) -> str:
@@ -264,10 +264,7 @@ def edition_files(folder: Path) -> dict:
         elif not path.is_file():
             raise BuildError(f"{name}: not a regular file")
         else:
-            try:
-                files[rel] = path.read_bytes()
-            except OSError as exc:
-                raise BuildError(f"{name}: cannot be read ({exc.strerror})") from exc
+            files[rel] = read_file(path, name)
     return files
 
 
