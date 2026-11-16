@@ -265,7 +265,8 @@ approvals, Git state or the report itself.
     except right after `not`, `cannot`, `n't` (straight or curly apostrophe) or `never`
     on the same line, or inside a backtick-quoted path as item 12 defines it (a quoted
     slash command such as `/feature-dev:implement` is text and is checked). It starts no
-    phase: no `Start Phase`, `Begin Phase` or `Stop at the end of Phase`.
+    phase: no `Stop at the end of Phase`, and no `Start Phase` or `Begin Phase` except
+    right after the same negations (such as `Do not start Phase 1`).
 14. In a new report, neither section 8 nor its prompts say "run validation again first"
     unless `not`, `never` or `n't` (straight or curly apostrophe) followed by `need to` or
     `have to` (as in `do not need to`, `don't have to`), or `no need to`, comes right

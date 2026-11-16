@@ -42,34 +42,39 @@ class EditionManifestTest(unittest.TestCase):
                 message = self.run_main(edition)
                 self.assertIn(f"Directory edition {key} differs from the root manifest", message)
 
-    def copy_edition(self) -> Path:
-        edition = self.tmp / "directory-edition"
+    def copy_edition(self, case: str = "copy") -> Path:
+        edition = self.tmp / case / "directory-edition"
         shutil.copytree(check_package.EDITION, edition)
         return edition
 
     def test_copied_edition_passes(self):
-        edition = self.copy_edition()
-        with mock.patch.object(check_package, "EDITION", edition), contextlib.redirect_stdout(io.StringIO()) as out:
-            check_package.main()
-        self.assertIn("directory edition files checked", out.getvalue())
+        # Also under a symlinked parent folder, so the edition's links resolve elsewhere.
+        (self.tmp / "real").mkdir()
+        (self.tmp / "linked").symlink_to(self.tmp / "real", target_is_directory=True)
+        shutil.copytree(check_package.EDITION, self.tmp / "real/directory-edition")
+        for edition in (self.copy_edition(), self.tmp / "linked/directory-edition"):
+            with self.subTest(edition=edition.parent.name):
+                with mock.patch.object(check_package, "EDITION", edition), \
+                        contextlib.redirect_stdout(io.StringIO()) as out:
+                    check_package.main()
+                self.assertIn("directory edition files checked", out.getvalue())
 
     def test_malformed_edition_manifest_is_reported(self):
         for text in ("{not json", "[]", "null"):
             with self.subTest(text=text):
-                edition = self.copy_edition()
+                edition = self.copy_edition(text)
                 (edition / ".claude-plugin/plugin.json").write_text(text)
                 self.assertEqual(self.run_main(edition).splitlines(), [
                     "directory-edition/.claude-plugin/plugin.json must be a JSON object"
                     "; run python3 scripts/build_directory_edition.py",
                 ])
-                shutil.rmtree(edition)
 
     def test_edition_must_keep_the_no_publish_line(self):
         expected = ("directory-edition validate-plan SKILL.md must keep the no-publish line word for word"
                     "; run python3 scripts/build_directory_edition.py")
         for case in ("dropped", "no manifest"):
             with self.subTest(case=case):
-                edition = self.copy_edition()
+                edition = self.copy_edition(case)
                 skill = edition / "skills/validate-plan/SKILL.md"
                 text = skill.read_text().replace(check_package.EDITION_NO_PUBLISH, "")
                 skill.write_text(text)
@@ -78,7 +83,6 @@ class EditionManifestTest(unittest.TestCase):
                 lines = self.run_main(edition).splitlines()
                 self.assertIn(expected, lines)
                 self.assertEqual(len(lines), 2 if case == "no manifest" else 1, lines)
-                shutil.rmtree(edition)
 
     def test_link_leaving_the_edition_is_reported(self):
         edition = self.copy_edition()
