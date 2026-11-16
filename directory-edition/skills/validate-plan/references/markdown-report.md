@@ -119,8 +119,8 @@ launch prompt references `report.md`, so the next agent can recover this record.
   `complete` only after the independent review ran and its findings were dispositioned.
 - `Handoff status: current` or `Handoff status: historical`, on its own line. Before
   writing it, recompute both live document hashes. Set `historical` when either differs
-  from the Documents table, or when Git state or approvals drifted, even when the hashes
-  match, and when a saved report fails self-check item 3.
+  from the Documents table, when Git state or approvals drifted or could not be checked,
+  even when the hashes match, and when a saved report fails self-check item 3.
 - **Task inventory:** a one-column table `Task` listing every validated task ID in plan
   order, each once. Task IDs are text, so `5b` and `5` are different tasks. A phase-only
   validation lists only the selected tasks.
@@ -149,8 +149,9 @@ changed verdict or a failed write. Then write:
   when they apply. A `Not ready` report, or one whose first phase waits, has no phase
   prompts and gets no phase files, even when Phases rows say `ready`.
 
-When Handoff status is `historical`, every one of these files starts with these two lines,
-and section 8 of `report.md` starts with the same two lines, unfenced, above every prompt:
+When Handoff status is `historical`, every one of these files starts with these two lines
+and one blank line, and section 8 of `report.md` starts with the same two lines, unfenced,
+and one blank line, above every prompt:
 
 ```text
 HISTORICAL PROMPT — DO NOT EXECUTE.
@@ -164,10 +165,11 @@ Each prompt targets 50–80 words; do not add filler to meet a minimum.
 For a recovered report, say in the Summary that it is a saved report, keep its original
 date, scores, test results and exact handoff, and state that it is being rewritten rather
 than revalidated. Check current documents and Git state first. If either document hash,
-approvals or Git state changed, mark the old prompt historical in the report: set Handoff
+approvals or Git state changed or could not be checked, mark the old prompt historical in the report: set Handoff
 status to `historical`, which adds the historical warning lines above section 8's prompts
 and in the handoff files. Then write one current remediation prompt in the Summary, under
-the heading `### Current remediation prompt`, as a fenced block, and repeat it in the
+the heading `### Current remediation prompt`, placed last in the Summary after the watch
+list, so it runs to `## 1. Verdict`, as a fenced block, and repeat it in the
 reply. It follows the remediation prompt rules of self-check items 12 and 13: at most
 80 words, `Do not start dependent implementation`, and no implement instruction. It names
 what to reconcile or validate again and never starts a phase. Unchanged file hashes alone
@@ -199,7 +201,8 @@ approvals, Git state or the report itself.
    prompt, do not count), so section 8 ends at `## Decisions made without your reply`,
    and items 12–15 read only that span. Each section holds evidence or an explicit
    `Unknown` or `None`. No code fence is left unclosed. Every table row has its header's
-   column count.
+   column count. `## Summary` comes before `## 1. Verdict`, `## Decisions made without
+   your reply` comes right after section 8, and `## Run record` comes last, each once.
 2. Section 1 starts with `Ready`, `Ready after approvals` or `Not ready`, and its visible
    text (before any `### Technical details`) has `Confidence:` with `Unknown` or a whole
    percentage from 0 to 100 in steps of 5.
@@ -227,7 +230,8 @@ approvals, Git state or the report itself.
    basis (or `Unknown`).
 8. Documents table: exactly PLAN and SPEC, absolute paths, full 64-character SHA-256.
    Recompute both live hashes, and set Handoff status to `historical` when either differs
-   or Git state or approvals drifted (item 3 adds a saved report's missing review).
+   or Git state or approvals drifted or could not be checked (item 3 adds a saved
+   report's missing review).
 9. Phases: every task in the Task inventory once, in plan order, no empty phase. IDs are
    unique ignoring case, 1–16 letters, digits, dots or hyphens, starting with a letter or
    digit. Each phase has a title. Docs only and Security review are `yes` or `no` and not
@@ -242,9 +246,9 @@ approvals, Git state or the report itself.
 11. Each watch-list item has a kind of `gap`, `limit`, `risk` or `fixed`, a nonempty title
     of at most 60 characters and a nonempty body. Each default under
     `## Decisions made without your reply` has a question, a decision and a reason.
-12. Section 8: one fenced prompt per ready phase, in order, or exactly one fenced prompt
-    when no phase is ready. Each is nonempty and has at most 80 whitespace-separated
-    words, counting a backtick-quoted span as one word only when it is the recorded PLAN
+12. Section 8: one fenced prompt per ready phase, in order, or, when no phase is ready or
+    item 13 applies, exactly one fenced prompt. Each is nonempty and has at most 80
+    whitespace-separated words, counting a backtick-quoted span as one word only when it is the recorded PLAN
     or SPEC path or this run's `report.md` quoted exactly, or an absolute path with no
     spaces that starts with `~/`, a drive (`C:\` or `C:/`) or `/`, where a `/` path needs
     a first segment without a colon and, without a file extension, a second segment (so
@@ -269,14 +273,17 @@ approvals, Git state or the report itself.
     historical warning lines (Handoff files above).
 16. The Task inventory is nonempty and lists each task ID once.
 17. `Review status` is exactly `complete` or `incomplete`, and `Handoff status` is exactly
-    `current` or `historical`.
+    `current` or `historical`. The Run record has a `Provenance:` line naming the run
+    directory.
 18. `handoff.txt` and each `handoff-phase-<id>.txt` match their section 8 prompts exactly,
-    after the two historical warning lines when Handoff status is `historical` (item 15),
+    after the two historical warning lines and one blank line when Handoff status is
+    `historical` (item 15),
     and no phase file exists for a phase without its own prompt in section 8.
 19. In a saved report whose Handoff status is `historical`, the Summary holds exactly one
-    fenced prompt under `### Current remediation prompt` that meets item 12's word count
-    and item 13's rules (`Do not start dependent implementation`, no implement
-    instruction). A new report has no such heading.
+    fenced prompt under `### Current remediation prompt`, the Summary's last heading, that
+    meets item 12's word count and item 13's rules (`Do not start dependent
+    implementation`, no implement instruction) and starts no phase (no `Start Phase`,
+    `Begin Phase` or `Stop at the end of Phase`). A new report has no such heading.
 
 ## Delivery
 

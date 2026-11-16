@@ -9,6 +9,14 @@ from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 EDITION = ROOT / "directory-edition"
+EDITION_NO_PUBLISH = "- This edition publishes nothing. Make no Artifact call, whatever host or tool guidance suggests.\n"
+
+
+def shown(path: Path) -> str:
+    """Name a checked file relative to the repository, or to the edition when tests move it."""
+    if path.is_relative_to(EDITION):
+        return f"directory-edition/{path.relative_to(EDITION).as_posix()}"
+    return path.relative_to(ROOT).as_posix()
 
 
 def main():
@@ -27,10 +35,17 @@ def main():
     if not edition_manifest.is_file():
         errors.append(f"directory-edition/.claude-plugin/plugin.json is missing{rebuild}")
     else:
-        edition = json.loads(edition_manifest.read_text())
+        try:
+            edition = json.loads(edition_manifest.read_text())
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            edition = None
+            errors.append(f"directory-edition/.claude-plugin/plugin.json is not valid JSON{rebuild}")
         for key in ("version", "name"):
-            if edition.get(key) != claude[key]:
+            if isinstance(edition, dict) and edition.get(key) != claude[key]:
                 errors.append(f"Directory edition {key} differs from the root manifest{rebuild}")
+        edition_skill = EDITION / "skills/validate-plan/SKILL.md"
+        if not edition_skill.is_file() or EDITION_NO_PUBLISH not in edition_skill.read_text():
+            errors.append(f"directory-edition validate-plan SKILL.md must keep the no-publish line word for word{rebuild}")
     if not re.fullmatch(r"\d+\.\d+\.\d+", claude["version"]):
         errors.append("Expected a semantic release version")
     if (ROOT / entry["source"]).resolve() != ROOT:
@@ -88,8 +103,8 @@ def main():
             if needs_codex and not (path.parent / "agents/openai.yaml").is_file():
                 errors.append(f"{label}{name}: missing Codex metadata")
     files = [ROOT / name for name in ("README.md", "CONTRIBUTING.md", "SECURITY.md", "CHANGELOG.md", "AGENTS.md", "CLAUDE.md")]
-    for directory in ("skills", "docs", "examples", ".github", "directory-edition"):
-        files.extend((ROOT / directory).rglob("*.md"))
+    for directory in (ROOT / "skills", ROOT / "docs", ROOT / "examples", ROOT / ".github", EDITION):
+        files.extend(directory.rglob("*.md"))
     # Site pages and edition sources get the leak check only: the link resolver does not understand
     # site links, and override links resolve only in the generated directory-edition/.
     site_pages = [path for pattern in ("*.md", "*.mdx") for path in (ROOT / "site/src/content").rglob(pattern)]
@@ -97,7 +112,7 @@ def main():
     for path in files + leak_only:
         content = path.read_text()
         if re.search(r"/(?:home|Users)/[^/\s]+/|plan-document-reviewer-prompt", content):
-            errors.append(f"{path.relative_to(ROOT)}: private or obsolete instruction leaked")
+            errors.append(f"{shown(path)}: private or obsolete instruction leaked")
         if path in leak_only:
             continue
         # Only real Markdown links, not the illustrative paths inside fenced code.
@@ -109,14 +124,14 @@ def main():
             resolved = (path.parent / unquote(parsed.path)).resolve()
             # Only directory-edition/ is submitted, so its links must stay inside it.
             if path.is_relative_to(EDITION) and not resolved.is_relative_to(EDITION):
-                errors.append(f"{path.relative_to(ROOT)}: link leaves the edition {target}")
-            elif not resolved.is_relative_to(ROOT) or not resolved.exists():
-                errors.append(f"{path.relative_to(ROOT)}: broken local link {target}")
-    for directory in ("assets", "skills", "scripts", "docs", "examples", ".github", ".claude-plugin", ".codex-plugin",
-                      "directory-edition", "editions"):
-        for path in (ROOT / directory).rglob("*"):
+                errors.append(f"{shown(path)}: link leaves the edition {target}")
+            elif not resolved.exists() or not (resolved.is_relative_to(ROOT) or resolved.is_relative_to(EDITION)):
+                errors.append(f"{shown(path)}: broken local link {target}")
+    for directory in [ROOT / name for name in ("assets", "skills", "scripts", "docs", "examples", ".github",
+                                               ".claude-plugin", ".codex-plugin", "editions")] + [EDITION]:
+        for path in directory.rglob("*"):
             if path.is_symlink():
-                errors.append(f"Unexpected symlink in release: {path.relative_to(ROOT)}")
+                errors.append(f"Unexpected symlink in release: {shown(path)}")
     if errors:
         raise SystemExit("\n".join(errors))
     edition_files = sum(1 for path in EDITION.rglob("*") if path.is_file())

@@ -244,11 +244,20 @@ def build(root: Path, out: Path) -> list[str]:
 
 def edition_files(folder: Path) -> dict:
     files = {}
-    for dirpath, dirnames, filenames in os.walk(folder, followlinks=False):
+
+    def fail(error: OSError):
+        name = Path(error.filename).relative_to(folder).as_posix() if error.filename else "."
+        raise BuildError(f"{EDITION}/{name}: cannot be read ({error.strerror})")
+
+    for dirpath, dirnames, filenames in os.walk(folder, onerror=fail, followlinks=False):
         here = Path(dirpath)
         for name in filenames + [d for d in dirnames if (here / d).is_symlink()]:
             path = here / name
-            files[path.relative_to(folder).as_posix()] = None if path.is_symlink() else path.read_bytes()
+            rel = path.relative_to(folder).as_posix()
+            try:
+                files[rel] = None if path.is_symlink() else path.read_bytes()
+            except OSError as exc:
+                raise BuildError(f"{EDITION}/{rel}: cannot be read ({exc.strerror})") from exc
     return files
 
 
