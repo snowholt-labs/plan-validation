@@ -13,7 +13,7 @@ Checked on 16 November 2026 on Linux, using Python 3.14.4 and Claude Code 2.1.32
 | Claude plugin validation | Passed; the root has one warning | Both root `claude plugin validate` commands pass without `--strict`, with the expected warning that the root `CLAUDE.md` is not loaded as plugin context. Both directory edition commands (`--profile directory --strict` and the manifest) pass with no `✘` line |
 | Retry demonstration | Three tests with one expected failure; corrected control has three passing tests | Existing authored fixture and renderer executed; not an effectiveness benchmark |
 | Documentation site | 47 tests passed; 14 pages built | The built changelog page shows the 0.9.0 entry |
-| Manual run of the directory edition | Unknown | Not repeated for 0.9.0, by the maintainer's decision. The latest manual checks, `f003e04` and `845f4b0` below, came before the last self-check text changes (#89, #90), and no ready phase has been run with the edition loaded |
+| Manual run of the directory edition | Unknown | Not repeated for 0.9.0, by the maintainer's decision. The latest manual checks, `f003e04` and `845f4b0` below, came before the self-check text changes made after `845f4b0` in #89 and #90 (`845f4b0` is a commit on the #89 branch, not on `main`), and no ready phase has been run with the edition loaded. The `0.8.0 directory edition check` headings below name the edition's manifest version before this release; the edition first ships in 0.9.0 |
 
 Known issue: an approval recorded in a later session gets conflicting instructions in the directory edition (#91).
 
