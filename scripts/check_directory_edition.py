@@ -55,7 +55,7 @@ PACKAGE_CONFIG = {
     "poetry.lock",
     "uv.lock",
 }
-UNREAD_FILES = {"hooks.json", ".mcp.json", ".lsp.json", "monitors.json"}
+UNREAD_FILES = {"hooks.json", ".mcp.json", ".lsp.json", "monitors.json", "settings.json"}
 UNREAD_TOP_FOLDERS = {"commands", "agents", "output-styles", "hooks"}
 PLUGIN_FOLDER_FILES = {"plugin.json", "icon.png"}
 
@@ -63,6 +63,8 @@ MANIFEST_KEYS = {"name", "version", "description", "author", "homepage", "reposi
 AUTHOR_KEYS = {"name", "email", "url"}
 FRONTMATTER_KEYS = {"name", "description", "disable-model-invocation"}
 SHIPPED_ICON = "./.claude-plugin/icon.png"
+# YAML indicators that cannot start an unquoted value (block scalars are reported separately).
+PLAIN_SCALAR_STARTS = "*&!%@`[{,?-"
 
 SAFE_SEGMENT = re.compile(r"[A-Za-z0-9._-]+")
 DROPPED_REFERENCES = ("render_report", "context.json", "report.html", "html-report.md")
@@ -156,9 +158,13 @@ def check_skill(rel_parts: tuple, text: str, errors: list, rel: str):
         problems.append(f"name must be {rel_parts[1]}")
     if not value.get("description"):
         problems.append("description is required")
-    elif frontmatter(text, unquote=False)["description"][-1][0] in ">|":
-        # Unquoted, `>` or `|` starts a block scalar (or is invalid YAML); quote such a value.
-        problems.append("description must be on its key's line, not a block scalar")
+    else:
+        raw = frontmatter(text, unquote=False)["description"][-1]
+        if raw[0] in ">|":
+            # Unquoted, `>` or `|` starts a block scalar (or is invalid YAML); quote such a value.
+            problems.append("description must be on its key's line, not a block scalar")
+        elif raw[0] not in "\"'" and (raw[0] in PLAIN_SCALAR_STARTS or ": " in raw or " #" in raw):
+            problems.append("description is not a valid plain YAML value; quote it")
     if rel_parts[1] == "validate-plan" and value.get("disable-model-invocation") != "true":
         problems.append("validate-plan needs disable-model-invocation: true")
     if problems:
