@@ -26,6 +26,22 @@ Run these for every release, in addition to the release checks; each release reg
 - In the same session, make two broken copies of that `report.md` and ask the agent to self-check each: a `Ready` verdict while the Run record says `Review status: incomplete`, and a `Not ready` report whose prompt says `Implement Task 1.` and lacks `Do not start dependent implementation.`. Expected: the matching self-check item fails for each, and the agent fixes the report before it replies. The first is fixed by changing the verdict to `Not ready` with a remediation prompt, never by marking the review complete.
 - Record only pass, fail or Unknown per expectation, and limits in generic wording; never paste reply text, instruction text, names of user-level files or skills, or run-directory paths. Record each later run as its own `### <version> directory edition check` subsection (add `, <commit>` when a version already has one) directly under this list, above the earlier ones, and keep the earlier ones.
 
+### 0.8.0 directory edition check, `f003e04`
+
+Checked on 16 November 2026 (UTC) on Linux, using Python 3.14.4 and Claude Code 2.1.325, on the edition generated at commit `f003e04` of the `plan/directory-edition` branch. User-level instructions, memory and personal skills were excluded with a fresh configuration directory, the settings that turn off user instructions and memory, and `--strict-mcp-config`. The run was asked to start no subagents or other sessions, so its independent review really did not complete. The broken sample was a copy of this run's report with only the verdict in section 1 and section 4 changed to `Ready`.
+
+| Check | Observed result | Evidence and limit |
+| --- | --- | --- |
+| Picker shows the directory edition's description | Passed | The picker showed the "Markdown evidence report" description; filtered by the command name, it listed only the edition's three skills |
+| Run files present (`report.md` with `## Summary`, eight sections and `## Run record`, `handoff.txt`) | Passed | `report.md` had `## Summary`, the eight numbered sections and `## Run record`; `handoff.txt` held the one remediation prompt; no phase was ready, so no phase file |
+| No `context.json` or `report.html` in the run directory | Passed | Neither file was in the run directory |
+| No Artifact or other publish call | Passed | The session's tool calls were shell, read, write and edit calls only |
+| No independent reviewer: verdict and record | Passed | The verdict was `Not ready`, the Run record said `Review status: incomplete`, and section 8 held one remediation prompt naming the missing reviews, with `Do not start dependent implementation.` |
+| Reply gives the self-check result and says the checks were made by the agent | Passed | The reply gave the result, named the item that failed on the first pass and how it was fixed, and included the required sentence |
+| Broken sample: `Ready` with `Review status: incomplete`, with the edition loaded | Passed | Item 3 failed (and item 9, for the waiting phase), and the copy was fixed and rechecked before the reply. `Review status` stayed `incomplete`; the verdict became `Not ready` in section 1 and section 4, leaving the copy identical to the run's report; `handoff.txt` was rewritten unchanged; the reply gave the changed verdict |
+
+Limits: the broken copy already had a remediation prompt in section 8, so this run did not exercise replacing ready-phase prompts; the `d781ee9` check below covers that against the rule text only. A `Not ready` report whose prompt says to implement was not tested in this run.
+
 ### 0.8.0 directory edition check, `d781ee9`
 
 Checked on 16 November 2026 (UTC) on Linux, using Python 3.14.4 and Claude Code 2.1.325, against the edition generated at commit `d781ee9` of the `plan/directory-edition` branch, which adds the fix rule to self-check item 3. It reruns only the broken `Ready` sample that failed in the check below, in a new session with the same isolation settings, on a fresh copy of that check's report with `Review status: incomplete` and its handoff files beside it.
