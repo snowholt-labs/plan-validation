@@ -1,0 +1,12 @@
+{
+  "skills/validate-plan/SKILL.md": {
+    "source_sha256": "e98c8f8f8f6f3c0731230dd5e974721b06f7437da0f4042999c11e3c295f2260"
+  },
+  "skills/validate-plan/references/markdown-report.md": {
+    "source_sha256": null,
+    "derived_from": {
+      "skills/validate-plan/references/html-report.md": "8e04403816c8918ceb3e26e4aad6e37dc4911ee487f7bf4c2541b46ef16f475f",
+      "skills/validate-plan/scripts/render_report.py": "3c7a5bc1cf20d4cb601af3768e679e949d7dec209fe3c7a35184c15ad2231857"
+    }
+  }
+}
