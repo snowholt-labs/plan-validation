@@ -156,6 +156,8 @@ def check_skill(rel_parts: tuple, text: str, errors: list, rel: str):
         problems.append(f"name must be {rel_parts[1]}")
     if not value.get("description"):
         problems.append("description is required")
+    elif value["description"][0] in ">|":
+        problems.append("description must be on its key's line, not a block scalar")
     if rel_parts[1] == "validate-plan" and value.get("disable-model-invocation") != "true":
         problems.append("validate-plan needs disable-model-invocation: true")
     if problems:

@@ -52,7 +52,14 @@ def read_input(root: Path, rel: str) -> bytes:
         raise BuildError(f"{rel}: input file missing")
     if not path.is_file():
         raise BuildError(f"{rel}: not a regular file")
-    return path.read_bytes()
+    return read_file(path, rel)
+
+
+def read_file(path: Path, rel: str) -> bytes:
+    try:
+        return path.read_bytes()
+    except OSError as exc:
+        raise BuildError(f"{rel}: cannot be read ({exc.strerror})") from exc
 
 
 def sha256(root: Path, rel: str) -> str:
@@ -68,7 +75,7 @@ def read_text(root: Path, rel: str) -> str:
 
 def is_dropped(rel: str) -> bool:
     parts = rel.split("/")
-    return len(parts) >= 4 and parts[2] in DROPPED_DIRS or rel in DROPPED_FILES
+    return (len(parts) >= 4 and parts[2] in DROPPED_DIRS) or rel in DROPPED_FILES
 
 
 def load_json(root: Path, rel: str):
@@ -180,7 +187,7 @@ def skill_files(root: Path) -> dict:
             raise BuildError(f"{rel}: not a regular file")
         if not path.name.endswith(".md"):
             raise BuildError(f"{rel}: not Markdown and not in the drop list; add it to the drop list or convert it")
-        files[rel] = path.read_bytes()
+        files[rel] = read_file(path, rel)
     return files
 
 

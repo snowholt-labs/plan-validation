@@ -68,7 +68,7 @@ The goal is discovery. The directory edition is a way in for people browsing the
 3. Replaces each overridden file with its version from `editions/directory/overrides/`. Overrides replace whole files (my call). Markers inside the full skill text were rejected because they would put extra HTML comments into the full skill's model context.
 4. Records, for each override, the SHA-256 of the full-edition file it replaces, and of any other full-edition file it was written from (for `markdown-report.md`: `html-report.md` and `render_report.py`, whose checks the self-check restates). The generator fails when any of these sources changes without its override being reviewed and its recorded hash updated. That makes drift a CI failure instead of a silent gap.
 5. Writes the manifest with the name, version, author, homepage, repository, license, keywords (without `codex`) and icon read from `.claude-plugin/plugin.json`, the description from `editions/directory/`, and no `userConfig`.
-6. Rewrites or rejects relative links that point at dropped files, so the link check passes.
+6. Leaves no relative link to a dropped file: `check_package.py`'s link check over the edition rejects one, so an override must link only to files the edition ships.
 
 The output is deterministic: running the generator twice gives byte-identical files.
 

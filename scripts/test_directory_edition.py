@@ -195,6 +195,13 @@ class CheckEditionTest(unittest.TestCase):
         write(self.root / "skills/validate-plan/SKILL.md", SKILL.replace("description: Validate a plan.\n", ""))
         self.assert_one("frontmatter-fields", "skills/validate-plan/SKILL.md")
 
+    def test_frontmatter_fields_rejects_block_scalar_description(self):
+        for marker in (">-", "|", ">"):
+            with self.subTest(marker=marker):
+                text = SKILL.replace("description: Validate a plan.\n", f"description: {marker}\n  Validate a plan.\n")
+                write(self.root / "skills/validate-plan/SKILL.md", text)
+                self.assert_one("frontmatter-fields", "skills/validate-plan/SKILL.md")
+
     def test_frontmatter_fields_duplicate_key(self):
         write(self.root / "skills/validate-plan/SKILL.md", SKILL.replace("---\n\n", "name: validate-plan\n---\n\n"))
         self.assert_one("frontmatter-fields", "skills/validate-plan/SKILL.md")
@@ -546,6 +553,24 @@ class BuildEditionTest(unittest.TestCase):
             self.assert_build_error("skills/validate-plan/references", "cannot be read")
         finally:
             folder.chmod(0o755)
+
+    @unittest.skipIf(hasattr(os, "geteuid") and os.geteuid() == 0, "root can read any file")
+    def test_unreadable_skill_file_fails(self):
+        path = self.root / "skills/validate-plan/SKILL.md"
+        path.chmod(0)
+        try:
+            self.assert_build_error("skills/validate-plan/SKILL.md", "cannot be read")
+        finally:
+            path.chmod(0o644)
+
+    @unittest.skipIf(hasattr(os, "geteuid") and os.geteuid() == 0, "root can read any file")
+    def test_unreadable_input_file_fails(self):
+        path = self.root / "editions/directory/plugin.json"
+        path.chmod(0)
+        try:
+            self.assert_build_error("editions/directory/plugin.json", "cannot be read")
+        finally:
+            path.chmod(0o644)
 
     @unittest.skipUnless(hasattr(os, "mkfifo"), "needs named pipes")
     def test_special_file_fails(self):
