@@ -24,6 +24,27 @@ Run these for every release that changes `directory-edition/`, in addition to th
 - `claude plugin validate directory-edition --profile directory --strict` and `claude plugin validate directory-edition/.claude-plugin/plugin.json`: both pass with no `✘` line. The directory profile runs only part of the directory's checks (not file types or `#!`), so the checker above stays the policy check.
 - A manual run of the edition's `validate-plan` on `examples/retry`, in a fresh interactive session started outside this repository with `claude --plugin-dir <repository>/directory-edition`. The `/` command picker must show the `/plan-validation:validate-plan` description that says "Markdown evidence report". Expected: `report.md` with `## Summary`, eight sections and `## Run record`, `handoff.txt` and phase files when phases are ready, no `context.json` or `report.html`, no Artifact or other publish call, and a reply with the self-check result. Two broken copies of that `report.md` (a `Ready` verdict with `Review status: incomplete`, and a `Not ready` prompt that says `Implement Task 1.` and lacks `Do not start dependent implementation.`) must each fail the matching self-check item and be fixed before the reply. Record only pass, fail or Unknown per expectation, and limits in generic wording; never paste reply text, instruction text, names of user-level files or skills, or run-directory paths.
 
+### First directory edition check
+
+Checked on 15 November 2026 on Linux, using Python 3.14.4 and Claude Code 2.1.325, on the edition generated at commit `d205180` (version 0.8.0) of the `plan/directory-edition` branch.
+
+| Check | Observed result | Evidence and limit |
+| --- | --- | --- |
+| Edition sync and policy checker | Passed | `--check` reported the edition up to date; the checker passed on 17 files |
+| `claude plugin validate directory-edition --profile directory --strict` | Passed | No `✘` line; the command says the directory also runs a safety scan and a policy review that it does not |
+| `claude plugin validate directory-edition/.claude-plugin/plugin.json` | Passed | No `✘` line |
+| Picker shows the directory edition's description | Unknown | Not run: the manual run needs an interactive session, which the implementing session could not start; it is a maintainer action |
+| Run files present (`report.md` with `## Summary`, eight sections and `## Run record`, `handoff.txt`, phase files) | Unknown | Not run, as above |
+| No `context.json` or `report.html` in the run directory | Unknown | Not run, as above |
+| No Artifact or other publish call | Unknown | Not run, as above |
+| Self-check result stated in the reply as made by the agent | Unknown | Not run, as above |
+| Broken sample: `Ready` with `Review status: incomplete` | Unknown | Not run, as above |
+| Broken sample: `Not ready` prompt with `Implement Task 1.` and no `Do not start dependent implementation.` | Unknown | Not run, as above |
+
+Until the manual run is recorded here, the edition's agent behavior is unverified: the passing checks above cover packaging and policy only. Run it with user-level instructions and personal skills excluded, since they load in any directory and can change what the session writes.
+
+After submission, re-check the refusal's "Other findings" (a value read from the machine, and a command the plugin runs) against the first directory check of the edition, rather than designing around guesses.
+
 ## 0.7.0 release checks
 
 Checked on 13 November 2026 on Linux, using Python 3.14.4 and Claude Code 2.1.323. These are package checks on the release branch; they are not publication or live-plugin acceptance results.
