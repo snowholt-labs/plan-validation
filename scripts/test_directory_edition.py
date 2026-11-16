@@ -196,14 +196,14 @@ class CheckEditionTest(unittest.TestCase):
         self.assert_one("frontmatter-fields", "skills/validate-plan/SKILL.md")
 
     def test_frontmatter_fields_rejects_block_scalar_description(self):
-        for marker in (">-", "|", ">"):
+        for marker in (">-", "|", ">", "> Markdown report", "|x|"):
             with self.subTest(marker=marker):
                 text = SKILL.replace("description: Validate a plan.\n", f"description: {marker}\n  Validate a plan.\n")
                 write(self.root / "skills/validate-plan/SKILL.md", text)
                 self.assert_one("frontmatter-fields", "skills/validate-plan/SKILL.md")
 
     def test_frontmatter_accepts_quoted_description_starting_with_marker(self):
-        for value in ('"> Markdown report"', "'|x|'"):
+        for value in ('"> Markdown report"', "'|x|'", '"|"', "'>'"):
             with self.subTest(value=value):
                 text = SKILL.replace("description: Validate a plan.\n", f"description: {value}\n")
                 write(self.root / "skills/validate-plan/SKILL.md", text)

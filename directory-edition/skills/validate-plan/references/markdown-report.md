@@ -200,7 +200,7 @@ verdict or prompts disagree with the review status in the Run record, the approv
 section 6, the hashes or Git state, change the verdict and prompts to match that record,
 never the record to fit them; a saved report is marked historical instead, as item 3 and
 Saved reports say. A saved report is never fixed by changing what Saved reports says it
-keeps (its date, scores, test results, exact handoff and section 8): when an item fails
+keeps, such as its date, scores, test results, recorded hashes, exact handoff and section 8: when an item fails
 there, set its Handoff status to `historical`, add the current remediation prompt as
 Saved reports says, and report that item as failed, as item 3 does. The reply's
 self-check result gives the number of items
