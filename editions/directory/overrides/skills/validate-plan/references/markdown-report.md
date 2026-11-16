@@ -162,7 +162,14 @@ Each prompt targets 50–80 words; do not add filler to meet a minimum.
 
 ## Saved reports
 
-For a recovered report, say in the Summary that it is a saved report, keep its original
+A saved report without `## Run record`, such as one the full plugin wrote or a damaged
+one, cannot be checked by this edition: do not rewrite it or run the self-check on it.
+Only add the two historical warning lines and one blank line (Handoff files) at the top of
+its section 8 and of its `handoff.txt` and each `handoff-phase-*.txt` where they are not
+already there, changing nothing else. Reply that its prompts are historical and must not be run, link it, give one current
+remediation prompt that says to validate the plan again and follows item 19's rules, and
+say that the self-check did not run. For a recovered report, say in the
+Summary that it is a saved report, keep its original
 date, scores, test results and exact handoff, and state that it is being rewritten rather
 than revalidated. Check current documents and Git state first. If either document hash,
 approvals or Git state changed or could not be checked, mark the old prompt historical in the report: set Handoff

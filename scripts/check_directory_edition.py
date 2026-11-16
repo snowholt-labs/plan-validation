@@ -62,6 +62,7 @@ PLUGIN_FOLDER_FILES = {"plugin.json", "icon.png"}
 MANIFEST_KEYS = {"name", "version", "description", "author", "homepage", "repository", "license", "keywords", "icon"}
 AUTHOR_KEYS = {"name", "email", "url"}
 FRONTMATTER_KEYS = {"name", "description", "disable-model-invocation"}
+SHIPPED_ICON = "./.claude-plugin/icon.png"
 
 SAFE_SEGMENT = re.compile(r"[A-Za-z0-9._-]+")
 DROPPED_REFERENCES = ("render_report", "context.json", "report.html", "html-report.md")
@@ -127,6 +128,8 @@ def check_manifest(text: str, errors: list, rel: str):
         errors.append(f"manifest-fields: {rel}: keys not allowed: {', '.join(extra)}")
     if not isinstance(manifest.get("name"), str) or not manifest["name"].strip():
         errors.append(f"manifest-fields: {rel}: name is required")
+    if "icon" in manifest and manifest["icon"] != SHIPPED_ICON:
+        errors.append(f"manifest-fields: {rel}: icon must be {SHIPPED_ICON}, the only icon the edition ships")
     if "author" in manifest:
         author = manifest["author"]
         if not isinstance(author, dict):
@@ -241,6 +244,13 @@ def check_edition(root: Path) -> list[str]:
     manifest = root / ".claude-plugin/plugin.json"
     if not manifest.is_symlink() and not manifest.is_file():
         errors.append("manifest-fields: .claude-plugin/plugin.json: missing")
+    elif manifest.is_file() and not manifest.is_symlink():
+        try:
+            names_icon = json.loads(manifest.read_text()).get("icon") == SHIPPED_ICON
+        except (OSError, ValueError, AttributeError):
+            names_icon = False
+        if names_icon and not (root / ".claude-plugin/icon.png").is_file():
+            errors.append("manifest-fields: .claude-plugin/icon.png: the manifest names it, but it is missing")
     return sorted(errors)
 
 

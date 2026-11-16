@@ -199,6 +199,8 @@ def manifest(root: Path) -> bytes:
         if key not in full:
             raise BuildError(f".claude-plugin/plugin.json: missing {key}")
         result[key] = full[key]
+    if result["icon"] != "./.claude-plugin/icon.png":
+        raise BuildError(".claude-plugin/plugin.json: icon must be ./.claude-plugin/icon.png, the only icon the edition ships")
     if not isinstance(result["keywords"], list):
         raise BuildError(".claude-plugin/plugin.json: keywords must be a list")
     result["keywords"] = [word for word in result["keywords"] if word != "codex"]
