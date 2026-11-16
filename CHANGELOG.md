@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.0 — 2026-11-16
+
+- New directory edition in `directory-edition/`: a Claude Code-only version of the plugin, prepared for submission to the Claude Code plugin directory; it is not listed there yet. It ships only Markdown, text, JSON and PNG files, with no scripts. It has the same three skills and the same eight-section report contract. `validate-plan` writes `report.md` and its handoff files itself, then runs a written self-check of the report: a checklist made by the agent, not by code, whose result the reply states. It has no HTML report, renderer, Codex metadata or publishing. Install one edition only: both are named `plan-validation`, so their commands clash. The full plugin remains the recommended install, since its renderer checks each report with a script.
+- The edition is generated from the full plugin's skill sources by `scripts/build_directory_edition.py`. Each override is pinned to its source by SHA-256, so a change to that source fails the build until the override is reviewed. `scripts/check_directory_edition.py` enforces the directory's file and field rules. CI runs both, and `check_package.py` also checks the edition's links, leaked paths, symlinks and version.
+- Known issue: in the directory edition, an approval recorded in a later session gets conflicting instructions from the handoff template and the saved-report rule (#91).
+- The full plugin's behavior is unchanged from 0.8.0. Upgrading needs no action.
+
 ## 0.8.0 — 2026-11-15
 
 - The Phase workflow block keeps its `<!-- phase-workflow: 2 -->` marker and settles the questions 0.7.0 left open. A plan keeps the copy of the block it has. At step 1, a `Replaced on <date>` swap is an expected change when it changes nothing outside the Phase workflow section and keeps the marker; it is no longer compared with the installed block. Because the next phase trusts that section, every swap PR gets a code review and a security review before it merges. A swap PR also writes a `Boundary tasks:` line under the `Replaced on` line, recording the maintainer's choice for each task that crosses a boundary without integration tests: approved without them, or deferred.

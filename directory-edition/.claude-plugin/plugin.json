@@ -1,6 +1,6 @@
 {
   "name": "plan-validation",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Validate plans with focused dependency review and Markdown evidence reports; revise prompts without executing them. Directory edition.",
   "author": {
     "name": "Nariman Jafari (Lumina)",
