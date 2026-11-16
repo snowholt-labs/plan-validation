@@ -194,7 +194,8 @@ Do not modify existing reports, plans or specs to migrate their format.
 Run this checklist on the written `report.md` and handoff files before replying. A new
 report is one this run wrote; any other report, including one an earlier run of this
 edition wrote, is a saved report. Mark
-each item pass or fail. Fix every failed item, then run the whole checklist again, since
+each item pass or fail. Fix every failed item, except in what a saved report keeps (see
+below), then run the whole checklist again, since
 one fix can make another item fail; never report a failed item as passed. When the
 verdict or prompts disagree with the review status in the Run record, the approvals in
 section 6, the hashes or Git state, change the verdict and prompts to match that record,
@@ -216,6 +217,7 @@ approvals, Git state or the report itself.
    `Unknown` or `None`. No code fence is left unclosed. Every table row has its header's
    column count. `## Summary` comes before `## 1. Verdict`, `## Decisions made without
    your reply` comes right after section 8, and `## Run record` comes last, each once.
+   A new report's Summary has one or two short text descriptions of the intended design.
 2. Section 1 starts with `Ready`, `Ready after approvals` or `Not ready`, and its visible
    text (before any `### Technical details`) has `Confidence:` with `Unknown` or a whole
    percentage from 0 to 100 in steps of 5.
@@ -249,7 +251,8 @@ approvals, Git state or the report itself.
    unique ignoring case, 1–16 letters, digits, dots or hyphens, starting with a letter or
    digit. Each phase has a title. Docs only and Security review are `yes` or `no` and not
    both `yes`; Security review `yes` has a reason. Status is `ready` or `waiting`, and a
-   waiting phase says what it waits for. No ready phase comes after a waiting one, and a
+   waiting phase says what it waits for, and a ready phase's Waits for is `None`. No
+   ready phase comes after a waiting one, and a
    `Ready` verdict has no waiting phase.
 10. Open decisions: each has an ID (same format, unique ignoring case), question,
     recommendation, confidence `High`, `Medium` or `Low`, and holds back. Each ID appears

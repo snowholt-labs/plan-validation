@@ -271,6 +271,8 @@ def edition_files(folder: Path) -> dict:
 def check(root: Path, edition: Path) -> list[str]:
     """Build the edition in memory and return sorted missing, extra and differs lines."""
     root = Path(root)
+    if Path(edition).is_symlink():
+        raise BuildError(f"{Path(edition).name}: symbolic link")
     expected = collect(root, root / EDITION)
     actual = edition_files(Path(edition)) if Path(edition).is_dir() else {}
     lines = [f"missing: {p}" for p in expected if p not in actual]
@@ -290,7 +292,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.check:
         try:
             lines = check(root, target)
-        except BuildError as exc:
+        except (BuildError, OSError) as exc:
             print(f"Build failed: {exc}")
             return 1
         if lines:
@@ -308,7 +310,7 @@ def main(argv: list[str] | None = None) -> int:
         if os.path.lexists(target):
             os.replace(target, previous)
         os.replace(tmp / EDITION, target)
-    except BuildError as exc:
+    except (BuildError, OSError) as exc:
         print(f"Build failed: {exc}")
         return 1
     finally:

@@ -151,6 +151,10 @@ class CheckEditionTest(unittest.TestCase):
         write(self.root / ".mcp.json", "{}\n")
         self.assert_one("unread-config", ".mcp.json")
 
+    def test_unread_config_root_settings(self):
+        write(self.root / "settings.json", "{}\n")
+        self.assert_one("unread-config", "settings.json")
+
     def test_unread_config_top_level_folder(self):
         write(self.root / "commands/run.md", "# Run\n")
         self.assert_one("unread-config", "commands")
@@ -199,6 +203,13 @@ class CheckEditionTest(unittest.TestCase):
         for marker in (">-", "|", ">", "> Markdown report", "|x|"):
             with self.subTest(marker=marker):
                 text = SKILL.replace("description: Validate a plan.\n", f"description: {marker}\n  Validate a plan.\n")
+                write(self.root / "skills/validate-plan/SKILL.md", text)
+                self.assert_one("frontmatter-fields", "skills/validate-plan/SKILL.md")
+
+    def test_frontmatter_fields_rejects_invalid_plain_description(self):
+        for value in ("Validate plans: review them", "Validate plans #now", "*alias", "&anchor", "!tag", "%x", "@x", "`x`", "[x]", "{x}"):
+            with self.subTest(value=value):
+                text = SKILL.replace("description: Validate a plan.\n", f"description: {value}\n")
                 write(self.root / "skills/validate-plan/SKILL.md", text)
                 self.assert_one("frontmatter-fields", "skills/validate-plan/SKILL.md")
 
@@ -686,6 +697,21 @@ class BuildEditionTest(unittest.TestCase):
                 self.assertIn("Build failed", out)
                 self.assertIn("cannot be read", out)
 
+    def test_check_refuses_symlinked_edition_folder(self):
+        build(self.root, self.tmp / "copy")
+        os.symlink(self.tmp / "copy", self.root / "directory-edition")
+        code, out = self.run_main("--root", str(self.root), "--check")
+        self.assertEqual(code, 1)
+        self.assertIn("directory-edition: symbolic link", out)
+
+    def test_main_reports_os_error_as_build_failure(self):
+        with mock.patch.object(Path, "write_bytes", side_effect=OSError(28, "No space left on device")):
+            code, out = self.run_main("--root", str(self.root))
+        self.assertEqual(code, 1)
+        self.assertIn("Build failed", out)
+        self.assertIn("No space left on device", out)
+        self.assertEqual(self.leftovers(), [])
+
     def test_main_failure_keeps_previous_output(self):
         kept = self.root / "directory-edition/kept.md"
         write(kept, "# Kept\n")
@@ -714,8 +740,9 @@ class BuildEditionTest(unittest.TestCase):
             return real_replace(src, dst, *args, **kwargs)
 
         with mock.patch.object(build_directory_edition.os, "replace", failing_replace):
-            with self.assertRaises(OSError):
-                self.run_main("--root", str(self.root))
+            code, out = self.run_main("--root", str(self.root))
+        self.assertEqual(code, 1)
+        self.assertIn("Build failed: simulated move failure", out)
         self.assertTrue(kept.is_file())
         self.assertEqual(self.leftovers(), [])
 

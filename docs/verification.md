@@ -39,7 +39,7 @@ Checked on 16 November 2026 (UTC) on Linux, using Python 3.14.4 and Claude Code 
 | No Artifact or other publish call | Passed | The session transcript has only shell, read and edit tool calls, and no shell command matched `curl`, `wget`, `gh`, `git push`, `scp`, `rsync`, `nc`, `ssh` or `http` |
 | Self-check result stated in the reply as made by the agent | Passed | The reply gave the result, named the item that failed on the first pass and included the required sentence |
 
-Limits: this check ran no validation and no ready phase, so the limits of the `f003e04` check below still apply.
+Limits: this check ran no validation and no ready phase, so the limits of the `f003e04` check below still apply. The self-check's rule for a failed item in what a saved report keeps, and the matching SKILL.md sentence, changed after `845f4b0` and were not run with the edition loaded.
 
 ### 0.8.0 directory edition check, `f003e04`
 
