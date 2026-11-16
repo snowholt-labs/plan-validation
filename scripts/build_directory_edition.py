@@ -36,15 +36,39 @@ class BuildError(Exception):
     """The edition cannot be built from the current sources."""
 
 
-def sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+def no_symlink(root: Path, rel: str) -> Path:
+    """Return `root / rel` when neither it nor a folder between it and `root` is a symbolic link."""
+    path = root
+    for part in PurePosixPath(rel).parts:
+        path = path / part
+        if path.is_symlink():
+            raise BuildError(f"{rel}: symbolic links are not read ({path.relative_to(root).as_posix()})")
+    return root / rel
 
 
 def read_input(root: Path, rel: str) -> bytes:
-    path = root / rel
-    if not path.is_file():
+    path = no_symlink(root, rel)
+    if not path.exists():
         raise BuildError(f"{rel}: input file missing")
+    if not path.is_file():
+        raise BuildError(f"{rel}: not a regular file")
     return path.read_bytes()
+
+
+def sha256(root: Path, rel: str) -> str:
+    return hashlib.sha256(read_input(root, rel)).hexdigest()
+
+
+def read_text(root: Path, rel: str) -> str:
+    try:
+        return read_input(root, rel).decode("utf-8")
+    except UnicodeDecodeError:
+        raise BuildError(f"{rel}: not valid UTF-8") from None
+
+
+def is_dropped(rel: str) -> bool:
+    parts = rel.split("/")
+    return len(parts) >= 4 and parts[2] in DROPPED_DIRS or rel in DROPPED_FILES
 
 
 def load_json(root: Path, rel: str):
@@ -86,62 +110,77 @@ def load_overrides(root: Path, out: Path) -> dict:
             check_key(path, out)
         if not key.endswith(".md"):
             raise BuildError(f"{key}: overrides must be Markdown files")
+        if is_dropped(key):
+            raise BuildError(f"{key}: path is dropped from the edition and cannot be overridden")
 
-        source_path = root / key
+        source_path = no_symlink(root, key)
         if source is None:
-            if source_path.exists():
+            if os.path.lexists(source_path):
                 raise BuildError(f"{key}: has a source; record its source_sha256 instead of null")
-        elif not source_path.is_file():
+        elif not source_path.exists():
             raise BuildError(f"{key}: source missing")
         for path in sorted(derived):
-            if not (root / path).is_file():
+            if not no_symlink(root, path).exists():
                 raise BuildError(f"{path}: source missing (derived_from of {key})")
 
         pins = ([(key, source)] if source is not None else []) + sorted(derived.items())
         for path, recorded in pins:
             if not isinstance(recorded, str) or not SHA256.fullmatch(recorded):
                 raise BuildError(f"{path}: recorded hash must be 64 lowercase hex characters (entry {key})")
-            if sha256(root / path) != recorded:
+            if sha256(root, path) != recorded:
                 raise BuildError(f"{path}: source changed since the override of {key} was reviewed; {HASH_HINT}")
 
-        override = root / SOURCES / "overrides" / key
-        if not override.is_file() or override.is_symlink():
-            raise BuildError(f"{key}: override file missing at {SOURCES}/overrides/{key}")
-        overrides[key] = override.read_bytes()
+        override = f"{SOURCES}/overrides/{key}"
+        if not os.path.lexists(no_symlink(root, override)):
+            raise BuildError(f"{key}: override file missing at {override}")
+        overrides[key] = read_input(root, override)
 
-    folder = root / SOURCES / "overrides"
+    folder = no_symlink(root, f"{SOURCES}/overrides")
     if folder.is_dir():
-        for path in sorted(folder.rglob("*")):
-            if path.is_dir() and not path.is_symlink():
-                continue
+        for path in walk(root, folder):
             rel = path.relative_to(folder).as_posix()
+            if path.is_symlink():
+                raise BuildError(f"{rel}: symbolic link in {SOURCES}/overrides")
+            if path.is_dir():
+                continue
             if rel not in entries:
                 raise BuildError(f"{rel}: override file has no entry in {record}")
     return overrides
 
 
+def walk(root: Path, folder: Path, prune=lambda rel: False):
+    """Yield every entry under `folder` in sorted order, without following symbolic links."""
+
+    def fail(error: OSError):
+        name = Path(error.filename).relative_to(root).as_posix() if error.filename else folder.name
+        raise BuildError(f"{name}: cannot be read ({error.strerror})")
+
+    for dirpath, dirnames, filenames in os.walk(folder, onerror=fail, followlinks=False):
+        here = Path(dirpath)
+        dirnames[:] = sorted(d for d in dirnames if not prune((here / d).relative_to(root).as_posix()))
+        for name in sorted(dirnames + filenames):
+            yield here / name
+
+
 def skill_files(root: Path) -> dict:
     """Return {path: bytes} for every skill file the edition copies."""
     files = {}
-    skills = root / "skills"
-    for dirpath, dirnames, filenames in os.walk(skills, followlinks=False):
-        dirnames.sort()
-        here = Path(dirpath)
-        for name in sorted(dirnames + filenames):
-            path = here / name
-            rel = path.relative_to(root).as_posix()
-            parts = PurePosixPath(rel).parts
-            if len(parts) >= 4 and parts[2] in DROPPED_DIRS or rel in DROPPED_FILES:
-                if name in dirnames:
-                    dirnames.remove(name)
-                continue
-            if path.is_symlink():
-                raise BuildError(f"{rel}: symbolic links are not copied")
-            if name in dirnames:
-                continue
-            if not name.endswith(".md"):
-                raise BuildError(f"{rel}: not Markdown and not in the drop list; add it to the drop list or convert it")
-            files[rel] = path.read_bytes()
+    skills = no_symlink(root, "skills")
+    if not skills.is_dir():
+        raise BuildError("skills: folder missing")
+    for path in walk(root, skills, prune=lambda rel: is_dropped(rel + "/-")):
+        rel = path.relative_to(root).as_posix()
+        if is_dropped(rel):
+            continue
+        if path.is_symlink():
+            raise BuildError(f"{rel}: symbolic links are not copied")
+        if path.is_dir():
+            continue
+        if not path.is_file():
+            raise BuildError(f"{rel}: not a regular file")
+        if not path.name.endswith(".md"):
+            raise BuildError(f"{rel}: not Markdown and not in the drop list; add it to the drop list or convert it")
+        files[rel] = path.read_bytes()
     return files
 
 
@@ -167,19 +206,17 @@ def manifest(root: Path) -> bytes:
 
 
 def readme(root: Path) -> bytes:
-    data = read_input(root, f"{SOURCES}/README.md")
-    root_lines = {line.rstrip() for line in read_input(root, "README.md").decode("utf-8").splitlines()}
-    for line in data.decode("utf-8").splitlines():
-        if line.startswith("claude plugin ") and line.rstrip() not in root_lines:
-            raise BuildError(f"README.md: install line not in the root README.md: {line.rstrip()}")
-    return data
+    text = read_text(root, f"{SOURCES}/README.md")
+    root_lines = {line.strip() for line in read_text(root, "README.md").splitlines()}
+    for line in text.splitlines():
+        line = line.strip()
+        if line.startswith("claude plugin ") and line not in root_lines:
+            raise BuildError(f"README.md: install line not in the root README.md: {line}")
+    return text.encode("utf-8")
 
 
-def build(root: Path, out: Path) -> list[str]:
-    """Write the edition into `out`, which must not exist, and return the sorted paths written."""
-    root, out = Path(root), Path(out)
-    if os.path.lexists(out):
-        raise BuildError(f"{out}: output folder already exists")
+def collect(root: Path, out: Path) -> dict:
+    """Return {path: bytes} for the edition that would be written to `out`."""
     overrides = load_overrides(root, out)
     files = skill_files(root)
     files.update(overrides)
@@ -188,6 +225,15 @@ def build(root: Path, out: Path) -> list[str]:
     files["README.md"] = readme(root)
     files["LICENSE"] = read_input(root, "LICENSE")
     files["NOTICE.txt"] = read_input(root, "NOTICE")
+    return files
+
+
+def build(root: Path, out: Path) -> list[str]:
+    """Write the edition into `out`, which must not exist, and return the sorted paths written."""
+    root, out = Path(root), Path(out)
+    if os.path.lexists(out):
+        raise BuildError(f"{out}: output folder already exists")
+    files = collect(root, out)
     out.mkdir(parents=True)
     for rel in sorted(files):
         path = out / rel
@@ -208,10 +254,8 @@ def edition_files(folder: Path) -> dict:
 
 def check(root: Path, edition: Path) -> list[str]:
     """Build into a temporary folder and return sorted missing, extra and differs lines."""
-    with tempfile.TemporaryDirectory() as tmp:
-        fresh = Path(tmp) / EDITION
-        build(root, fresh)
-        expected = edition_files(fresh)
+    root = Path(root)
+    expected = collect(root, root / EDITION)
     actual = edition_files(Path(edition)) if Path(edition).is_dir() else {}
     lines = [f"missing: {p}" for p in expected if p not in actual]
     lines += [f"extra: {p}" for p in actual if p not in expected]

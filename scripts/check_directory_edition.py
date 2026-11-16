@@ -88,7 +88,10 @@ def is_image(suffix: str, data: bytes) -> bool:
 
 
 def frontmatter(text: str):
-    """Return the `key: value` pairs between the first two `---` lines, or None."""
+    """Return {key: [values]} for the `key: value` lines between the first two `---` lines, or None.
+
+    Unparsed lines are collected under the empty key; indented lines continue a value.
+    """
     lines = text.split("\n")
     if not lines or lines[0].rstrip("\r") != "---":
         return None
@@ -100,17 +103,18 @@ def frontmatter(text: str):
         if not line.strip() or line[0] in " \t":
             continue
         match = FRONTMATTER_LINE.fullmatch(line)
-        if not match:
-            fields.setdefault("", "")
-            continue
-        fields[match.group(1)] = (match.group(2) or "").strip()
+        key = match.group(1) if match else ""
+        value = (match.group(2) or "").strip() if match else ""
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]
+        fields.setdefault(key, []).append(value)
     return None
 
 
-def check_manifest(path: Path, errors: list, rel: str):
+def check_manifest(text: str, errors: list, rel: str):
     try:
-        manifest = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, ValueError) as exc:
+        manifest = json.loads(text)
+    except ValueError as exc:
         errors.append(f"manifest-fields: {rel}: cannot be read as JSON ({exc.__class__.__name__})")
         return
     if not isinstance(manifest, dict):
@@ -119,6 +123,8 @@ def check_manifest(path: Path, errors: list, rel: str):
     extra = sorted(set(manifest) - MANIFEST_KEYS)
     if extra:
         errors.append(f"manifest-fields: {rel}: keys not allowed: {', '.join(extra)}")
+    if not isinstance(manifest.get("name"), str) or not manifest["name"].strip():
+        errors.append(f"manifest-fields: {rel}: name is required")
     if "author" in manifest:
         author = manifest["author"]
         if not isinstance(author, dict):
@@ -137,9 +143,15 @@ def check_skill(rel_parts: tuple, text: str, errors: list, rel: str):
     extra = sorted(set(fields) - FRONTMATTER_KEYS)
     if extra:
         problems.append("keys not allowed: " + ", ".join(k or "<unparsed line>" for k in extra))
-    if fields.get("name") != rel_parts[1]:
+    repeated = sorted(k for k, values in fields.items() if k and len(values) > 1)
+    if repeated:
+        problems.append("repeated keys: " + ", ".join(repeated))
+    value = {k: values[-1] for k, values in fields.items()}
+    if value.get("name") != rel_parts[1]:
         problems.append(f"name must be {rel_parts[1]}")
-    if rel_parts[1] == "validate-plan" and fields.get("disable-model-invocation") != "true":
+    if not value.get("description"):
+        problems.append("description is required")
+    if rel_parts[1] == "validate-plan" and value.get("disable-model-invocation") != "true":
         problems.append("validate-plan needs disable-model-invocation: true")
     if problems:
         errors.append(f"frontmatter-fields: {rel}: {'; '.join(problems)}")
@@ -150,6 +162,9 @@ def check_file(root: Path, path: Path, errors: list):
     rel = rel_path.as_posix()
     parts = rel_path.parts
     name = path.name
+    if not path.is_file():
+        errors.append(f"allowed-type: {rel}: not a regular file")
+        return
     data = path.read_bytes()
     suffix = path.suffix.lower()
 
@@ -179,10 +194,10 @@ def check_file(root: Path, path: Path, errors: list):
         errors.append(f"codex-metadata: {rel}: Codex metadata")
     if len(parts) == 2 and parts[0] == ".claude-plugin" and name not in PLUGIN_FOLDER_FILES:
         errors.append(f"plugin-folder: {rel}: .claude-plugin holds only plugin.json and icon.png")
-    if parts == (".claude-plugin", "plugin.json"):
-        check_manifest(path, errors, rel)
     if text is None:
         return
+    if parts == (".claude-plugin", "plugin.json"):
+        check_manifest(text, errors, rel)
     if len(parts) == 3 and parts[0] == "skills" and name == "SKILL.md":
         check_skill(parts, text, errors, rel)
     found = [term for term in DROPPED_REFERENCES if term in text]
@@ -198,7 +213,7 @@ def check_edition(root: Path) -> list[str]:
     """Return sorted `<rule-id>: <path>: <message>` errors for the edition at `root`."""
     root = Path(root)
     errors = []
-    for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
+    for dirpath, dirnames, filenames in os.walk(root, onerror=raise_error, followlinks=False):
         here = Path(dirpath)
         dirnames.sort()
         for entry in sorted(dirnames + filenames):
@@ -227,8 +242,12 @@ def check_edition(root: Path) -> list[str]:
     return sorted(errors)
 
 
+def raise_error(error: OSError):
+    raise error
+
+
 def count_files(root: Path) -> int:
-    return sum(len(files) for _, _, files in os.walk(root, followlinks=False))
+    return sum(len(files) for _, _, files in os.walk(root, onerror=raise_error, followlinks=False))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -239,12 +258,17 @@ def main(argv: list[str] | None = None) -> int:
     if not root.is_dir() or root.is_symlink():
         print(f"Directory edition not found: {root}")
         return 1
-    errors = check_edition(root)
+    try:
+        errors = check_edition(root)
+        count = count_files(root)
+    except OSError as exc:
+        print(f"Directory edition cannot be read: {exc}")
+        return 1
     if errors:
         for error in errors:
             print(error)
         return 1
-    print(f"Directory edition: {count_files(root)} files checked.")
+    print(f"Directory edition: {count} files checked.")
     return 0
 
 

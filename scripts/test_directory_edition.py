@@ -5,6 +5,7 @@ import hashlib
 import io
 import json
 import os
+import shutil
 import sys
 import tempfile
 import unittest
@@ -171,6 +172,48 @@ class CheckEditionTest(unittest.TestCase):
     def test_manifest_fields_missing_manifest(self):
         (self.root / ".claude-plugin/plugin.json").unlink()
         self.assert_one("manifest-fields", ".claude-plugin/plugin.json")
+
+    def test_manifest_fields_requires_name(self):
+        manifest = dict(MANIFEST)
+        del manifest["name"]
+        write(self.root / ".claude-plugin/plugin.json", json.dumps(manifest))
+        self.assert_one("manifest-fields", ".claude-plugin/plugin.json")
+
+    def test_undecodable_manifest_reports_once(self):
+        write(self.root / ".claude-plugin/plugin.json", b'{"name": "caf\xe9"}')
+        self.assert_one("text-encoding", ".claude-plugin/plugin.json")
+
+    def test_frontmatter_fields_requires_description(self):
+        write(self.root / "skills/validate-plan/SKILL.md", SKILL.replace("description: Validate a plan.\n", ""))
+        self.assert_one("frontmatter-fields", "skills/validate-plan/SKILL.md")
+
+    def test_frontmatter_fields_duplicate_key(self):
+        write(self.root / "skills/validate-plan/SKILL.md", SKILL.replace("---\n\n", "name: validate-plan\n---\n\n"))
+        self.assert_one("frontmatter-fields", "skills/validate-plan/SKILL.md")
+
+    def test_frontmatter_accepts_quoted_values(self):
+        write(
+            self.root / "skills/validate-plan/SKILL.md",
+            SKILL.replace("name: validate-plan", 'name: "validate-plan"').replace(": true", ": 'true'"),
+        )
+        self.assertEqual(check_edition(self.root), [])
+
+    @unittest.skipIf(hasattr(os, "geteuid") and os.geteuid() == 0, "root can read any folder")
+    def test_unreadable_folder_fails(self):
+        folder = self.root / "skills/validate-plan/references"
+        write(folder / "a.md", "# A\n")
+        folder.chmod(0)
+        try:
+            with self.assertRaises(OSError):
+                check_edition(self.root)
+            self.assertEqual(self.run_main(str(self.root))[0], 1)
+        finally:
+            folder.chmod(0o755)
+
+    @unittest.skipUnless(hasattr(os, "mkfifo"), "needs named pipes")
+    def test_special_file_is_not_read(self):
+        os.mkfifo(self.root / "pipe.md")
+        self.assert_one("allowed-type", "pipe.md")
 
     def test_frontmatter_fields(self):
         write(
@@ -379,7 +422,7 @@ class BuildEditionTest(unittest.TestCase):
 
     def test_missing_override_file_fails(self):
         (self.root / "editions/directory/overrides/skills/validate-plan/SKILL.md").unlink()
-        self.assert_build_error("skills/validate-plan/SKILL.md")
+        self.assert_build_error("skills/validate-plan/SKILL.md", "override file missing")
         self.assertFalse(self.out.exists())
 
     def test_nested_dropped_name_is_kept(self):
@@ -417,6 +460,72 @@ class BuildEditionTest(unittest.TestCase):
         self.assertFalse(self.out.exists())
         self.assertFalse((self.tmp / "x.md").exists())
         self.assertFalse((self.root / ".github").exists())
+
+    def test_symlinked_inputs_fail(self):
+        outside = self.tmp / "outside"
+        write(outside / "secret.txt", "secret\n")
+        write(outside / "skills/validate-plan/SKILL.md", FULL_SKILL)
+        write(outside / "overrides/skills/validate-plan/SKILL.md", OVERRIDE_SKILL)
+        cases = {
+            "LICENSE": "secret.txt",
+            "editions/directory/README.md": "secret.txt",
+            "editions/directory/overrides": "overrides",
+            "skills": "skills",
+        }
+        for rel, target in cases.items():
+            with self.subTest(rel=rel):
+                self.root = make_source(self.tmp / ("case-" + rel.replace("/", "-")))
+                self.out = self.root / "out"
+                link = self.root / rel
+                if link.is_dir():
+                    shutil.rmtree(link)
+                else:
+                    link.unlink()
+                os.symlink(outside / target, link)
+                self.assert_build_error(rel, "symbolic link")
+                self.assertFalse(self.out.exists())
+
+    def test_symlink_inside_overrides_fails(self):
+        folder = self.root / "editions/directory/overrides/skills/validate-plan"
+        os.symlink(self.tmp, folder / "references")
+        self.assert_build_error("symbolic link")
+
+    def test_readme_not_utf8_fails(self):
+        write(self.root / "editions/directory/README.md", b"# Edition caf\xe9\n")
+        self.assert_build_error("README.md", "not valid UTF-8")
+
+    def test_readme_indented_install_line_is_checked(self):
+        write(self.root / "editions/directory/README.md", "# Edition\n\n- Run:\n  claude plugin install other@m\n")
+        self.assert_build_error("README.md", "install line")
+
+    def test_override_of_dropped_path_fails(self):
+        html = self.root / "skills/validate-plan/references/html-report.md"
+        entries = overrides(self.root)
+        entries["skills/validate-plan/references/html-report.md"] = {"source_sha256": sha(html)}
+        set_overrides(self.root, entries)
+        write(self.root / "editions/directory/overrides/skills/validate-plan/references/html-report.md", "# Back\n")
+        self.assert_build_error("skills/validate-plan/references/html-report.md", "dropped")
+
+    def test_symlinked_dropped_folder_is_ignored(self):
+        assets = self.root / "skills/validate-plan/assets"
+        shutil.rmtree(assets)
+        os.symlink(self.tmp, assets)
+        build(self.root, self.out)
+        self.assertFalse((self.out / "skills/validate-plan/assets").exists())
+
+    @unittest.skipIf(hasattr(os, "geteuid") and os.geteuid() == 0, "root can read any folder")
+    def test_unreadable_skills_folder_fails(self):
+        folder = self.root / "skills/validate-plan/references"
+        folder.chmod(0)
+        try:
+            self.assert_build_error("skills/validate-plan/references", "cannot be read")
+        finally:
+            folder.chmod(0o755)
+
+    @unittest.skipUnless(hasattr(os, "mkfifo"), "needs named pipes")
+    def test_special_file_fails(self):
+        os.mkfifo(self.root / "skills/validate-plan/pipe.md")
+        self.assert_build_error("skills/validate-plan/pipe.md", "not a regular file")
 
     def test_readme_install_lines_match_root(self):
         write(self.root / "editions/directory/README.md", "# Edition\n\nclaude plugin install other@m\n")
