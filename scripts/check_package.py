@@ -8,6 +8,15 @@ from urllib.parse import unquote, urlsplit
 
 
 ROOT = Path(__file__).resolve().parents[1]
+EDITION = ROOT / "directory-edition"
+EDITION_NO_PUBLISH = "- This edition publishes nothing. Make no Artifact call, whatever host or tool guidance suggests.\n"
+
+
+def shown(path: Path) -> str:
+    """Name a checked file relative to the repository, or to the edition when tests move it."""
+    if path.is_relative_to(EDITION):
+        return f"directory-edition/{path.relative_to(EDITION).as_posix()}"
+    return path.relative_to(ROOT).as_posix()
 
 
 def main():
@@ -20,6 +29,29 @@ def main():
         errors.append("Plugin and marketplace versions differ")
     if len({claude["name"], codex["name"], entry["name"]}) != 1:
         errors.append("Plugin and marketplace names differ")
+    # The directory edition is generated from the root manifest, so its name and version must match too.
+    edition_manifest = EDITION / ".claude-plugin/plugin.json"
+    rebuild = "; run python3 scripts/build_directory_edition.py"
+    if not edition_manifest.is_file():
+        errors.append(f"directory-edition/.claude-plugin/plugin.json is missing{rebuild}")
+    else:
+        try:
+            edition = json.loads(edition_manifest.read_text())
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            edition = None
+        if not isinstance(edition, dict):
+            errors.append(f"directory-edition/.claude-plugin/plugin.json must be a JSON object{rebuild}")
+        else:
+            for key in ("version", "name"):
+                if edition.get(key) != claude[key]:
+                    errors.append(f"Directory edition {key} differs from the root manifest{rebuild}")
+    edition_skill = EDITION / "skills/validate-plan/SKILL.md"
+    try:
+        keeps_line = EDITION_NO_PUBLISH in edition_skill.read_text()
+    except (OSError, UnicodeDecodeError):
+        keeps_line = False
+    if not keeps_line:
+        errors.append(f"directory-edition validate-plan SKILL.md must keep the no-publish line word for word{rebuild}")
     if not re.fullmatch(r"\d+\.\d+\.\d+", claude["version"]):
         errors.append("Expected a semantic release version")
     if (ROOT / entry["source"]).resolve() != ROOT:
@@ -57,30 +89,37 @@ def main():
             errors.append(f"{path.relative_to(ROOT)}: SVG contains active, linked or local-path content")
     if (ROOT / "skills/validate-plan/assets/favicon.svg").read_bytes() != (ROOT / "assets/plan-validation.svg").read_bytes():
         errors.append("Report favicon and assets/plan-validation.svg differ")
-    for name in ("validate-plan", "validation-args", "revise-prompt"):
-        path = ROOT / "skills" / name / "SKILL.md"
-        content = path.read_text()
-        if not content.startswith("---\n") or "\n---\n" not in content[4:]:
-            errors.append(f"{name}: missing frontmatter")
-            continue
-        front = content.split("---\n", 2)[1]
-        if f"name: {name}\n" not in front:
-            errors.append(f"{name}: name and directory mismatch")
-        description = re.search(r"^description: (.+)$", front, re.M)
-        if not description or not 1 <= len(description[1]) <= 1024:
-            errors.append(f"{name}: invalid description")
-        if not (path.parent / "agents/openai.yaml").is_file():
-            errors.append(f"{name}: missing Codex metadata")
+    # The directory edition has no Codex support, so only the full edition needs agents/openai.yaml.
+    for skills, label, needs_codex in ((ROOT / "skills", "", True), (EDITION / "skills", "directory-edition/", False)):
+        for name in ("validate-plan", "validation-args", "revise-prompt"):
+            path = skills / name / "SKILL.md"
+            if not path.is_file():
+                errors.append(f"{label}{name}: missing SKILL.md")
+                continue
+            content = path.read_text()
+            if not content.startswith("---\n") or "\n---\n" not in content[4:]:
+                errors.append(f"{label}{name}: missing frontmatter")
+                continue
+            front = content.split("---\n", 2)[1]
+            if f"name: {name}\n" not in front:
+                errors.append(f"{label}{name}: name and directory mismatch")
+            description = re.search(r"^description: (.+)$", front, re.M)
+            if not description or not 1 <= len(description[1]) <= 1024:
+                errors.append(f"{label}{name}: invalid description")
+            if needs_codex and not (path.parent / "agents/openai.yaml").is_file():
+                errors.append(f"{label}{name}: missing Codex metadata")
     files = [ROOT / name for name in ("README.md", "CONTRIBUTING.md", "SECURITY.md", "CHANGELOG.md", "AGENTS.md", "CLAUDE.md")]
-    for directory in ("skills", "docs", "examples", ".github"):
-        files.extend((ROOT / directory).rglob("*.md"))
-    # Site pages get the leak check only; the link resolver does not understand site links.
+    for directory in (ROOT / "skills", ROOT / "docs", ROOT / "examples", ROOT / ".github", EDITION):
+        files.extend(directory.rglob("*.md"))
+    # Site pages and edition sources get the leak check only: the link resolver does not understand
+    # site links, and override links resolve only in the generated directory-edition/.
     site_pages = [path for pattern in ("*.md", "*.mdx") for path in (ROOT / "site/src/content").rglob(pattern)]
-    for path in files + site_pages:
+    leak_only = site_pages + sorted((ROOT / "editions").rglob("*.md"))
+    for path in files + leak_only:
         content = path.read_text()
         if re.search(r"/(?:home|Users)/[^/\s]+/|plan-document-reviewer-prompt", content):
-            errors.append(f"{path.relative_to(ROOT)}: private or obsolete instruction leaked")
-        if path in site_pages:
+            errors.append(f"{shown(path)}: private or obsolete instruction leaked")
+        if path in leak_only:
             continue
         # Only real Markdown links, not the illustrative paths inside fenced code.
         prose = re.sub(r"```[^\n]*\n.*?```", "", content, flags=re.S)
@@ -89,15 +128,21 @@ def main():
             if parsed.scheme or parsed.netloc or not parsed.path:
                 continue
             resolved = (path.parent / unquote(parsed.path)).resolve()
-            if not resolved.is_relative_to(ROOT) or not resolved.exists():
-                errors.append(f"{path.relative_to(ROOT)}: broken local link {target}")
-    for directory in ("assets", "skills", "scripts", "docs", "examples", ".github", ".claude-plugin", ".codex-plugin"):
-        for path in (ROOT / directory).rglob("*"):
+            # Only directory-edition/ is submitted, so its links must stay inside it.
+            if path.is_relative_to(EDITION) and not resolved.is_relative_to(EDITION.resolve()):
+                errors.append(f"{shown(path)}: link leaves the edition {target}")
+            elif not resolved.exists() or not (resolved.is_relative_to(ROOT) or resolved.is_relative_to(EDITION.resolve())):
+                errors.append(f"{shown(path)}: broken local link {target}")
+    for directory in [ROOT / name for name in ("assets", "skills", "scripts", "docs", "examples", ".github",
+                                               ".claude-plugin", ".codex-plugin", "editions")] + [EDITION]:
+        for path in directory.rglob("*"):
             if path.is_symlink():
-                errors.append(f"Unexpected symlink in release: {path.relative_to(ROOT)}")
+                errors.append(f"Unexpected symlink in release: {shown(path)}")
     if errors:
         raise SystemExit("\n".join(errors))
-    print(f"Package {claude['version']}: manifests, three skills, {len(svgs)} SVG icons and {len(files) + len(site_pages)} Markdown files checked.")
+    edition_files = sum(1 for path in EDITION.rglob("*") if path.is_file())
+    print(f"Package {claude['version']}: manifests, three skills, {len(svgs)} SVG icons, {len(files) + len(leak_only)} Markdown files "
+          f"and {edition_files} directory edition files checked.")
 
 
 if __name__ == "__main__":
