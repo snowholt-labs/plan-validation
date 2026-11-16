@@ -26,6 +26,16 @@ Run these for every release, in addition to the release checks; each release reg
 - In the same session, make two broken copies of that `report.md` and ask the agent to self-check each: a `Ready` verdict while the Run record says `Review status: incomplete`, and a `Not ready` report whose prompt says `Implement Task 1.` and lacks `Do not start dependent implementation.`. Expected: the matching self-check item fails for each, and the agent fixes the report before it replies. The first is fixed by changing the verdict to `Not ready` with a remediation prompt, never by marking the review complete.
 - Record only pass, fail or Unknown per expectation, and limits in generic wording; never paste reply text, instruction text, names of user-level files or skills, or run-directory paths. Record each later run as its own `### <version> directory edition check` subsection directly under this list, above the earlier ones, and keep the earlier ones.
 
+### 0.8.0 directory edition check at `d781ee9`
+
+Checked on 16 November 2026 (UTC) on Linux, using Python 3.14.4 and Claude Code 2.1.325, on the edition generated at commit `d781ee9` of the `plan/directory-edition` branch, which adds the fix rule to self-check item 3. Only the broken `Ready` sample was rerun, in a new session isolated as in the check below, on a fresh copy of that check's report with `Review status: incomplete` and its handoff files beside it.
+
+| Check | Observed result | Evidence and limit |
+| --- | --- | --- |
+| Broken sample: `Ready` with `Review status: incomplete` | Passed | Item 3 failed, and the copy was fixed and rechecked before the reply. `Review status` stayed `incomplete`; the verdict became `Not ready`; section 8's prompts became one remediation prompt naming the missing review, with `Do not start dependent implementation.` and no implement instruction; the phase file was deleted and `handoff.txt` rewritten to match |
+
+Limits: the session read the checklist from the generated edition file in the repository, with the maintainer's permission, and said the plugin it had loaded had no `markdown-report.md`, so this run does not show that the directory edition was the loaded plugin; it checks the merged rule text. The other rows of the check below were not rerun, and the repair of a real `Not ready` prompt is still unverified.
+
 ### 0.8.0 directory edition check
 
 Checked on 16 November 2026 (UTC) on Linux, using Python 3.14.4 and Claude Code 2.1.325, on the edition generated at commit `f42a8a1` (version 0.8.0) of the `plan/directory-edition` branch, which differs from `d205180` only in one README sentence. User-level instructions, memory and personal skills were excluded with a fresh configuration directory and the settings that turn off user instructions and memory.
