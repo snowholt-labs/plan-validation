@@ -187,7 +187,8 @@ failed), then run the whole checklist again, since
 one fix can make another item fail; never report a failed item as passed. When the
 verdict or prompts disagree with the review status in the Run record, the approvals in
 section 6, the hashes or Git state, change the verdict and prompts to match that record,
-never the record to fit them. The reply's self-check result gives the number of items
+never the record to fit them; a saved report is marked historical instead, as item 3 and
+Saved reports say. The reply's self-check result gives the number of items
 that pass after those fixes and rechecks, for example `Self-check: 19 of 19 passed`, and
 names each item that failed on any pass and how it was fixed. These are structural checks made
 by the agent, not by code, and they are not a substitute for reviewing the evidence,
