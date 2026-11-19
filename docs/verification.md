@@ -1,5 +1,25 @@
 # Release verification
 
+## 0.9.1 release checks
+
+Checked on 19 November 2026 on Linux, using Python 3.14.4 and Claude Code 2.1.328. These are package checks on the release branch; they are not publication or live-plugin acceptance results.
+
+| Check | Observed result | Evidence and limit |
+| --- | --- | --- |
+| Renderer regression suite | 169 tests passed | The renderer, `diagrams.py` and the report scripts are unchanged since 0.9.0; 0.9.1 changes no executable code, only skill text, its directory edition overrides and their documentation (#94), which rendering tests do not establish |
+| Edition tooling suite | 86 tests passed | Tests for `build_directory_edition.py`, `check_directory_edition.py` and `check_package.py` |
+| Package and local documentation links | Passed | Three skills, 5 SVG icons, 76 Markdown files and 17 directory edition files checked in a clean checkout (`git archive` export); plugin, marketplace, Codex and directory edition manifests agree at 0.9.1 |
+| Directory edition sync and policy | Passed | `build_directory_edition.py --check` reports the committed edition up to date; `check_directory_edition.py` checked 17 files |
+| Claude plugin validation | Passed; the root has one warning | Both root `claude plugin validate` commands pass without `--strict`, with the expected warning that the root `CLAUDE.md` is not loaded as plugin context. Both directory edition commands (`--profile directory --strict` and the manifest) pass with no `✘` line |
+| Retry demonstration | Three tests with one expected failure; corrected control has three passing tests | Existing authored fixture and renderer executed; not an effectiveness benchmark |
+| Documentation site | 47 tests passed; 14 pages built | The built changelog page shows the 0.9.1 entry |
+| Validation run under the new review rules | Unknown | No live validation run has used the 0.9.1 rules yet: fix-only re-review rounds, Lows listed while a fix is reviewed, security Lows closed in step 6 and post-answer rounds, and the run-directory no-delete rule |
+| Manual run of the directory edition | Unknown | Not repeated for 0.9.1. The edition's handoff files are now overwritten with superseded lines instead of deleted, and no manual run has exercised that path |
+
+Known issue: an approval recorded in a later session gets conflicting instructions in the directory edition (#91).
+
+GitHub release publication, a directory submission, a directory security scan, reviewer approval and a live listing remain distinct states. None of them is recorded here for 0.9.1.
+
 ## 0.9.0 release checks
 
 Checked on 16 November 2026 on Linux, using Python 3.14.4 and Claude Code 2.1.325. These are package checks on the release branch; they are not publication or live-plugin acceptance results.
