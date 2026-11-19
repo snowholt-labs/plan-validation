@@ -2,9 +2,10 @@
 
 ## 0.9.1 — 2026-11-19
 
-- Validation's review loop converges sooner. After the first round, each step 6 and post-answer round reviews only a saved diff of the changes since the last round (`round-<n>.diff`), with the full documents for context, and a review of a final-review fix reviews only its `fix-<n>.diff`. The first round, the first post-answer round and the step 8 final reviews still read the whole documents.
-- A non-security Low raised while a final-review fix is reviewed is listed for the end-of-run question instead of being fixed. A security finding at any severity from step 6 or a post-answer round is now fixed, rejected with evidence or made a pending approval, and is never offered to skip.
+- Validation's review loop should converge sooner; no live run has confirmed it yet. The first step 6 round, the first post-answer round and the step 8 final reviews read the whole documents. Each later round reviews only a saved diff of the changes since the last round (`round-<n>.diff`), with the full documents for context, and a review of a final-review fix reviews only its `fix-<n>.diff`.
+- A non-security Low raised while a final-review fix is reviewed is listed for the end-of-run question instead of being fixed. A security finding at any severity from step 6 or a post-answer round is now fixed, rejected with evidence or made a pending approval, and is never offered to skip. On a plan's docs PR, a listed non-security Low left open by an earlier review also closes when the maintainer skips it.
 - The agent no longer deletes or moves files in its run directory unless the skill says to, so a permission prompt cannot stall an unattended run. The directory edition now overwrites earlier handoff files with two superseded lines instead of deleting them.
+- `docs/evaluation.md` gains the rows "Re-review after fixes", "Run directory files" and "Security Low in validation", and the first-run and reports guides now say that only non-security Lows are listed.
 - The renderer and the report format are unchanged; saved reports render as before. Upgrading needs no action. The directory edition's known issue (#91) is still open.
 
 ## 0.9.0 — 2026-11-16
