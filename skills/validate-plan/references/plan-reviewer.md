@@ -1,6 +1,6 @@
 # Independent plan and spec review
 
-Use this brief for each round of the independent review loop. Dispatch a fresh review agent supported by the host and substitute the verified absolute paths and scope. This review is independent of Superpowers' internal template filenames. Each review round gets the current documents. A round after fixes reviews only those fixes: `Fix under review` names the saved diff of those fixes, and the round gets the list of findings already dispositioned, so it does not re-raise them.
+Use this brief for each round of the independent review loop. Dispatch a fresh review agent supported by the host and substitute the verified absolute paths and scope. This review is independent of Superpowers' internal template filenames. Each review round gets the current documents. A round after fixes, except the first post-answer round, reviews only those fixes: `Fix under review` names the saved diff of those fixes, and the round gets the list of findings already dispositioned, so it does not re-raise them.
 
 ```text
 Review the following implementation plan and approved specification against the current code.

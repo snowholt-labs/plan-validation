@@ -24,7 +24,8 @@ file happens to exist later. After validation, save:
 
 - `report.md`: the complete report, in the layout below. It is the only report file;
   every record the report needs lives in it.
-- `handoff.txt` and one `handoff-phase-<id>.txt` per ready phase (Handoff files below).
+- `handoff.txt` and one `handoff-phase-<id>.txt` per ready phase, plus any earlier phase file
+  left holding the superseded lines (Handoff files below).
 - `revised-plan.md` and `revised-spec.md`: copies of the validated revisions.
 - A local research ledger and source evidence when research ran or was declined,
   including sent, declined or unavailable lookups. Record only public query text;
@@ -144,7 +145,7 @@ prompt never survives a changed verdict or a failed write:
 
 ```text
 SUPERSEDED PROMPT — DO NOT EXECUTE.
-See section 8 of report.md for the current prompts.
+See section 8 of report.md and its Handoff status for any prompt to use.
 ```
 
 Then write:
@@ -296,8 +297,8 @@ approvals, Git state or the report itself.
     `have to` (as in `do not need to`, `don't have to`), or `no need to`, comes right
     before it. `Do not run validation again first` fails, so reword it: a new report has
     no re-run.
-15. When Handoff status is `historical`, section 8 and every handoff file start with the
-    historical warning lines (Handoff files above).
+15. When Handoff status is `historical`, section 8, `handoff.txt` and the phase file of each
+    phase with its own prompt start with the historical warning lines (Handoff files above).
 16. The Task inventory is nonempty and lists each task ID once.
 17. `Review status` is exactly `complete` or `incomplete`, and `Handoff status` is exactly
     `current` or `historical`. The Run record has a `Provenance:` line naming the run

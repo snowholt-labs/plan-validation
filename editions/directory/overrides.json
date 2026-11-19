@@ -1,6 +1,6 @@
 {
   "skills/validate-plan/SKILL.md": {
-    "source_sha256": "b781c2e512b81850aa4bb35a09d491d2c0cbe622b8dc1ec4a3c4c89c8ab95f1a"
+    "source_sha256": "c8fa40594b7b3d39409c5bfe2cc5be01cd8ddef34a1df2bc56867a10757d158f"
   },
   "skills/validate-plan/handoff-template.md": {
     "source_sha256": "b5dfb82362b2afa2033385bc8cb31f1e75b6304bfa8a109b8bedbd82425242f5"
@@ -19,6 +19,6 @@
     "source_sha256": "841b0fda40910c5c1883731a29a6908a8ba04f2e11e476c77ea425c2b72f049c"
   },
   "skills/validate-plan/references/validation-reviews.md": {
-    "source_sha256": "ce616124762518cf7a75d5f5c5890f28d0361de5d7233204ea56cdeadf3a0985"
+    "source_sha256": "546350143614e2dd268e8c0ea1ac933c65f121a6bd6d0cb08bea5196c2663e0d"
   }
 }
