@@ -1,6 +1,6 @@
 # Independent plan and spec review
 
-Use this brief for each round of the independent review loop. Dispatch a fresh review agent supported by the host and substitute the verified absolute paths and scope. This review is independent of Superpowers' internal template filenames. Each review round gets the current documents. A round after fixes reviews only those fixes: `Fix under review` names the saved diff of the changes since the last round, and the round gets the list of findings already dispositioned, so it does not re-raise them.
+Use this brief for each round of the independent review loop. Dispatch a fresh review agent supported by the host and substitute the verified absolute paths and scope. This review is independent of Superpowers' internal template filenames. Each review round gets the current documents. A round after fixes reviews only those fixes: `Fix under review` names the saved diff of those fixes, and the round gets the list of findings already dispositioned, so it does not re-raise them.
 
 ```text
 Review the following implementation plan and approved specification against the current code.
@@ -16,7 +16,7 @@ Research status: <allowed under the public research rules | declined by the user
 Pending decisions and blocked versus independent tasks: <verified current state>
 Validation report: <absolute path, or None for a first validation>
 Findings already dispositioned: <finding, disposition and reason for each, or None in the first round>
-Fix under review: <absolute path of the saved diff of the changes since the last round, or None in the first round and the first post-answer round>
+Fix under review: <absolute path of `round-<n>.diff`, or `fix-<n>.diff` for a final-review fix, or None in the first round and the first post-answer round>
 
 Read the plan, spec and relevant code, configuration and tests. Work read-only. Do not modify files, commit, post comments, install dependencies, access secrets, or execute implementation/deployment steps. Do not claim tests ran when you only inspected them.
 When `Fix under review` names a diff, review only that change: read the documents and code for context, and report only problems in the changed text or caused by it elsewhere, such as a section the change now contradicts.
