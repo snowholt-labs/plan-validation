@@ -16,7 +16,7 @@ Research status: <allowed under the public research rules | declined by the user
 Pending decisions and blocked versus independent tasks: <verified current state>
 Validation report: <absolute path, or None for a first validation>
 Findings already dispositioned: <finding, disposition and reason for each, or None in the first round>
-Fix under review: <absolute path of the saved diff of the changes since the last round, or None in the first round>
+Fix under review: <absolute path of the saved diff of the changes since the last round, or None in the first round and the first post-answer round>
 
 Read the plan, spec and relevant code, configuration and tests. Work read-only. Do not modify files, commit, post comments, install dependencies, access secrets, or execute implementation/deployment steps. Do not claim tests ran when you only inspected them.
 When `Fix under review` names a diff, review only that change: read the documents and code for context, and report only problems in the changed text or caused by it elsewhere, such as a section the change now contradicts.
