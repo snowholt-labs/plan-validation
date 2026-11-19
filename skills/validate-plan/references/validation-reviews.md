@@ -23,7 +23,7 @@ Close every confirmed finding, Low included, and every security finding at any s
 
 ## Record
 
-Section 7 records, for each review: the command or brief used, the input file it read and its SHA-256, the SHA-256 of each document copy behind that input, the result, and each fix diff (`fix-<n>.diff` and its SHA-256) with the security review that read it and the step-6 review round that reviewed the fix, and each `answer-fix-<n>.diff` with its SHA-256, its security review and its post-answer round. `context.json` `documents` keeps the final hashes, as before.
+Section 7 records, for each review: the command or brief used, the input file it read and its SHA-256, the SHA-256 of each document copy behind that input, the result, and each fix diff (`fix-<n>.diff` and its SHA-256) with the security review that read it and the step-6 review round that reviewed the fix, and each `answer-fix-<n>.diff` with its SHA-256, its security review and its post-answer round, and, for each step-6 and post-answer round, the `round-<n>` copies it read and any `round-<n>.diff` it reviewed, with their SHA-256. `context.json` `documents` keeps the final hashes, as before.
 
 ## When a review cannot run
 
