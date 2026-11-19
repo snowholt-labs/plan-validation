@@ -137,9 +137,17 @@ launch prompt references `report.md`, so the next agent can recover this record.
 
 ## Handoff files
 
-Before writing any handoff file, delete `handoff.txt` and every earlier
-`handoff-phase-*.txt` in the run directory, so an earlier prompt never survives a
-changed verdict or a failed write. Then write:
+Never delete a handoff file: a delete can wait on a permission prompt and stall the run.
+Before writing any handoff file, overwrite `handoff.txt` and every earlier
+`handoff-phase-*.txt` in the run directory with exactly these two lines, so an earlier
+prompt never survives a changed verdict or a failed write:
+
+```text
+SUPERSEDED PROMPT — DO NOT EXECUTE.
+See section 8 of report.md for the current prompts.
+```
+
+Then write:
 
 - `handoff.txt`: the first fenced prompt of section 8 (the first ready phase's prompt, or
   the single remediation prompt), exactly as written there, after the historical warning
@@ -294,10 +302,12 @@ approvals, Git state or the report itself.
 17. `Review status` is exactly `complete` or `incomplete`, and `Handoff status` is exactly
     `current` or `historical`. The Run record has a `Provenance:` line naming the run
     directory.
-18. `handoff.txt` and each `handoff-phase-<id>.txt` match their section 8 prompts exactly,
+18. `handoff.txt` and the `handoff-phase-<id>.txt` of each phase with its own prompt match
+    their section 8 prompts exactly,
     after the two historical warning lines and one blank line when Handoff status is
     `historical` (item 15),
-    and no phase file exists for a phase without its own prompt in section 8.
+    and a phase file for a phase without its own prompt in section 8 holds exactly the two
+    superseded lines (Handoff files above).
 19. In a saved report whose Handoff status is `historical`, the Summary holds exactly one
     fenced prompt under `### Current remediation prompt`, the Summary's last heading, that
     meets item 12's word count and item 13's rules (`Do not start dependent
