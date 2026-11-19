@@ -24,7 +24,8 @@ file happens to exist later. After validation, save:
 
 - `report.md`: the complete report, in the layout below. It is the only report file;
   every record the report needs lives in it.
-- `handoff.txt` and one `handoff-phase-<id>.txt` per ready phase (Handoff files below).
+- `handoff.txt` and one `handoff-phase-<id>.txt` per ready phase, plus any earlier phase file
+  left holding the superseded lines (Handoff files below).
 - `revised-plan.md` and `revised-spec.md`: copies of the validated revisions.
 - A local research ledger and source evidence when research ran or was declined,
   including sent, declined or unavailable lookups. Record only public query text;
@@ -137,9 +138,17 @@ launch prompt references `report.md`, so the next agent can recover this record.
 
 ## Handoff files
 
-Before writing any handoff file, delete `handoff.txt` and every earlier
-`handoff-phase-*.txt` in the run directory, so an earlier prompt never survives a
-changed verdict or a failed write. Then write:
+Never delete a handoff file: a delete can wait on a permission prompt and stall the run.
+Before writing any handoff file, overwrite `handoff.txt` and every earlier
+`handoff-phase-*.txt` in the run directory with exactly these two lines, so an earlier
+prompt never survives a changed verdict or a failed write:
+
+```text
+SUPERSEDED PROMPT — DO NOT EXECUTE.
+See section 8 of report.md and its Handoff status for any prompt to use.
+```
+
+Then write:
 
 - `handoff.txt`: the first fenced prompt of section 8 (the first ready phase's prompt, or
   the single remediation prompt), exactly as written there, after the historical warning
@@ -288,16 +297,18 @@ approvals, Git state or the report itself.
     `have to` (as in `do not need to`, `don't have to`), or `no need to`, comes right
     before it. `Do not run validation again first` fails, so reword it: a new report has
     no re-run.
-15. When Handoff status is `historical`, section 8 and every handoff file start with the
-    historical warning lines (Handoff files above).
+15. When Handoff status is `historical`, section 8, `handoff.txt` and the phase file of each
+    phase with its own prompt start with the historical warning lines (Handoff files above).
 16. The Task inventory is nonempty and lists each task ID once.
 17. `Review status` is exactly `complete` or `incomplete`, and `Handoff status` is exactly
     `current` or `historical`. The Run record has a `Provenance:` line naming the run
     directory.
-18. `handoff.txt` and each `handoff-phase-<id>.txt` match their section 8 prompts exactly,
+18. `handoff.txt` and the `handoff-phase-<id>.txt` of each phase with its own prompt match
+    their section 8 prompts exactly,
     after the two historical warning lines and one blank line when Handoff status is
     `historical` (item 15),
-    and no phase file exists for a phase without its own prompt in section 8.
+    and a phase file for a phase without its own prompt in section 8 holds exactly the two
+    superseded lines (Handoff files above).
 19. In a saved report whose Handoff status is `historical`, the Summary holds exactly one
     fenced prompt under `### Current remediation prompt`, the Summary's last heading, that
     meets item 12's word count and item 13's rules (`Do not start dependent
